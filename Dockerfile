@@ -1,6 +1,7 @@
 FROM gradle:8.5-jdk17 AS build
 WORKDIR /app
 COPY . .
+RUN chmod -x gradlew
 RUN ./gradlew clean bootJar -x test
 
 FROM openjdk:17-jdk-slim
