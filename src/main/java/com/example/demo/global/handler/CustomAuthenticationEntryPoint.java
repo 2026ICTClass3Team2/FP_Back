@@ -4,27 +4,24 @@ import com.google.gson.Gson;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 
-@Slf4j
 @Component
-public class ApiLoginFailurerHandler implements AuthenticationFailureHandler {
+public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
     @Override
-    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
-        log.error("Login fail: {}", exception.getMessage());
-
+    public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
         Gson gson = new Gson();
-        String jsonStr = gson.toJson(Map.of("error", "ERROR_LOGIN"));
-
+        String jsonStr = gson.toJson(Map.of("error", "UNAUTHORIZED", "message", authException.getMessage()));
+        
         response.setContentType("application/json;charset=utf-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        
         PrintWriter pw = response.getWriter();
         pw.println(jsonStr);
         pw.close();
