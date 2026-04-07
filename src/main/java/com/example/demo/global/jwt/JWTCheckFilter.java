@@ -1,6 +1,6 @@
 package com.example.demo.global.jwt;
 
-import com.example.demo.user.dto.MemberDTO;
+import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.global.exception.CustomJWTException;
 import com.google.gson.Gson;
 import io.jsonwebtoken.Claims;
@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -17,7 +18,8 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
-// 요청 당 한번만 동작되는 필터 만들기
+// 요청 당 한번만 동작되는 필터
+@Slf4j
 public class JWTCheckFilter extends OncePerRequestFilter {
     private final JWTUtil jwtUtil;
 
@@ -26,13 +28,20 @@ public class JWTCheckFilter extends OncePerRequestFilter {
     }
 
     @Override
-    // true가 반환되면 필터가 수행되지 않음 / false가 리턴되면 필터를 수행함
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        // 요청 uri
-        String uri= request.getRequestURI(); //  /api/todos/insert
-        if(uri.startsWith("/api/todos")){ //필터가 수행되어야 하는 경로
+        // 필터링을 생략할 경로 설정
+        String path = request.getRequestURI();
+        
+        // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
+        if(path.equals("/api/login") || path.equals("/api/member/signup") || path.equals("/api/logout")) {
+            return true;
+        }
+
+        // 인증이 필요한 경로만 필터 적용 (필요에 따라 변경)
+        if(path.startsWith("/api/")) {
             return false;
         }
+        
         return true;
     }
 
@@ -41,35 +50,60 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
+            // 헤더에서 Access Token 추출
             String authorizationStr = request.getHeader("Authorization");
             if (authorizationStr == null || !authorizationStr.startsWith("Bearer ")) {
+                log.error("No valid Authorization header found");
                 throw new CustomJWTException("NO_AUTH_HEADER");
             }
-            //"Bearer AB123XXXXXXX";  => "Bearer JWT값"
+            
+            // "Bearer " 문자열을 제외한 순수 JWT 추출
             String accessToken = authorizationStr.substring(7);
+            log.info("Access Token Validation: {}", accessToken);
+            
+            // Token 검증 및 Claims 추출
             Claims claims = jwtUtil.validateToken(accessToken);
-            String email=claims.getSubject();
-            List<String> roleNames = claims.get("roleName",List.class);
-            //사용자 정보를 꺼내와서 UserDetails객체(User객체)에 저장하기
-            MemberDTO memberDTO = new MemberDTO(email, "", null,false, roleNames);
-            ///////  인증된 사용자 정보를 스프링시큐리티 컨텍스트에 등록하기   ///////////////
-            //UsernamePasswordAuthenticationToken : 사용자이름과 비밀번호를 기반으로 인증정보를 나타내는 클래스
-            UsernamePasswordAuthenticationToken authenticationToken=
+            String email = claims.get("email", String.class);
+            
+            // roleName이 존재하는 경우 처리 로직 (없다면 수정 필요)
+            List<String> roleNames = null;
+            if(claims.get("roleName") != null) {
+               roleNames = claims.get("roleName", List.class);
+            } else {
+                roleNames = List.of("USER");
+            }
+
+            // 사용자 정보를 MemberDTO에 저장
+            MemberDTO memberDTO = new MemberDTO(email, "", "temp_nickname", roleNames);
+            
+            // 인증 객체 생성 및 SecurityContext 등록
+            UsernamePasswordAuthenticationToken authenticationToken =
                     new UsernamePasswordAuthenticationToken(
-                            memberDTO, //principal
-                            "", // 비밀번호는 담을 필요가 없다.(보안상 값을 넣는건 안좋음)=>더미데이터를 넣거나 빈문자 넣기
+                            memberDTO, 
+                            "", 
                             memberDTO.getAuthorities());
+            
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             filterChain.doFilter(request, response);
+            
+        } catch (CustomJWTException e) {
+            // JWT 관련 커스텀 예외 처리
+            log.error("JWT Exception: {}", e.getMessage());
+            handleException(response, "ERROR_ACCESS_TOKEN", e.getMessage());
         } catch (Exception e) {
-            e.printStackTrace();
-            // jwt로 인증하지 못하면 클라이언트에 오류정보를 json으로 응답하기
-            Gson gson=new Gson();
-            String jsonStr=gson.toJson(Map.of("error","ERROR_ACCESS_TOKEN"));
-            response.setContentType("application/json;charset=utf-8");
-            PrintWriter pw= response.getWriter();
-            pw.println(jsonStr);
-            pw.close();
+            // 그 외 일반 예외 처리
+            log.error("Internal Server Error: {}", e.getMessage(), e);
+            handleException(response, "ERROR_SERVER", "Internal Server Error");
         }
+    }
+
+    private void handleException(HttpServletResponse response, String errorKey, String errorMessage) throws IOException {
+        Gson gson = new Gson();
+        String jsonStr = gson.toJson(Map.of("error", errorKey, "message", errorMessage));
+        response.setContentType("application/json;charset=utf-8");
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        PrintWriter pw = response.getWriter();
+        pw.println(jsonStr);
+        pw.close();
     }
 }

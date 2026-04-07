@@ -9,6 +9,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Map;
 
 //인증은 되었지만 권한이(Admin,..) 없을때
@@ -21,7 +22,8 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
         String jsonStr = new Gson()
                 .toJson(Map.of("error", "ERROR_ACCESS_DENIED"));
-
-        response.getWriter().println(jsonStr);
+        PrintWriter pw = response.getWriter();
+        pw.println(jsonStr);
+        pw.close();
     }
 }
