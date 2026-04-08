@@ -26,6 +26,10 @@ public class User {
     private String password;
 
     private String nickname;
+    
+    // 소셜 로그인 관련 필드 추가
+    private String provider; // google, kakao, github 등
+    private String providerId; // 소셜 서버에서 발급한 고유 식별자
 
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "user_role_list", joinColumns = @JoinColumn(name = "user_id"))

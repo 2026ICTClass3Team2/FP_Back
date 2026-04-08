@@ -2,6 +2,7 @@ package com.example.demo.global.jwt;
 
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.global.exception.CustomJWTException;
+import com.example.demo.global.redis.RedisService;
 import com.google.gson.Gson;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -22,9 +23,11 @@ import java.util.Map;
 @Slf4j
 public class JWTCheckFilter extends OncePerRequestFilter {
     private final JWTUtil jwtUtil;
+    private final RedisService redisService;
 
-    public JWTCheckFilter(JWTUtil jwtUtil) {
+    public JWTCheckFilter(JWTUtil jwtUtil, RedisService redisService) {
         this.jwtUtil = jwtUtil;
+        this.redisService = redisService;
     }
 
     @Override
@@ -33,7 +36,8 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         
         // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
-        if(path.equals("/api/login") || path.equals("/api/member/signup") || path.equals("/api/logout")) {
+        // 재발급 API인 /api/member/refresh 도 제외해야 토큰 만료 상태에서 접근 가능
+        if(path.equals("/api/login") || path.equals("/api/member/signup") || path.equals("/api/logout") || path.equals("/api/member/refresh")) {
             return true;
         }
 
@@ -59,6 +63,13 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             
             // "Bearer " 문자열을 제외한 순수 JWT 추출
             String accessToken = authorizationStr.substring(7);
+            
+            // 블랙리스트 확인 (토큰 폐기 전략 적용)
+            if (redisService.isBlackList(accessToken)) {
+                log.error("Access Token is in blacklist");
+                throw new CustomJWTException("LOGGED_OUT_TOKEN");
+            }
+
             log.info("Access Token Validation: {}", accessToken);
             
             // Token 검증 및 Claims 추출

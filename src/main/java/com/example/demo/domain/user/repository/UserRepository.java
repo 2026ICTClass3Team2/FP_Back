@@ -13,4 +13,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> getWithRoles(@Param("email") String email);
 
     boolean existsByEmail(String email);
+
+    // OAuth 로그인을 위한 조회 (provider + providerId 조합으로 찾거나 email로 찾음)
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
+    
+    // 이메일로 유저를 찾는 일반적인 Optional 조회
+    Optional<User> findByEmail(String email);
 }
