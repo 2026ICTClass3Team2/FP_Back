@@ -7,6 +7,11 @@ import com.example.demo.global.handler.CustomAccessDeniedHandler;
 import com.example.demo.global.handler.CustomAuthenticationEntryPoint;
 import com.example.demo.global.handler.CustomLogoutSuccessHandler;
 import com.example.demo.global.jwt.JWTUtil;
+import com.example.demo.global.oauth2.CustomOAuth2UserService;
+import com.example.demo.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.example.demo.global.oauth2.OAuth2LoginFailureHandler;
+import com.example.demo.global.oauth2.OAuth2LoginSuccessHandler;
+import com.example.demo.global.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,8 +20,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -31,16 +34,18 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JWTUtil jwtUtil;
+    private final RedisService redisService;
     private final ApiLoginSuccessHandler apiLoginSuccessHandler;
     private final ApiLoginFailurerHandler apiLoginFailurerHandler;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
 
-    @Bean
-    public PasswordEncoder passwordEncoder(){
-        return new BCryptPasswordEncoder();
-    }
+    // OAuth2 의존성 주입
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
+    private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
@@ -63,20 +68,40 @@ public class SecurityConfig {
         
         // 4. CORS 설정 적용
         http.cors(cors->cors.configurationSource(corsConfigurationSource()));
+
+        // 5. OAuth2 로그인 설정
+        http.oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(auth -> auth
+                        // 프론트엔드에서 /oauth2/authorization/{provider}?redirect_uri=... 형태로 접근
+                        .baseUri("/oauth2/authorization")
+                        // 상태 저장을 쿠키 기반으로 변경 (Stateless 하기 위함)
+                        .authorizationRequestRepository(httpCookieOAuth2AuthorizationRequestRepository)
+                )
+                .redirectionEndpoint(redirect -> redirect
+                        // 소셜 서버 로그인 후 돌아오는 redirect_uri의 base 엔드포인트
+                        .baseUri("/login/oauth2/code/*")
+                )
+                .userInfoEndpoint(userInfo -> userInfo
+                        // 구글, 카카오 등에서 가져온 사용자 정보를 처리할 클래스
+                        .userService(customOAuth2UserService)
+                )
+                .successHandler(oAuth2LoginSuccessHandler) // 소셜 로그인 성공 시 핸들러
+                .failureHandler(oAuth2LoginFailureHandler) // 소셜 로그인 실패 시 핸들러
+        );
         
-        // 5. JWT 확인 필터 추가
+        // 6. JWT 확인 필터 추가
         http.addFilterBefore(
-                new JWTCheckFilter(jwtUtil),
+                new JWTCheckFilter(jwtUtil, redisService),
                 UsernamePasswordAuthenticationFilter.class
         );
         
-        // 6. 예외 처리 핸들러 등록
+        // 7. 예외 처리 핸들러 등록
         http.exceptionHandling(ex->
                 ex.accessDeniedHandler(customAccessDeniedHandler) // 인가 실패
                   .authenticationEntryPoint(customAuthenticationEntryPoint) // 인증 실패
         );
 
-        // 7. 로그아웃 설정
+        // 8. 로그아웃 설정
         http.logout(logout -> logout
                 .logoutUrl("/api/logout") // 로그아웃 경로
                 .logoutSuccessHandler(customLogoutSuccessHandler)
