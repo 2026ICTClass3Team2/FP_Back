@@ -12,12 +12,10 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     public void join(UserJoinDTO userJoinDTO) {
-        
         String email = userJoinDTO.getEmail();
         boolean exist = userRepository.existsByEmail(email);
         

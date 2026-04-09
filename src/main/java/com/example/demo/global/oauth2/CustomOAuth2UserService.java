@@ -28,7 +28,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -55,7 +54,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // 2. 그럼에도 이메일을 가져오지 못했다면 임시 이메일 부여 (주로 카카오 선택 동의 안 한 경우)
         if (email == null || email.isEmpty() || email.equals("null")) {
-             email = providerId + "@" + provider + ".com"; 
+             email = providerId + "@" + provider + ".com";
              log.warn("OAuth2 Email is null, using generated email: {}", email);
         }
 
@@ -105,7 +104,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         HttpEntity<String> entity = new HttpEntity<>("", headers);
-
         try {
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     "https://api.github.com/user/emails",
