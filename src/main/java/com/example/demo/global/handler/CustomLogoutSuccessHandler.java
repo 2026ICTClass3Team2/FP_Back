@@ -41,7 +41,7 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
                 long remainTime = expirationTime - now;
 
                 if (remainTime > 0) {
-                    // Redis에 블랙리스트로 등록 (토큰 폐기)
+                    // Redis 및 DB에 블랙리스트로 등록 (토큰 폐기)
                     redisService.setBlackList(accessToken, remainTime);
                     log.info("Access Token added to Blacklist. Remaining time: {} ms", remainTime);
                 }
@@ -56,7 +56,7 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
             username = authentication.getName();
         }
 
-        // 3. Redis에서 Refresh Token 삭제 (DB에서 폐기)
+        // 3. Redis에서 Refresh Token 삭제
         if (username != null) {
             redisService.deleteRefreshToken(username);
             log.info("Refresh Token deleted from Redis for user: {}", username);
@@ -64,10 +64,15 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
 
         // 4. 브라우저 쿠키에서 Refresh Token 삭제 (클라이언트에서 폐기)
         Cookie cookie = new Cookie("refreshToken", null);
-        cookie.setMaxAge(0);
+        cookie.setMaxAge(0); // 0으로 설정하여 즉시 만료
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
+        
+        // 중요: 쿠키의 도메인(domain)이나 SameSite 속성이 프론트엔드 환경과 다를 경우 
+        // 브라우저가 쿠키 삭제를 무시할 수 있으므로, 필요하다면 SameSite 속성 추가
+        cookie.setAttribute("SameSite", "None"); 
+
         response.addCookie(cookie);
 
         // 5. 응답 전송

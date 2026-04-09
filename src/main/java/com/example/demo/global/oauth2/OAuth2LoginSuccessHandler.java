@@ -3,20 +3,20 @@ package com.example.demo.global.oauth2;
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.global.jwt.JWTUtil;
 import com.example.demo.global.redis.RedisService;
-import com.google.gson.Gson;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +31,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final RedisService redisService;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         // 프론트엔드에서 보낸 redirect_uri 쿠키에서 꺼내오기
@@ -40,9 +43,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         MemberDTO memberDTO = (MemberDTO) authentication.getPrincipal();
         String email = memberDTO.getEmail();
-        String nickname = memberDTO.getNickname();
+        String username = memberDTO.getNickname(); // React에서 필요한 username(또는 닉네임)
         
-        // OAuth2 공급자로부터 받은 attributes를 로그로 확인하고 응답에 포함시킵니다.
+        // OAuth2 공급자로부터 받은 attributes를 로그로 확인
         Map<String, Object> attributes = memberDTO.getAttributes();
         log.info("OAuth2 User Attributes: {}", attributes);
 
@@ -67,28 +70,18 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 쿠키에 담겼던 OAuth2 요청 정보 삭제
         clearAuthenticationAttributes(request, response);
 
-        // 만약 redirect_uri가 쿠키에 명시되어 있다면 해당 주소로 리다이렉트 (보통 프론트에서 넘어왔을 때)
-        if (redirectUri.isPresent()) {
-            String targetUrl = redirectUri.get();
-            String finalUrl = targetUrl + "?token=" + accessToken;
-            getRedirectStrategy().sendRedirect(request, response, finalUrl);
-            return;
-        }
+        // 프론트엔드 연동: OAuthCallback 컴포넌트가 있는 라우터로 이동
+        // 1순위: 쿠키에 명시된 redirectUri
+        // 2순위: 기본 콜백 페이지 URL (/oauth/callback)
+        String targetUrl = redirectUri.orElse(frontendUrl + "/oauth/callback"); 
         
-        // 프론트엔드가 따로 없고 그냥 백엔드 API에서 브라우저로 화면을 띄웠을 때 JSON 출력되게 함
-        Map<String, Object> responseData = new HashMap<>();
-        responseData.put("accessToken", accessToken);
-        responseData.put("email", email);
-        responseData.put("nickname", nickname);
-        responseData.put("message", "OAuth2 Login Success");
+        // 한글 이름(username)이 포함되어 있으면 URL Encoding을 거쳐야 에러가 발생하지 않습니다.
+        String encodedUsername = URLEncoder.encode(username != null ? username : "소셜유저", StandardCharsets.UTF_8.name());
         
-        // 디버깅을 위해 응답에 attributes 전체를 포함시킵니다. (프로덕션에서는 제외 권장)
-        responseData.put("attributes", attributes);
-
-        response.setContentType("application/json;charset=utf-8");
-        PrintWriter pw = response.getWriter();
-        pw.print(new Gson().toJson(responseData));
-        pw.close();
+        String finalUrl = targetUrl + "?token=" + accessToken + "&username=" + encodedUsername;
+        
+        log.info("Redirecting to frontend: {}", finalUrl);
+        getRedirectStrategy().sendRedirect(request, response, finalUrl);
     }
 
     private void clearAuthenticationAttributes(HttpServletRequest request, HttpServletResponse response) {
