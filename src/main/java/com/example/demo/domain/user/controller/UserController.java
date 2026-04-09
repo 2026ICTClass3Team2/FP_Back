@@ -26,15 +26,14 @@ import java.util.Map;
 @Slf4j
 @RequestMapping("/api/member")
 public class UserController {
-
     private final UserService userService;
     private final JWTUtil jwtUtil;
     private final RedisService redisService;
 
+    // 회원 가입
     @PostMapping("/signup")
     public ResponseEntity<Map<String, String>> join(@RequestBody UserJoinDTO userJoinDTO) {
         log.info("join: {}", userJoinDTO);
-
         userService.join(userJoinDTO);
 
         return ResponseEntity.ok(Map.of("result", "success"));
