@@ -25,7 +25,7 @@ public class MemberDTO extends User implements OAuth2User { // OAuth2User 인터
     // 일반 로그인용 생성자
     public MemberDTO(String email, String password, String nickname, List<String> roleNames) {
         super(email, password != null ? password : "", roleNames != null && !roleNames.isEmpty() ?
-                roleNames.stream().map(str -> new SimpleGrantedAuthority("ROLE_" + str)).collect(Collectors.toList()) :
+                roleNames.stream().map(str -> new SimpleGrantedAuthority("ROLE_" + str.toUpperCase())).collect(Collectors.toList()) :
                 List.of(new SimpleGrantedAuthority("ROLE_USER")));
         this.email = email;
         this.password = password != null ? password : "";

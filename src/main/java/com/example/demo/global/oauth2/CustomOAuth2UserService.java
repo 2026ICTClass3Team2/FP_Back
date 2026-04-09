@@ -1,7 +1,10 @@
 package com.example.demo.global.oauth2;
 
 import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.Provider;
+import com.example.demo.domain.user.entity.Role;
 import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.entity.UserStatus;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,7 +46,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         OAuth2UserInfo oAuth2UserInfo = OAuth2UserInfoFactory.getOAuth2UserInfo(registrationId, attributes);
 
-        String provider = oAuth2UserInfo.getProvider();
+        String providerStr = oAuth2UserInfo.getProvider();
+        Provider provider;
+        try {
+            provider = Provider.valueOf(providerStr);
+        } catch (IllegalArgumentException e) {
+            log.error("Unsupported provider: {}", providerStr);
+            provider = Provider.local; // fallback
+        }
+        
         String providerId = oAuth2UserInfo.getProviderId();
         String email = oAuth2UserInfo.getEmail();
         String name = oAuth2UserInfo.getName();
@@ -54,12 +66,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // 2. 그럼에도 이메일을 가져오지 못했다면 임시 이메일 부여 (주로 카카오 선택 동의 안 한 경우)
         if (email == null || email.isEmpty() || email.equals("null")) {
-             email = providerId + "@" + provider + ".com";
+             email = providerId + "@" + providerStr + ".com";
              log.warn("OAuth2 Email is null, using generated email: {}", email);
         }
 
         if (name == null || name.isEmpty() || name.equals("null")) {
-             name = provider + "_" + providerId;
+             name = providerStr + "_" + providerId;
              log.warn("OAuth2 Name is null, using generated name: {}", name);
         }
         
@@ -74,26 +86,41 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             log.info("OAuth2 Login: First time login. Proceed to join.");
             String randomPw = UUID.randomUUID().toString();
             
+            // username은 고유해야 하므로 임시 생성 (예: provider_providerId)
+            String username = providerStr + "_" + providerId;
+            
+            // 만약에 username이 이미 존재한다면 랜덤하게 처리
+            while (userRepository.existsByUsername(username)) {
+                 username = username + "_" + UUID.randomUUID().toString().substring(0, 4);
+            }
+            
             user = User.builder()
                     .email(email)
-                    .password(passwordEncoder.encode(randomPw))
+                    .username(username)
+                    .password(passwordEncoder.encode(randomPw)) // OAuth 사용 시에도 임의의 값을 암호화하여 저장
                     .nickname(name)
                     .provider(provider)
                     .providerId(providerId)
+                    .status(UserStatus.active)
                     .build();
                     
-            user.addRole("USER");
+            user.addRole(Role.user);
             userRepository.save(user);
         } else {
             log.info("OAuth2 Login: Existing user.");
             user = optionalUser.get();
         }
 
+        // Role 리스트를 String 리스트로 변환
+        List<String> roleNames = user.getRoleList().stream()
+                                     .map(Enum::name)
+                                     .collect(Collectors.toList());
+
         return new MemberDTO(
                 user.getEmail(),
                 user.getPassword(),
                 user.getNickname(),
-                user.getRoleList(),
+                roleNames,
                 oAuth2User.getAttributes()
         );
     }

@@ -46,8 +46,10 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
 
     @Override
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request, HttpServletResponse response) {
-        // 스프링 시큐리티 내부에서 가져갈 때 호출
+        // 스프링 시큐리티 내부에서 이 메서드를 호출하여 삭제 처리와 동시에 반환받아감
         return this.loadAuthorizationRequest(request);
+        // 여기서 쿠키를 지워버리면, 이후 successHandler나 failureHandler에서 redirect_uri를 꺼낼 수 없습니다.
+        // 따라서 성공/실패 핸들러 쪽에서 명시적으로 지우도록 둡니다.
     }
 
     public void removeAuthorizationRequestCookies(HttpServletRequest request, HttpServletResponse response) {
@@ -72,6 +74,8 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
         Cookie cookie = new Cookie(name, value);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
+        // 쿠키 보안 설정 수정: SameSite 설정을 추가해야 크롬 등 최신 브라우저에서 날아가지 않습니다.
+        cookie.setAttribute("SameSite", "Lax");
         cookie.setMaxAge(maxAge);
         response.addCookie(cookie);
     }
