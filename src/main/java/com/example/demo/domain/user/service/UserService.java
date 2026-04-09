@@ -1,36 +1,73 @@
 package com.example.demo.domain.user.service;
 
 import com.example.demo.domain.user.dto.UserJoinDTO;
-import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.entity.*;
+import com.example.demo.domain.user.repository.TechStackRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final TechStackRepository techStackRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional
     public void join(UserJoinDTO userJoinDTO) {
         String email = userJoinDTO.getEmail();
-        boolean exist = userRepository.existsByEmail(email);
+        String username = userJoinDTO.getUsername();
         
-        if (exist) {
-            throw new IllegalArgumentException("Email already exists");
+        // 이메일 중복 체크
+        if (userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+        }
+        
+        // username 중복 체크
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         }
 
+        // 1. 유저 저장
         User user = User.builder()
-                .email(userJoinDTO.getEmail())
+                .email(email)
+                .username(username)
                 .password(passwordEncoder.encode(userJoinDTO.getPassword()))
                 .nickname(userJoinDTO.getNickname())
+                .provider(Provider.local) // 일반 가입
+                .status(UserStatus.active)
                 .build();
                 
-        user.addRole("USER");
+        user.addRole(Role.user);
+        User savedUser = userRepository.save(user);
 
-        userRepository.save(user);
+        // 2. 기술 스택 저장 (선택 입력)
+        List<String> techStacks = userJoinDTO.getTechStacks();
+        if (techStacks != null && !techStacks.isEmpty()) {
+            for (String stack : techStacks) {
+                TechStack techStack = TechStack.builder()
+                        .user(savedUser)
+                        .stackName(stack)
+                        .build();
+                techStackRepository.save(techStack);
+            }
+        }
+    }
+
+    // 아이디 중복 체크 API용
+    public boolean checkUsername(String username) {
+        return userRepository.existsByUsername(username);
+    }
+
+    // 이메일 중복 체크 API용
+    public boolean checkEmail(String email) {
+        return userRepository.existsByEmail(email);
     }
 }
