@@ -104,7 +104,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         HttpEntity<String> entity = new HttpEntity<>("", headers);
-
         try {
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     "https://api.github.com/user/emails",
