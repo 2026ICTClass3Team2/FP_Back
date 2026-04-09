@@ -24,7 +24,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("/api/member")
+@RequestMapping("/member")
 public class UserController {
     private final UserService userService;
     private final JWTUtil jwtUtil;
