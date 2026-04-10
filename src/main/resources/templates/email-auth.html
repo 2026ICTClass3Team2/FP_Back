@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>dead bug 인증 메일</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f7f6;">
+    <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center;">
+
+        <!-- 로고 또는 헤더 -->
+        <h1 style="color: #333333; font-size: 28px; margin-bottom: 10px;">dead bug</h1>
+        <hr style="border: none; border-top: 1px solid #eeeeee; margin-bottom: 30px;">
+
+        <!-- 본문 내용 -->
+        <h2 style="color: #555555; font-size: 22px; font-weight: 500; margin-bottom: 20px;">이메일 인증을 진행해 주세요.</h2>
+        <p style="color: #777777; font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
+            안녕하세요! <br>
+            <strong>dead bug</strong> 서비스 회원가입을 위해 아래 인증 코드를 화면에 입력해 주세요.
+        </p>
+
+        <!-- 인증 코드 박스 -->
+        <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; padding: 20px; border-radius: 6px; display: inline-block; margin-bottom: 30px;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff;" th:text="${authCode}">123456</span>
+        </div>
+
+        <!-- 안내 사항 -->
+        <p style="color: #999999; font-size: 14px; margin-bottom: 40px;">
+            본 인증 코드는 <strong>3분 동안</strong>만 유효합니다.<br>
+            본인이 요청하지 않은 경우 이 메일을 무시해 주세요.
+        </p>
+
+        <!-- 푸터 -->
+        <hr style="border: none; border-top: 1px solid #eeeeee; margin-bottom: 20px;">
+        <p style="color: #bbbbbb; font-size: 12px;">
+            © 2026 dead bug. All rights reserved.
+        </p>
+    </div>
+</body>
+</html>
