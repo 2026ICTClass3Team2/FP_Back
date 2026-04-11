@@ -62,7 +62,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 응답 쿠키에 Refresh Token 추가
         Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
         refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(true);
+        // refreshTokenCookie.setSecure(true); // 로컬 테스트 시 http 환경이라면 Secure 속성 때문에 쿠키가 저장되지 않을 수 있습니다. 운영 환경에서는 true로 변경하세요.
         refreshTokenCookie.setPath("/");
         refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(refreshTokenCookie);
