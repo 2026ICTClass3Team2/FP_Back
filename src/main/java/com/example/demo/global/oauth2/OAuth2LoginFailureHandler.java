@@ -23,7 +23,7 @@ public class OAuth2LoginFailureHandler extends SimpleUrlAuthenticationFailureHan
 
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
-    @Value("${app.frontend.url}")
+    @Value(value = "${app.frontend.url}")
     private String frontendUrl;
 
     @Override
