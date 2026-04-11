@@ -31,7 +31,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final RedisService redisService;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value(value = "${app.frontend.url}")
     private String frontendUrl;
 
     @Override
