@@ -59,7 +59,7 @@ public class SecurityConfig {
         
         // 3. 폼 로그인 방식 비활성화 (API 기반) 및 커스텀 로그인 처리
         http.formLogin(form->form
-                .loginProcessingUrl("/api/login") // 요구사항: /api/login 요청 시 처리
+                .loginProcessingUrl("/login") // 요구사항: /api/login 요청 시 처리
                 .usernameParameter("email")
                 .passwordParameter("pw")
                 .successHandler(apiLoginSuccessHandler)
@@ -103,7 +103,7 @@ public class SecurityConfig {
 
         // 8. 로그아웃 설정
         http.logout(logout -> logout
-                .logoutUrl("/api/logout") // 로그아웃 경로
+                .logoutUrl("/logout") // 로그아웃 경로
                 .logoutSuccessHandler(customLogoutSuccessHandler)
                 .deleteCookies("refreshToken")
         );
