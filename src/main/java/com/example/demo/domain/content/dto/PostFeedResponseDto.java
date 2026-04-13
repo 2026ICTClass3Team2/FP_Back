@@ -33,12 +33,14 @@ public class PostFeedResponseDto {
 
     // 4. 통계 정보
     private int likeCount;
+    private int dislikeCount;
     private int viewCount;
     private int commentCount;
     private int shareCount;
 
     // 5. 사용자 상태 정보
     private boolean isLiked;
+    private boolean isDisliked;
     private boolean isBookmarked;
     private boolean isAuthor;
 }
