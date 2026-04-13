@@ -4,8 +4,10 @@ import com.example.demo.domain.comment.dto.CommentRequestDto;
 import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
-import com.example.demo.domain.content.feed.entity.Post;
+import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.feed.repository.PostRepository;
+import com.example.demo.domain.interaction.entity.Interaction;
+import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final InteractionRepository interactionRepository;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -105,16 +109,43 @@ public class CommentService {
     }
 
     @Transactional
-    public void likeComment(Long commentId) {
+    public void toggleInteraction(Long commentId, String actionType, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
-        comment.setLikeCount(comment.getLikeCount() + 1);
+
+        Optional<Interaction> existingInteraction = interactionRepository
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comments", comment.getId());
+
+        if (existingInteraction.isPresent()) {
+            Interaction interaction = existingInteraction.get();
+            if (interaction.getActionType().equals(actionType)) {
+                interactionRepository.delete(interaction);
+                updateCommentCount(comment, actionType, -1);
+            } else {
+                String previousActionType = interaction.getActionType();
+                interaction.setActionType(actionType);
+                updateCommentCount(comment, previousActionType, -1);
+                updateCommentCount(comment, actionType, 1);
+            }
+        } else {
+            Interaction newInteraction = Interaction.builder()
+                    .user(user)
+                    .targetId(comment.getId())
+                    .targetType("comments")
+                    .actionType(actionType)
+                    .build();
+            interactionRepository.save(newInteraction);
+            updateCommentCount(comment, actionType, 1);
+        }
     }
 
-    @Transactional
-    public void dislikeComment(Long commentId) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
-        comment.setDislikeCount(comment.getDislikeCount() + 1);
+    private void updateCommentCount(Comment comment, String actionType, int delta) {
+        if ("like".equals(actionType)) {
+            comment.setLikeCount(Math.max(0, comment.getLikeCount() + delta));
+        } else if ("dislike".equals(actionType)) {
+            comment.setDislikeCount(Math.max(0, comment.getDislikeCount() + delta));
+        }
     }
 }
