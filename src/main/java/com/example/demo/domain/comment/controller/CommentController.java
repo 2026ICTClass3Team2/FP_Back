@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/posts/{postId}/comments")
+@RequestMapping("/posts/{postId}/comments")
 @RequiredArgsConstructor
 public class CommentController {
 
@@ -53,20 +53,14 @@ public class CommentController {
     }
 
     @PostMapping("/{commentId}/like")
-    public ResponseEntity<Void> toggleLike(
-            @PathVariable Long postId,
-            @PathVariable Long commentId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        commentService.toggleInteraction(commentId, "like", userDetails.getUsername());
+    public ResponseEntity<Void> likeComment(@PathVariable Long commentId) {
+        commentService.likeComment(commentId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{commentId}/dislike")
-    public ResponseEntity<Void> toggleDislike(
-            @PathVariable Long postId,
-            @PathVariable Long commentId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        commentService.toggleInteraction(commentId, "dislike", userDetails.getUsername());
+    public ResponseEntity<Void> dislikeComment(@PathVariable Long commentId) {
+        commentService.dislikeComment(commentId);
         return ResponseEntity.ok().build();
     }
 }

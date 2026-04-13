@@ -1,10 +1,10 @@
-package com.example.demo.domain.content.controller;
+package com.example.demo.domain.content.feed.controller;
 
-import com.example.demo.domain.content.dto.PostCreateRequestDto;
-import com.example.demo.domain.content.dto.PostDetailResponseDto;
-import com.example.demo.domain.content.dto.PostFeedResponseDto;
-import com.example.demo.domain.content.dto.PostUpdateRequestDto;
-import com.example.demo.domain.content.service.PostService;
+import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
+import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
+import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
+import com.example.demo.domain.content.feed.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -111,40 +111,18 @@ public class PostController {
         }
     }
 
-    // 5. 좋아요 토글
+    // 5. 좋아요
     @PostMapping("/{postId}/like")
-    public ResponseEntity<?> toggleLike(
-            @PathVariable Long postId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        if (userDetails == null) {
-            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
-        }
-        
-        // PostService.java 내에는 리턴타입이 void로 된 toggleInteraction(postId, actionType, username) 메서드를 사용하지 않고 있으므로,
-        // 이전에 있었던 boolean toggleLike()를 사용하도록 복구합니다.
-        boolean isLiked = postService.toggleLike(postId, userDetails.getUsername());
-        return ResponseEntity.ok(Map.of(
-                "isLiked", isLiked,
-                "message", isLiked ? "좋아요가 추가되었습니다." : "좋아요가 취소되었습니다."
-        ));
+    public ResponseEntity<?> likePost(@PathVariable Long postId) {
+        postService.likePost(postId);
+        return ResponseEntity.ok().build();
     }
 
-    // 6. 비추천 토글
+    // 6. 비추천
     @PostMapping("/{postId}/dislike")
-    public ResponseEntity<?> toggleDislike(
-            @PathVariable Long postId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        if (userDetails == null) {
-            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
-        }
-        
-        boolean isDisliked = postService.toggleDislike(postId, userDetails.getUsername());
-        return ResponseEntity.ok(Map.of(
-                "isDisliked", isDisliked,
-                "message", isDisliked ? "비추천이 추가되었습니다." : "비추천이 취소되었습니다."
-        ));
+    public ResponseEntity<?> dislikePost(@PathVariable Long postId) {
+        postService.dislikePost(postId);
+        return ResponseEntity.ok().build();
     }
 
     // 7. 북마크 토글

@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.entity;
+package com.example.demo.domain.content.feed.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

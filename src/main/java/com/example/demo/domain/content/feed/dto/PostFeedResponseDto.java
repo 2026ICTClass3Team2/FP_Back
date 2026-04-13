@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.dto;
+package com.example.demo.domain.content.feed.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;

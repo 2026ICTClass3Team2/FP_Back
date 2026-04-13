@@ -4,13 +4,12 @@ import com.example.demo.domain.comment.dto.CommentRequestDto;
 import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
-import com.example.demo.domain.content.entity.Post;
-import com.example.demo.domain.content.repository.PostRepository;
-import com.example.demo.domain.interaction.entity.Interaction;
-import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.content.feed.entity.Post;
+import com.example.demo.domain.content.feed.repository.PostRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,22 +17,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CommentService {
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final InteractionRepository interactionRepository;
 
     @Transactional
-    public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String username) {
+    public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
+        log.info("조회하려는 유저 이메일: {}", email);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Comment parent = null;
@@ -78,11 +77,11 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponseDto updateComment(Long commentId, CommentRequestDto requestDto, String username) {
+    public CommentResponseDto updateComment(Long commentId, CommentRequestDto requestDto, String email) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
         
-        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
+        if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new IllegalArgumentException("Unauthorized to modify this comment");
         }
         if ("deleted".equals(comment.getStatus())) {
@@ -94,11 +93,11 @@ public class CommentService {
     }
 
     @Transactional
-    public void deleteComment(Long commentId, String username) {
+    public void deleteComment(Long commentId, String email) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
 
-        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
+        if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new IllegalArgumentException("Unauthorized to delete this comment");
         }
 
@@ -106,53 +105,16 @@ public class CommentService {
     }
 
     @Transactional
-    public void toggleInteraction(Long commentId, String actionType, String username) {
+    public void likeComment(Long commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comments", comment.getId());
-
-        if (existingInteraction.isPresent()) {
-            Interaction interaction = existingInteraction.get();
-            if (interaction.getActionType().equals(actionType)) {
-                // Toggle off
-                interactionRepository.delete(interaction);
-                updateCommentCount(comment, actionType, -1);
-            } else {
-                // Change action type (e.g., from like to dislike)
-                interactionRepository.delete(interaction);
-                updateCommentCount(comment, interaction.getActionType(), -1);
-                
-                Interaction newInteraction = Interaction.builder()
-                        .user(user)
-                        .targetId(comment.getId())
-                        .targetType("comments")
-                        .actionType(actionType)
-                        .build();
-                interactionRepository.save(newInteraction);
-                updateCommentCount(comment, actionType, 1);
-            }
-        } else {
-            // New interaction
-            Interaction newInteraction = Interaction.builder()
-                    .user(user)
-                    .targetId(comment.getId())
-                    .targetType("comments")
-                    .actionType(actionType)
-                    .build();
-            interactionRepository.save(newInteraction);
-            updateCommentCount(comment, actionType, 1);
-        }
+        comment.setLikeCount(comment.getLikeCount() + 1);
     }
 
-    private void updateCommentCount(Comment comment, String actionType, int delta) {
-        if ("like".equals(actionType)) {
-            comment.setLikeCount(comment.getLikeCount() + delta);
-        } else if ("dislike".equals(actionType)) {
-            comment.setDislikeCount(comment.getDislikeCount() + delta);
-        }
+    @Transactional
+    public void dislikeComment(Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+        comment.setDislikeCount(comment.getDislikeCount() + 1);
     }
 }

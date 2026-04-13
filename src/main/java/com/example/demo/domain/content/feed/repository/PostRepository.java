@@ -1,6 +1,6 @@
-package com.example.demo.domain.content.repository;
+package com.example.demo.domain.content.feed.repository;
 
-import com.example.demo.domain.content.entity.Post;
+import com.example.demo.domain.content.feed.entity.Post;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;

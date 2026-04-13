@@ -1,21 +1,19 @@
-package com.example.demo.domain.content.service;
+package com.example.demo.domain.content.feed.service;
 
 import com.example.demo.domain.channel.entity.Channel;
 import com.example.demo.domain.channel.repository.ChannelRepository;
-import com.example.demo.domain.content.dto.PostCreateRequestDto;
-import com.example.demo.domain.content.dto.PostDetailResponseDto;
-import com.example.demo.domain.content.dto.PostFeedResponseDto;
-import com.example.demo.domain.content.dto.PostUpdateRequestDto;
-import com.example.demo.domain.content.entity.Bookmark;
-import com.example.demo.domain.content.entity.Post;
-import com.example.demo.domain.content.entity.Tag;
-import com.example.demo.domain.content.entity.ContentTag;
-import com.example.demo.domain.content.repository.BookmarkRepository;
-import com.example.demo.domain.content.repository.ContentTagRepository;
-import com.example.demo.domain.content.repository.PostRepository;
-import com.example.demo.domain.content.repository.TagRepository;
-import com.example.demo.domain.interaction.entity.Interaction;
-import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
+import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
+import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
+import com.example.demo.domain.content.feed.entity.Bookmark;
+import com.example.demo.domain.content.feed.entity.Post;
+import com.example.demo.domain.content.feed.entity.Tag;
+import com.example.demo.domain.content.feed.entity.ContentTag;
+import com.example.demo.domain.content.feed.repository.BookmarkRepository;
+import com.example.demo.domain.content.feed.repository.ContentTagRepository;
+import com.example.demo.domain.content.feed.repository.PostRepository;
+import com.example.demo.domain.content.feed.repository.TagRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +23,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,8 +38,6 @@ public class PostServiceImpl implements PostService {
     private final ChannelRepository channelRepository;
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
-    private final InteractionRepository interactionRepository;
-    // private final ViewHistoryRepository viewHistoryRepository; // NOTE: Schema validation 에러로 인해 임시 주석 처리
 
     @Override
     @Transactional
@@ -163,24 +158,6 @@ public class PostServiceImpl implements PostService {
                     .orElseGet(() -> userRepository.findByUsername(currentUsername).orElse(null));
         }
 
-        // NOTE: Schema validation 에러로 인해 임시 주석 처리
-        // if (currentUser != null) {
-        //     LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-        //     boolean recentlyViewed = viewHistoryRepository.existsByUserIdAndTargetTypeAndTargetIdAndCreatedAtAfter(
-        //             currentUser.getId(), "posts", postId, oneHourAgo);
-            
-        //     if (!recentlyViewed) {
-        //         post.setViewCount(post.getViewCount() + 1);
-        //         ViewHistory viewHistory = ViewHistory.builder()
-        //                 .user(currentUser)
-        //                 .targetId(postId)
-        //                 .targetType("posts")
-        //                 .build();
-        //         viewHistoryRepository.save(viewHistory);
-        //     }
-        // } else {
-        //     post.setViewCount(post.getViewCount() + 1);
-        // }
         post.setViewCount(post.getViewCount() + 1); // 조회수 증가 로직 단순화
 
         return convertToDetailDto(post, currentUser);
@@ -202,68 +179,18 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void toggleInteraction(Long postId, String actionType, String currentUsername) {
-        User user = userRepository.findByEmail(currentUsername)
-                .orElseGet(() -> userRepository.findByUsername(currentUsername)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다.")));
-
+    public void likePost(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
-
-        Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "feed", post.getId());
-
-        if (existingInteraction.isPresent()) {
-            Interaction interaction = existingInteraction.get();
-            if (interaction.getActionType().equals(actionType)) {
-                interactionRepository.delete(interaction);
-                updatePostInteractionCount(post, actionType, -1);
-            } else {
-                interactionRepository.delete(interaction);
-                updatePostInteractionCount(post, interaction.getActionType(), -1);
-                
-                Interaction newInteraction = Interaction.builder()
-                        .user(user)
-                        .targetId(post.getId())
-                        .targetType("feed")
-                        .actionType(actionType)
-                        .build();
-                interactionRepository.save(newInteraction);
-                updatePostInteractionCount(post, actionType, 1);
-            }
-        } else {
-            Interaction newInteraction = Interaction.builder()
-                    .user(user)
-                    .targetId(post.getId())
-                    .targetType("feed")
-                    .actionType(actionType)
-                    .build();
-            interactionRepository.save(newInteraction);
-            updatePostInteractionCount(post, actionType, 1);
-        }
-    }
-
-    // 구버전/단일 토글 대응
-    @Override
-    @Transactional
-    public boolean toggleLike(Long postId, String currentUsername) {
-        toggleInteraction(postId, "like", currentUsername);
-        return true;
+        post.setLikeCount(post.getLikeCount() + 1);
     }
 
     @Override
     @Transactional
-    public boolean toggleDislike(Long postId, String currentUsername) {
-        toggleInteraction(postId, "dislike", currentUsername);
-        return true;
-    }
-
-    private void updatePostInteractionCount(Post post, String actionType, int delta) {
-        if ("like".equals(actionType)) {
-            post.setLikeCount(Math.max(0, post.getLikeCount() + delta));
-        } else if ("dislike".equals(actionType)) {
-            post.setDislikeCount(Math.max(0, post.getDislikeCount() + delta));
-        }
+    public void dislikePost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        post.setDislikeCount(post.getDislikeCount() + 1);
     }
 
     @Override
@@ -294,21 +221,10 @@ public class PostServiceImpl implements PostService {
 
     private PostFeedResponseDto convertToDto(Post post, User currentUser) {
         boolean isAuthor = false;
-        boolean isLiked = false;
-        boolean isDisliked = false;
         boolean isBookmarked = false;
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> likeInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
-            if (likeInteraction.isPresent()) {
-                if ("like".equals(likeInteraction.get().getActionType())) {
-                    isLiked = true;
-                } else if ("dislike".equals(likeInteraction.get().getActionType())) {
-                    isDisliked = true;
-                }
-            }
-            
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
@@ -328,8 +244,8 @@ public class PostServiceImpl implements PostService {
                 .viewCount(post.getViewCount())
                 .commentCount(post.getCommentCount())
                 .shareCount(0)
-                .isLiked(isLiked)
-                .isDisliked(isDisliked)
+                .isLiked(false) // Interaction 없으므로 항상 false
+                .isDisliked(false) // Interaction 없으므로 항상 false
                 .isBookmarked(isBookmarked)
                 .isAuthor(isAuthor)
                 .build();
@@ -337,17 +253,10 @@ public class PostServiceImpl implements PostService {
 
     private PostDetailResponseDto convertToDetailDto(Post post, User currentUser) {
         boolean isAuthor = false;
-        boolean isLiked = false;
-        boolean isDisliked = false;
         boolean isBookmarked = false;
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
-            if (interaction.isPresent()) {
-                if ("like".equals(interaction.get().getActionType())) isLiked = true;
-                if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
-            }
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
@@ -367,8 +276,8 @@ public class PostServiceImpl implements PostService {
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())
                 .commentCount(post.getCommentCount())
-                .isLiked(isLiked)
-                .isDisliked(isDisliked)
+                .isLiked(false)
+                .isDisliked(false)
                 .isBookmarked(isBookmarked)
                 .isAuthor(isAuthor)
                 .tags(tags)

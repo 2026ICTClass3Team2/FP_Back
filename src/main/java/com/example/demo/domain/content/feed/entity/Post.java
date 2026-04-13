@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.entity;
+package com.example.demo.domain.content.feed.entity;
 
 import com.example.demo.domain.channel.entity.Channel;
 import com.example.demo.domain.user.entity.User;
