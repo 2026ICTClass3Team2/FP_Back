@@ -31,7 +31,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final RedisService redisService;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
+    @Value(value = "${app.frontend.url}")
     private String frontendUrl;
 
     @Override
@@ -73,7 +73,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 프론트엔드 연동: OAuthCallback 컴포넌트가 있는 라우터로 이동
         // 1순위: 쿠키에 명시된 redirectUri
         // 2순위: 기본 콜백 페이지 URL (/oauth/callback)
-        String targetUrl = redirectUri.orElse(frontendUrl + "/oauth/callback"); 
+        String targetUrl = redirectUri.orElse(frontendUrl + "/oauth/callback");
         
         // 한글 이름(username)이 포함되어 있으면 URL Encoding을 거쳐야 에러가 발생하지 않습니다.
         String encodedUsername = URLEncoder.encode(username != null ? username : "소셜유저", StandardCharsets.UTF_8.name());

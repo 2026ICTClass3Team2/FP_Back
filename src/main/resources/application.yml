@@ -79,3 +79,8 @@ jwt:
 app:
   frontend:
     url: http://localhost:5173
+
+server:
+  port: 8090
+  servlet:
+    context-path: "/api"
