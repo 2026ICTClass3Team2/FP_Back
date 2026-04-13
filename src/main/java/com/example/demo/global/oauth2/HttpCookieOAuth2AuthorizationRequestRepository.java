@@ -72,7 +72,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
 
     private void addCookie(HttpServletResponse response, String name, String value, int maxAge) {
         Cookie cookie = new Cookie(name, value);
-        cookie.setPath("/api/");
+        cookie.setPath("/");
         cookie.setHttpOnly(true);
         // 쿠키 보안 설정 수정: SameSite 설정을 추가해야 크롬 등 최신 브라우저에서 날아가지 않습니다.
         cookie.setAttribute("SameSite", "Lax");
@@ -86,7 +86,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository implements Authoriza
             for (Cookie cookie : cookies) {
                 if (cookie.getName().equals(name)) {
                     cookie.setValue("");
-                    cookie.setPath("/api/");
+                    cookie.setPath("/");
                     cookie.setMaxAge(0);
                     response.addCookie(cookie);
                 }
