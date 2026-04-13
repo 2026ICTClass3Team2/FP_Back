@@ -150,6 +150,8 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
+        postRepository.increaseViewCount(postId); // 조회수 증가
+
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
@@ -157,8 +159,6 @@ public class PostServiceImpl implements PostService {
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
-
-        post.setViewCount(post.getViewCount() + 1);
 
         return convertToDetailDto(post, currentUser);
     }
