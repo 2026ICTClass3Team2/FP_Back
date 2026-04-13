@@ -7,13 +7,15 @@ import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
 import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
 import com.example.demo.domain.content.feed.entity.Bookmark;
-import com.example.demo.domain.content.feed.entity.Post;
+import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.feed.entity.Tag;
 import com.example.demo.domain.content.feed.entity.ContentTag;
 import com.example.demo.domain.content.feed.repository.BookmarkRepository;
 import com.example.demo.domain.content.feed.repository.ContentTagRepository;
 import com.example.demo.domain.content.feed.repository.PostRepository;
 import com.example.demo.domain.content.feed.repository.TagRepository;
+import com.example.demo.domain.interaction.entity.Interaction;
+import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,18 +40,18 @@ public class PostServiceImpl implements PostService {
     private final ChannelRepository channelRepository;
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
+    private final InteractionRepository interactionRepository;
 
     @Override
     @Transactional
     public Long createPost(PostCreateRequestDto requestDto, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
-                .orElseGet(() -> userRepository.findByUsername(currentUsername)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Channel channel = null;
         if (requestDto.getChannelId() != null) {
             channel = channelRepository.findById(requestDto.getChannelId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채널입니다."));
+                    .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
         }
 
         Post post = Post.builder()
@@ -58,7 +60,7 @@ public class PostServiceImpl implements PostService {
                 .thumbnailUrl(requestDto.getThumbnailUrl())
                 .contentType(requestDto.getContentType() != null ? requestDto.getContentType() : "feed")
                 .author(user)
-                .authorName(user.getNickname()) // 작성자 닉네임 저장
+                .authorName(user.getNickname())
                 .channel(channel)
                 .sourceType("internal")
                 .status("active")
@@ -86,10 +88,10 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (post.getAuthor() == null || (!post.getAuthor().getUsername().equals(currentUsername) && !post.getAuthor().getEmail().equals(currentUsername))) {
-            throw new SecurityException("수정 권한이 없습니다.");
+        if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
+            throw new SecurityException("Unauthorized to modify this post");
         }
 
         post.setTitle(requestDto.getTitle());
@@ -100,7 +102,7 @@ public class PostServiceImpl implements PostService {
         
         if (requestDto.getChannelId() != null) {
             Channel channel = channelRepository.findById(requestDto.getChannelId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채널입니다."));
+                    .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
             post.setChannel(channel);
         } else {
             post.setChannel(null);
@@ -138,8 +140,7 @@ public class PostServiceImpl implements PostService {
 
         User currentUser = null;
         if (currentUsername != null) {
-            currentUser = userRepository.findByEmail(currentUsername)
-                    .orElseGet(() -> userRepository.findByUsername(currentUsername).orElse(null));
+            currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
 
         final User finalUser = currentUser;
@@ -150,15 +151,14 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         User currentUser = null;
         if (currentUsername != null) {
-            currentUser = userRepository.findByEmail(currentUsername)
-                    .orElseGet(() -> userRepository.findByUsername(currentUsername).orElse(null));
+            currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
 
-        post.setViewCount(post.getViewCount() + 1); // 조회수 증가 로직 단순화
+        post.setViewCount(post.getViewCount() + 1);
 
         return convertToDetailDto(post, currentUser);
     }
@@ -167,10 +167,10 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void deletePost(Long postId, String currentUsername) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (post.getAuthor() == null || (!post.getAuthor().getUsername().equals(currentUsername) && !post.getAuthor().getEmail().equals(currentUsername))) {
-            throw new SecurityException("삭제 권한이 없습니다.");
+        if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
+            throw new SecurityException("Unauthorized to delete this post");
         }
 
         postRepository.delete(post);
@@ -179,29 +179,55 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void likePost(Long postId) {
+    public void toggleInteraction(Long postId, String actionType, String currentUsername) {
+        User user = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
-        post.setLikeCount(post.getLikeCount() + 1);
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        Optional<Interaction> existingInteraction = interactionRepository
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "feed", post.getId());
+
+        if (existingInteraction.isPresent()) {
+            Interaction interaction = existingInteraction.get();
+            if (interaction.getActionType().equals(actionType)) {
+                interactionRepository.delete(interaction);
+                updatePostInteractionCount(post, actionType, -1);
+            } else {
+                String previousActionType = interaction.getActionType();
+                interaction.setActionType(actionType);
+                updatePostInteractionCount(post, previousActionType, -1);
+                updatePostInteractionCount(post, actionType, 1);
+            }
+        } else {
+            Interaction newInteraction = Interaction.builder()
+                    .user(user)
+                    .targetId(post.getId())
+                    .targetType("feed")
+                    .actionType(actionType)
+                    .build();
+            interactionRepository.save(newInteraction);
+            updatePostInteractionCount(post, actionType, 1);
+        }
     }
 
-    @Override
-    @Transactional
-    public void dislikePost(Long postId) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
-        post.setDislikeCount(post.getDislikeCount() + 1);
+    private void updatePostInteractionCount(Post post, String actionType, int delta) {
+        if ("like".equals(actionType)) {
+            post.setLikeCount(Math.max(0, post.getLikeCount() + delta));
+        } else if ("dislike".equals(actionType)) {
+            post.setDislikeCount(Math.max(0, post.getDislikeCount() + delta));
+        }
     }
 
     @Override
     @Transactional
     public boolean toggleBookmark(Long postId, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
-                .orElseGet(() -> userRepository.findByUsername(currentUsername)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
 
@@ -221,10 +247,17 @@ public class PostServiceImpl implements PostService {
 
     private PostFeedResponseDto convertToDto(Post post, User currentUser) {
         boolean isAuthor = false;
+        boolean isLiked = false;
+        boolean isDisliked = false;
         boolean isBookmarked = false;
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            if (interaction.isPresent()) {
+                if ("like".equals(interaction.get().getActionType())) isLiked = true;
+                if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
+            }
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
@@ -244,8 +277,8 @@ public class PostServiceImpl implements PostService {
                 .viewCount(post.getViewCount())
                 .commentCount(post.getCommentCount())
                 .shareCount(0)
-                .isLiked(false) // Interaction 없으므로 항상 false
-                .isDisliked(false) // Interaction 없으므로 항상 false
+                .isLiked(isLiked)
+                .isDisliked(isDisliked)
                 .isBookmarked(isBookmarked)
                 .isAuthor(isAuthor)
                 .build();
@@ -253,10 +286,17 @@ public class PostServiceImpl implements PostService {
 
     private PostDetailResponseDto convertToDetailDto(Post post, User currentUser) {
         boolean isAuthor = false;
+        boolean isLiked = false;
+        boolean isDisliked = false;
         boolean isBookmarked = false;
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            if (interaction.isPresent()) {
+                if ("like".equals(interaction.get().getActionType())) isLiked = true;
+                if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
+            }
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
@@ -276,8 +316,8 @@ public class PostServiceImpl implements PostService {
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())
                 .commentCount(post.getCommentCount())
-                .isLiked(false)
-                .isDisliked(false)
+                .isLiked(isLiked)
+                .isDisliked(isDisliked)
                 .isBookmarked(isBookmarked)
                 .isAuthor(isAuthor)
                 .tags(tags)

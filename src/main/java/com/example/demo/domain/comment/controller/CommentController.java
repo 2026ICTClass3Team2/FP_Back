@@ -53,14 +53,18 @@ public class CommentController {
     }
 
     @PostMapping("/{commentId}/like")
-    public ResponseEntity<Void> likeComment(@PathVariable Long commentId) {
-        commentService.likeComment(commentId);
+    public ResponseEntity<Void> toggleLike(
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        commentService.toggleInteraction(commentId, "like", userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{commentId}/dislike")
-    public ResponseEntity<Void> dislikeComment(@PathVariable Long commentId) {
-        commentService.dislikeComment(commentId);
+    public ResponseEntity<Void> toggleDislike(
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        commentService.toggleInteraction(commentId, "dislike", userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 }
