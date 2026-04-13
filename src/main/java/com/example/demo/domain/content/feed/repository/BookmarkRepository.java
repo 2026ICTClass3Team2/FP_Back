@@ -1,6 +1,6 @@
-package com.example.demo.domain.content.repository;
+package com.example.demo.domain.content.feed.repository;
 
-import com.example.demo.domain.content.entity.Bookmark;
+import com.example.demo.domain.content.feed.entity.Bookmark;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

@@ -1,9 +1,9 @@
-package com.example.demo.domain.content.service;
+package com.example.demo.domain.content.feed.service;
 
-import com.example.demo.domain.content.dto.PostCreateRequestDto;
-import com.example.demo.domain.content.dto.PostDetailResponseDto;
-import com.example.demo.domain.content.dto.PostFeedResponseDto;
-import com.example.demo.domain.content.dto.PostUpdateRequestDto;
+import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
+import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
+import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
 import org.springframework.data.domain.Slice;
 
 public interface PostService {
@@ -17,14 +17,11 @@ public interface PostService {
     // 게시물 삭제
     void deletePost(Long postId, String currentUsername);
 
-    // 좋아요/비추천 통합 토글 기능
-    void toggleInteraction(Long postId, String actionType, String currentUsername);
+    // 좋아요
+    void likePost(Long postId);
 
-    // 좋아요 단일 토글 (이전 호환용/임시)
-    boolean toggleLike(Long postId, String currentUsername);
-
-    // 비추천 단일 토글
-    boolean toggleDislike(Long postId, String currentUsername);
+    // 비추천
+    void dislikePost(Long postId);
 
     // 북마크 토글 기능
     boolean toggleBookmark(Long postId, String currentUsername);

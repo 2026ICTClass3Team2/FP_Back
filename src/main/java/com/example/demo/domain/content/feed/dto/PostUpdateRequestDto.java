@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.dto;
+package com.example.demo.domain.content.feed.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
