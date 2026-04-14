@@ -16,10 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +36,7 @@ public class CommentService {
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
         log.info("Creating comment for post {} by user {}", postId, email);
-        Post post = postRepository.findById(postId) // findByIdAndStatus 대신 findById 사용
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
         
         if (!"active".equals(post.getStatus())) {
@@ -46,7 +48,7 @@ public class CommentService {
 
         Comment parent = null;
         if (requestDto.getParentId() != null) {
-            parent = commentRepository.findById(requestDto.getParentId()) // findByIdAndStatus 대신 findById 사용
+            parent = commentRepository.findById(requestDto.getParentId())
                     .orElseThrow(() -> new IllegalArgumentException("Parent comment not found"));
             if (!"active".equals(parent.getStatus())) {
                 throw new IllegalArgumentException("Parent comment not found or not active");
@@ -63,7 +65,6 @@ public class CommentService {
 
         Comment savedComment = commentRepository.save(comment);
 
-        // 댓글 수 증가 및 명시적 저장
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
 
@@ -72,39 +73,45 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public List<CommentResponseDto> getComments(Long postId) {
-        List<Comment> comments = commentRepository.findByPostIdWithAuthor(postId);
+        // 1. 부모 댓글 조회 (최신순)
+        List<Comment> rootComments = commentRepository.findRootCommentsByPostId(postId);
+        if (rootComments.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 2. 부모 댓글 ID 리스트 추출
+        List<Long> rootCommentIds = rootComments.stream()
+                .map(Comment::getId)
+                .collect(Collectors.toList());
+
+        // 3. 대댓글 조회 (등록순)
+        List<Comment> replies = commentRepository.findRepliesByParentIds(rootCommentIds);
+
+        // 4. DTO 변환 및 트리 구조 조립
         Map<Long, CommentResponseDto> commentMap = new HashMap<>();
+        List<CommentResponseDto> rootCommentDtos = rootComments.stream()
+                .map(comment -> {
+                    CommentResponseDto dto = new CommentResponseDto(comment);
+                    commentMap.put(dto.getId(), dto);
+                    return dto;
+                })
+                .collect(Collectors.toList());
 
-        for (Comment comment : comments) {
-            commentMap.put(comment.getId(), new CommentResponseDto(comment));
-        }
-
-        for (Comment comment : comments) {
-            if (comment.getParent() != null) {
-                CommentResponseDto parentDto = commentMap.get(comment.getParent().getId());
-                if (parentDto != null) {
-                    CommentResponseDto childDto = commentMap.get(comment.getId());
-                    if ("active".equals(childDto.getStatus())) {
-                        parentDto.getChildren().add(childDto);
-                    }
-                }
-            }
-        }
-        
-        List<CommentResponseDto> rootComments = new ArrayList<>();
-        for (Comment comment : comments) {
-            if (comment.getParent() == null) {
-                CommentResponseDto dto = commentMap.get(comment.getId());
-                dto.setReplyCount(dto.getChildren().size());
-                
-                if ("active".equals(dto.getStatus()) || 
-                   ("deleted".equals(dto.getStatus()) && dto.getReplyCount() > 0)) {
-                    rootComments.add(dto);
+        for (Comment reply : replies) {
+            CommentResponseDto parentDto = commentMap.get(reply.getParent().getId());
+            if (parentDto != null) {
+                if (!"deleted".equals(reply.getStatus())) {
+                    parentDto.getChildren().add(new CommentResponseDto(reply));
                 }
             }
         }
 
-        return rootComments;
+        // 5. 최종 리스트 필터링 및 replyCount 설정
+        return rootCommentDtos.stream()
+                .peek(dto -> dto.setReplyCount(dto.getChildren().size()))
+                .filter(dto -> "active".equals(dto.getStatus()) || 
+                               ("deleted".equals(dto.getStatus()) && dto.getReplyCount() > 0))
+                .collect(Collectors.toList());
     }
 
     @Transactional
