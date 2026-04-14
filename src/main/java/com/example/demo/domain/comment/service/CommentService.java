@@ -5,7 +5,7 @@ import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
-import com.example.demo.domain.content.feed.repository.PostRepository;
+import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;

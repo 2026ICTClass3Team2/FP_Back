@@ -1,19 +1,19 @@
-package com.example.demo.domain.content.feed.service;
+package com.example.demo.domain.content.service;
 
 import com.example.demo.domain.channel.entity.Channel;
 import com.example.demo.domain.channel.repository.ChannelRepository;
-import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
-import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
-import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
-import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
-import com.example.demo.domain.content.feed.entity.Bookmark;
+import com.example.demo.domain.content.dto.PostCreateRequestDto;
+import com.example.demo.domain.content.dto.PostDetailResponseDto;
+import com.example.demo.domain.content.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.dto.PostUpdateRequestDto;
+import com.example.demo.domain.content.entity.Bookmark;
 import com.example.demo.domain.content.entity.Post;
-import com.example.demo.domain.content.feed.entity.Tag;
-import com.example.demo.domain.content.feed.entity.ContentTag;
-import com.example.demo.domain.content.feed.repository.BookmarkRepository;
-import com.example.demo.domain.content.feed.repository.ContentTagRepository;
-import com.example.demo.domain.content.feed.repository.PostRepository;
-import com.example.demo.domain.content.feed.repository.TagRepository;
+import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.entity.ContentTag;
+import com.example.demo.domain.content.repository.BookmarkRepository;
+import com.example.demo.domain.content.repository.ContentTagRepository;
+import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
@@ -229,7 +229,8 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
+        Optional<Bookmark> existingBookmark =
+                bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
 
         if (existingBookmark.isPresent()) {
             bookmarkRepository.delete(existingBookmark.get());
@@ -253,7 +254,8 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            Optional<Interaction> interaction =
+                    interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -292,12 +294,14 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            Optional<Interaction> interaction =
+                    interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
             }
-            isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
+            isBookmarked =
+                    bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
         List<String> tags = new ArrayList<>();
