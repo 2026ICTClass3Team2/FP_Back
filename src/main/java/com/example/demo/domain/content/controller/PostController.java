@@ -19,36 +19,33 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/posts")
+@RequestMapping("/posts")
 public class PostController {
 
     private final PostService postService;
 
-    // 1. 게시글 무한 스크롤 조회 (커서 페이징)
     @GetMapping
     public ResponseEntity<Slice<PostFeedResponseDto>> getPostsFeed(
             @RequestParam(required = false) Long lastPostId,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         String currentUsername = (userDetails != null) ? userDetails.getUsername() : null;
-        
+
         Slice<PostFeedResponseDto> posts = postService.getPostsFeed(lastPostId, size, currentUsername);
         return ResponseEntity.ok(posts);
     }
 
-    // 단건 조회
     @GetMapping("/{postId}")
     public ResponseEntity<PostDetailResponseDto> getPostDetail(
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         String currentUsername = (userDetails != null) ? userDetails.getUsername() : null;
         PostDetailResponseDto detailDto = postService.getPostDetail(postId, currentUsername);
         return ResponseEntity.ok(detailDto);
     }
 
-    // 2. 게시글 작성
     @PostMapping
     public ResponseEntity<?> createPost(
             @Valid @RequestBody PostCreateRequestDto requestDto,
@@ -67,7 +64,6 @@ public class PostController {
         }
     }
 
-    // 3. 게시글 수정 (isAuthor 확인 필요)
     @PutMapping("/{postId}")
     public ResponseEntity<?> updatePost(
             @PathVariable Long postId,
@@ -91,16 +87,15 @@ public class PostController {
         }
     }
 
-    // 4. 게시글 삭제 (isAuthor 확인 필요)
     @DeleteMapping("/{postId}")
     public ResponseEntity<?> deletePost(
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         if (userDetails == null) {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }
-        
+
         try {
             postService.deletePost(postId, userDetails.getUsername());
             return ResponseEntity.ok(Map.of("message", "게시글이 삭제되었습니다."));
@@ -111,52 +106,41 @@ public class PostController {
         }
     }
 
-    // 5. 좋아요 토글
     @PostMapping("/{postId}/like")
     public ResponseEntity<?> toggleLike(
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         if (userDetails == null) {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }
-        
-        // PostService.java 내에는 리턴타입이 void로 된 toggleInteraction(postId, actionType, username) 메서드를 사용하지 않고 있으므로,
-        // 이전에 있었던 boolean toggleLike()를 사용하도록 복구합니다.
-        boolean isLiked = postService.toggleLike(postId, userDetails.getUsername());
-        return ResponseEntity.ok(Map.of(
-                "isLiked", isLiked,
-                "message", isLiked ? "좋아요가 추가되었습니다." : "좋아요가 취소되었습니다."
-        ));
+
+        postService.toggleInteraction(postId, "like", userDetails.getUsername());
+        return ResponseEntity.ok().build();
     }
 
-    // 6. 비추천 토글
     @PostMapping("/{postId}/dislike")
     public ResponseEntity<?> toggleDislike(
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         if (userDetails == null) {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }
-        
-        boolean isDisliked = postService.toggleDislike(postId, userDetails.getUsername());
-        return ResponseEntity.ok(Map.of(
-                "isDisliked", isDisliked,
-                "message", isDisliked ? "비추천이 추가되었습니다." : "비추천이 취소되었습니다."
-        ));
+
+        postService.toggleInteraction(postId, "dislike", userDetails.getUsername());
+        return ResponseEntity.ok().build();
     }
 
-    // 7. 북마크 토글
     @PostMapping("/{postId}/bookmark")
     public ResponseEntity<?> toggleBookmark(
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         if (userDetails == null) {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }
-        
+
         boolean isBookmarked = postService.toggleBookmark(postId, userDetails.getUsername());
         return ResponseEntity.ok(Map.of(
                 "isBookmarked", isBookmarked,

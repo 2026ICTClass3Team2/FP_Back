@@ -11,6 +11,7 @@ import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CommentService {
 
     private final CommentRepository commentRepository;
@@ -30,10 +32,11 @@ public class CommentService {
     private final InteractionRepository interactionRepository;
 
     @Transactional
-    public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String username) {
+    public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
+        log.info("조회하려는 유저 이메일: {}", email);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Comment parent = null;
@@ -78,11 +81,11 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponseDto updateComment(Long commentId, CommentRequestDto requestDto, String username) {
+    public CommentResponseDto updateComment(Long commentId, CommentRequestDto requestDto, String email) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
         
-        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
+        if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new IllegalArgumentException("Unauthorized to modify this comment");
         }
         if ("deleted".equals(comment.getStatus())) {
@@ -94,11 +97,11 @@ public class CommentService {
     }
 
     @Transactional
-    public void deleteComment(Long commentId, String username) {
+    public void deleteComment(Long commentId, String email) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
 
-        if (comment.getAuthor() == null || !comment.getAuthor().getUsername().equals(username)) {
+        if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new IllegalArgumentException("Unauthorized to delete this comment");
         }
 
@@ -106,11 +109,11 @@ public class CommentService {
     }
 
     @Transactional
-    public void toggleInteraction(Long commentId, String actionType, String username) {
+    public void toggleInteraction(Long commentId, String actionType, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comments", comment.getId());
@@ -118,25 +121,15 @@ public class CommentService {
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
             if (interaction.getActionType().equals(actionType)) {
-                // Toggle off
                 interactionRepository.delete(interaction);
                 updateCommentCount(comment, actionType, -1);
             } else {
-                // Change action type (e.g., from like to dislike)
-                interactionRepository.delete(interaction);
-                updateCommentCount(comment, interaction.getActionType(), -1);
-                
-                Interaction newInteraction = Interaction.builder()
-                        .user(user)
-                        .targetId(comment.getId())
-                        .targetType("comments")
-                        .actionType(actionType)
-                        .build();
-                interactionRepository.save(newInteraction);
+                String previousActionType = interaction.getActionType();
+                interaction.setActionType(actionType);
+                updateCommentCount(comment, previousActionType, -1);
                 updateCommentCount(comment, actionType, 1);
             }
         } else {
-            // New interaction
             Interaction newInteraction = Interaction.builder()
                     .user(user)
                     .targetId(comment.getId())
@@ -150,9 +143,9 @@ public class CommentService {
 
     private void updateCommentCount(Comment comment, String actionType, int delta) {
         if ("like".equals(actionType)) {
-            comment.setLikeCount(comment.getLikeCount() + delta);
+            comment.setLikeCount(Math.max(0, comment.getLikeCount() + delta));
         } else if ("dislike".equals(actionType)) {
-            comment.setDislikeCount(comment.getDislikeCount() + delta);
+            comment.setDislikeCount(Math.max(0, comment.getDislikeCount() + delta));
         }
     }
 }

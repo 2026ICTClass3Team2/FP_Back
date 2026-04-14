@@ -32,12 +32,15 @@ public class JWTCheckFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
+            return true;
+        }
         // 필터링을 생략할 경로 설정
         String path = request.getRequestURI();
         
         // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
         // 회원가입 관련 경로 모두 허용 (이메일 인증 등)
-        if(path.equals("/api/login") || 
+        if(path.equals("/api/login") ||
            path.equals("/api/logout") || 
            path.equals("/api/member/refresh") ||
            path.startsWith("/api/member/signup") ||

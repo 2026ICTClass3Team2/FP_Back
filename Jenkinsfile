@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = "education-backend"
         CONTAINER_NAME = "backend-prod"
-        HOST_PORT = "8081"
+        HOST_PORT = "8090"
     }
 
     stages {
@@ -28,7 +28,7 @@ pipeline {
                     sh "docker stop ${CONTAINER_NAME} || true"
                     sh "docker rm ${CONTAINER_NAME} || true"
 
-                    sh "docker run -d --name ${CONTAINER_NAME} -p ${HOST_PORT}:8080 ${DOCKER_IMAGE}:latest"
+                    sh "docker run -d --name ${CONTAINER_NAME} -p ${HOST_PORT}:8090 ${DOCKER_IMAGE}:latest"
                 }
             }
         }
@@ -43,7 +43,7 @@ pipeline {
 
     post {
         success {
-            echo "Backend Deployed to http://43.201.69.37:${HOST_PORT}"
+            echo "Backend Deployed to http://3.34.146.24/:${HOST_PORT}"
         }
     }
 }

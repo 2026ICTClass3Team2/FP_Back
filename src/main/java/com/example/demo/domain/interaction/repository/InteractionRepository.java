@@ -1,7 +1,6 @@
 package com.example.demo.domain.interaction.repository;
 
 import com.example.demo.domain.interaction.entity.Interaction;
-import com.example.demo.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
