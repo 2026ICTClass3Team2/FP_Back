@@ -5,7 +5,7 @@ import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
-import com.example.demo.domain.content.feed.repository.PostRepository;
+import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
@@ -33,16 +33,24 @@ public class CommentService {
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
-        log.info("조회하려는 유저 이메일: {}", email);
-        Post post = postRepository.findById(postId)
+        log.info("Creating comment for post {} by user {}", postId, email);
+        Post post = postRepository.findById(postId) // findByIdAndStatus 대신 findById 사용
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Post not found or not active");
+        }
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Comment parent = null;
         if (requestDto.getParentId() != null) {
-            parent = commentRepository.findById(requestDto.getParentId())
+            parent = commentRepository.findById(requestDto.getParentId()) // findByIdAndStatus 대신 findById 사용
                     .orElseThrow(() -> new IllegalArgumentException("Parent comment not found"));
+            if (!"active".equals(parent.getStatus())) {
+                throw new IllegalArgumentException("Parent comment not found or not active");
+            }
         }
 
         Comment comment = Comment.builder()
@@ -50,33 +58,52 @@ public class CommentService {
                 .post(post)
                 .author(user)
                 .parent(parent)
+                .status("active")
                 .build();
 
         Comment savedComment = commentRepository.save(comment);
+
+        // 댓글 수 증가 및 명시적 저장
+        post.setCommentCount(post.getCommentCount() + 1);
+        postRepository.save(post);
+
         return new CommentResponseDto(savedComment);
     }
 
     @Transactional(readOnly = true)
     public List<CommentResponseDto> getComments(Long postId) {
         List<Comment> comments = commentRepository.findByPostIdWithAuthor(postId);
-        List<CommentResponseDto> rootComments = new ArrayList<>();
         Map<Long, CommentResponseDto> commentMap = new HashMap<>();
 
         for (Comment comment : comments) {
-            CommentResponseDto dto = new CommentResponseDto(comment);
-            commentMap.put(comment.getId(), dto);
+            commentMap.put(comment.getId(), new CommentResponseDto(comment));
+        }
 
-            if (comment.getParent() == null) {
-                rootComments.add(dto);
-            } else {
+        for (Comment comment : comments) {
+            if (comment.getParent() != null) {
                 CommentResponseDto parentDto = commentMap.get(comment.getParent().getId());
                 if (parentDto != null) {
-                    parentDto.getChildren().add(dto);
-                } else {
+                    CommentResponseDto childDto = commentMap.get(comment.getId());
+                    if ("active".equals(childDto.getStatus())) {
+                        parentDto.getChildren().add(childDto);
+                    }
+                }
+            }
+        }
+        
+        List<CommentResponseDto> rootComments = new ArrayList<>();
+        for (Comment comment : comments) {
+            if (comment.getParent() == null) {
+                CommentResponseDto dto = commentMap.get(comment.getId());
+                dto.setReplyCount(dto.getChildren().size());
+                
+                if ("active".equals(dto.getStatus()) || 
+                   ("deleted".equals(dto.getStatus()) && dto.getReplyCount() > 0)) {
                     rootComments.add(dto);
                 }
             }
         }
+
         return rootComments;
     }
 
@@ -85,11 +112,12 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
         
-        if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
-            throw new IllegalArgumentException("Unauthorized to modify this comment");
+        if (!"active".equals(comment.getStatus())) {
+            throw new IllegalArgumentException("Comment not found or not active");
         }
-        if ("deleted".equals(comment.getStatus())) {
-            throw new IllegalArgumentException("Cannot update a deleted comment");
+        
+        if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
+            throw new SecurityException("Unauthorized to modify this comment");
         }
 
         comment.setContent(requestDto.getContent());
@@ -102,10 +130,18 @@ public class CommentService {
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
 
         if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
-            throw new IllegalArgumentException("Unauthorized to delete this comment");
+            throw new SecurityException("Unauthorized to delete this comment");
+        }
+
+        if ("deleted".equals(comment.getStatus())) {
+            return;
         }
 
         comment.setStatus("deleted");
+
+        Post post = comment.getPost();
+        post.setCommentCount(Math.max(0, post.getCommentCount() - 1));
+        postRepository.save(post);
     }
 
     @Transactional
@@ -115,6 +151,10 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
 
+        if (!"active".equals(comment.getStatus())) {
+            throw new IllegalArgumentException("Comment not found or not active");
+        }
+
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comments", comment.getId());
 
@@ -122,12 +162,12 @@ public class CommentService {
             Interaction interaction = existingInteraction.get();
             if (interaction.getActionType().equals(actionType)) {
                 interactionRepository.delete(interaction);
-                updateCommentCount(comment, actionType, -1);
+                updateInteractionCount(comment, actionType, -1);
             } else {
                 String previousActionType = interaction.getActionType();
                 interaction.setActionType(actionType);
-                updateCommentCount(comment, previousActionType, -1);
-                updateCommentCount(comment, actionType, 1);
+                updateInteractionCount(comment, previousActionType, -1);
+                updateInteractionCount(comment, actionType, 1);
             }
         } else {
             Interaction newInteraction = Interaction.builder()
@@ -137,11 +177,11 @@ public class CommentService {
                     .actionType(actionType)
                     .build();
             interactionRepository.save(newInteraction);
-            updateCommentCount(comment, actionType, 1);
+            updateInteractionCount(comment, actionType, 1);
         }
     }
 
-    private void updateCommentCount(Comment comment, String actionType, int delta) {
+    private void updateInteractionCount(Comment comment, String actionType, int delta) {
         if ("like".equals(actionType)) {
             comment.setLikeCount(Math.max(0, comment.getLikeCount() + delta));
         } else if ("dislike".equals(actionType)) {
