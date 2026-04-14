@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.feed.dto;
+package com.example.demo.domain.content.dto;
 
 import lombok.Builder;
 import lombok.Data;
