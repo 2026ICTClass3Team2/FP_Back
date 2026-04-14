@@ -11,6 +11,11 @@ import java.util.List;
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Long> {
 
-    @Query("SELECT c FROM Comment c LEFT JOIN FETCH c.author WHERE c.post.id = :postId ORDER BY c.parent.id ASC NULLS FIRST, c.createdAt ASC")
-    List<Comment> findByPostIdWithAuthor(@Param("postId") Long postId);
+    // 부모 댓글 조회 (최신순)
+    @Query("SELECT c FROM Comment c LEFT JOIN FETCH c.author WHERE c.post.id = :postId AND c.parent IS NULL ORDER BY c.createdAt DESC")
+    List<Comment> findRootCommentsByPostId(@Param("postId") Long postId);
+
+    // 대댓글 조회 (등록순)
+    @Query("SELECT c FROM Comment c LEFT JOIN FETCH c.author WHERE c.parent.id IN :parentIds ORDER BY c.createdAt ASC")
+    List<Comment> findRepliesByParentIds(@Param("parentIds") List<Long> parentIds);
 }
