@@ -14,6 +14,7 @@ import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.content.service.PostService;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
@@ -229,8 +230,7 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        Optional<Bookmark> existingBookmark =
-                bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
+        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
 
         if (existingBookmark.isPresent()) {
             bookmarkRepository.delete(existingBookmark.get());
@@ -254,8 +254,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction =
-                    interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -294,14 +293,12 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction =
-                    interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
             }
-            isBookmarked =
-                    bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
+            isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
         List<String> tags = new ArrayList<>();

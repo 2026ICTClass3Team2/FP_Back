@@ -1,8 +1,10 @@
 package com.example.demo.global.jwt;
 
 import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.SuspendedRepository;
+import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.exception.CustomJWTException;
-import com.example.demo.global.redis.RedisService;
 import com.google.gson.Gson;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -23,11 +25,13 @@ import java.util.Map;
 @Slf4j
 public class JWTCheckFilter extends OncePerRequestFilter {
     private final JWTUtil jwtUtil;
-    private final RedisService redisService;
+    private final UserRepository userRepository;
+    private final SuspendedRepository suspendedRepository;
 
-    public JWTCheckFilter(JWTUtil jwtUtil, RedisService redisService) {
+    public JWTCheckFilter(JWTUtil jwtUtil, UserRepository userRepository, SuspendedRepository suspendedRepository) {
         this.jwtUtil = jwtUtil;
-        this.redisService = redisService;
+        this.userRepository = userRepository;
+        this.suspendedRepository = suspendedRepository;
     }
 
     @Override
@@ -72,25 +76,22 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             // "Bearer " 문자열을 제외한 순수 JWT 추출
             String accessToken = authorizationStr.substring(7);
             
-            // 블랙리스트 확인 (토큰 폐기 전략 적용)
-            if (redisService.isBlackList(accessToken)) {
-                log.error("Access Token is in blacklist");
-                throw new CustomJWTException("LOGGED_OUT_TOKEN");
-            }
-
             log.info("Access Token Validation: {}", accessToken);
             
             // Token 검증 및 Claims 추출
             Claims claims = jwtUtil.validateToken(accessToken);
             String email = claims.get("email", String.class);
+
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomJWTException("INVALID_USER"));
+
+            // 정지된 유저인지 확인
+            suspendedRepository.findByUserIdAndReleasedAtIsNull(user.getId())
+                    .ifPresent(suspended -> {
+                        throw new CustomJWTException("SUSPENDED_USER");
+                    });
             
-            // roleName이 존재하는 경우 처리 로직 (없다면 수정 필요)
-            List<String> roleNames = null;
-            if(claims.get("roleName") != null) {
-               roleNames = claims.get("roleName", List.class);
-            } else {
-                roleNames = List.of("USER");
-            }
+            List<String> roleNames = List.of("USER");
 
             // 사용자 정보를 MemberDTO에 저장
             MemberDTO memberDTO = new MemberDTO(email, "", "temp_nickname", roleNames);
