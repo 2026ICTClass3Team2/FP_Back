@@ -1,10 +1,10 @@
-package com.example.demo.domain.content.feed;
+package com.example.demo.domain.content.controller;
 
-import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
-import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
-import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
-import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
-import com.example.demo.domain.content.feed.service.PostService;
+import com.example.demo.domain.content.dto.PostCreateRequestDto;
+import com.example.demo.domain.content.dto.PostDetailResponseDto;
+import com.example.demo.domain.content.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.dto.PostUpdateRequestDto;
+import com.example.demo.domain.content.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
