@@ -2,9 +2,6 @@ package com.example.demo.domain.content.feed.service;
 
 import com.example.demo.domain.channel.entity.Channel;
 import com.example.demo.domain.channel.repository.ChannelRepository;
-import com.example.demo.domain.content.enums.ContentType;
-import com.example.demo.domain.content.enums.PostStatus;
-import com.example.demo.domain.content.enums.SourceType;
 import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
@@ -61,12 +58,12 @@ public class PostServiceImpl implements PostService {
                 .title(requestDto.getTitle())
                 .body(requestDto.getBody())
                 .thumbnailUrl(requestDto.getThumbnailUrl())
-                .contentType(requestDto.getContentType() != null ? ContentType.valueOf(requestDto.getContentType()) : ContentType.feed)
+                .contentType(requestDto.getContentType() != null ? requestDto.getContentType() : "feed")
                 .author(user)
                 .authorName(user.getNickname())
                 .channel(channel)
-                .sourceType(SourceType.internal)
-                .status(PostStatus.active)
+                .sourceType("internal")
+                .status("active")
                 .build();
 
         Post savedPost = postRepository.save(post);
@@ -90,7 +87,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername) {
-        Post post = postRepository.findByIdAndStatus(postId, PostStatus.active)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
@@ -158,10 +155,6 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (post.getStatus() != PostStatus.active) {
-            throw new IllegalArgumentException("Post not found");
-        }
-
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
@@ -180,8 +173,8 @@ public class PostServiceImpl implements PostService {
             throw new SecurityException("Unauthorized to delete this post");
         }
 
-        post.setStatus(PostStatus.hidden);
-        log.info("Post hidden. postId: {}, hiddenBy: {}", postId, currentUsername);
+        postRepository.delete(post);
+        log.info("Post deleted. postId: {}, deletedBy: {}", postId, currentUsername);
     }
 
     @Override
@@ -190,7 +183,7 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = postRepository.findByIdAndStatus(postId, PostStatus.active)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         Optional<Interaction> existingInteraction = interactionRepository
@@ -233,7 +226,7 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = postRepository.findByIdAndStatus(postId, PostStatus.active)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
@@ -245,7 +238,7 @@ public class PostServiceImpl implements PostService {
             Bookmark bookmark = Bookmark.builder()
                     .user(user)
                     .targetId(postId)
-                    .targetType(post.getContentType().name())
+                    .targetType(post.getContentType())
                     .build();
             bookmarkRepository.save(bookmark);
             return true;
@@ -265,7 +258,7 @@ public class PostServiceImpl implements PostService {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
             }
-            isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType().name());
+            isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
         List<String> tags = new ArrayList<>();
@@ -304,7 +297,7 @@ public class PostServiceImpl implements PostService {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
             }
-            isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType().name());
+            isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
         List<String> tags = new ArrayList<>();
@@ -314,7 +307,7 @@ public class PostServiceImpl implements PostService {
                 .title(post.getTitle())
                 .body(post.getBody())
                 .thumbnailUrl(post.getThumbnailUrl())
-                .contentType(post.getContentType().name())
+                .contentType(post.getContentType())
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
