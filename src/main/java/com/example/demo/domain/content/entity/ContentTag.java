@@ -1,6 +1,5 @@
-package com.example.demo.domain.content.feed.entity;
+package com.example.demo.domain.content.entity;
 
-import com.example.demo.domain.content.entity.Post;
 import jakarta.persistence.*;
 import lombok.*;
 
