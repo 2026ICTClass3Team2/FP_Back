@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.feed;
+package com.example.demo.domain.content.feed.controller;
 
 import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;

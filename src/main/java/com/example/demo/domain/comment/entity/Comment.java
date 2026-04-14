@@ -1,5 +1,6 @@
 package com.example.demo.domain.comment.entity;
 
+import com.example.demo.domain.comment.enums.CommentStatus;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -44,9 +45,10 @@ public class Comment {
     @Builder.Default
     private Integer dislikeCount = 0;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private String status = "active"; // active, deleted
+    private CommentStatus status = CommentStatus.active;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
