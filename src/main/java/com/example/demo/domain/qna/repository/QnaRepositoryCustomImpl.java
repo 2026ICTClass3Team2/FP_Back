@@ -4,6 +4,7 @@ import com.example.demo.domain.content.entity.QPost;
 import com.example.demo.domain.qna.dto.QQnaCardResponseDto;
 import com.example.demo.domain.qna.dto.QnaCardResponseDto;
 import com.example.demo.domain.qna.entity.QQna;
+import com.example.demo.domain.user.entity.QUser;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -25,16 +26,17 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
     public Page<QnaCardResponseDto> findQnaList(String query, String sort, String status, Pageable pageable) {
         QQna qna = QQna.qna;
         QPost post = QPost.post;
+        QUser user = QUser.user;
 
         List<QnaCardResponseDto> results = queryFactory
                 .select(new QQnaCardResponseDto(
                         qna.id,
                         post.title,
                         post.body,
-                        post.authorName,
+                        user.username,
+                        user.nickname,
                         qna.isSolved,
                         qna.rewardPoints,
-                        post.thumbnailUrl,
                         post.createdAt,
                         post.commentCount,
                         post.likeCount,
@@ -43,6 +45,7 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                 ))
                 .from(qna)
                 .join(qna.post, post)
+                .join(post.author, user)
                 .where(
                         searchQuery(query),
                         statusFilter(status)
@@ -56,6 +59,7 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                 .select(qna.count())
                 .from(qna)
                 .join(qna.post, post)
+                .join(post.author, user)
                 .where(
                         searchQuery(query),
                         statusFilter(status)
@@ -70,9 +74,12 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
         if (!StringUtils.hasText(query)) {
             return null;
         }
-        return QPost.post.title.containsIgnoreCase(query)
-                .or(QPost.post.body.containsIgnoreCase(query))
-                .or(QPost.post.authorName.containsIgnoreCase(query));
+        QPost post = QPost.post;
+        QUser user = QUser.user;
+        return post.title.containsIgnoreCase(query)
+                .or(post.body.containsIgnoreCase(query))
+                .or(user.username.containsIgnoreCase(query))
+                .or(user.nickname.containsIgnoreCase(query));
     }
 
     private BooleanExpression statusFilter(String status) {

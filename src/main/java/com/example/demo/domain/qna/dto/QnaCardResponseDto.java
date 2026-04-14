@@ -13,10 +13,10 @@ public class QnaCardResponseDto {
     private Long qnaId;
     private String title;
     private String body;
-    private String author;
+    private String username; // Changed from author
+    private String nickname; // Added
     private boolean resolved;
     private int points;
-    private String imageUrl;
     private List<String> techStacks;
     private LocalDateTime createdAt;
     private int commentsCount;
@@ -26,14 +26,14 @@ public class QnaCardResponseDto {
     private int views;
 
     @QueryProjection
-    public QnaCardResponseDto(Long qnaId, String title, String body, String author, boolean resolved, int points, String imageUrl, LocalDateTime createdAt, int commentsCount, int likes, int dislikes, int views) {
+    public QnaCardResponseDto(Long qnaId, String title, String body, String username, String nickname, boolean resolved, int points, LocalDateTime createdAt, int commentsCount, int likes, int dislikes, int views) {
         this.qnaId = qnaId;
         this.title = title;
         this.body = body;
-        this.author = author;
+        this.username = username;
+        this.nickname = nickname;
         this.resolved = resolved;
         this.points = points;
-        this.imageUrl = imageUrl;
         this.createdAt = createdAt;
         this.commentsCount = commentsCount;
         this.likes = likes;

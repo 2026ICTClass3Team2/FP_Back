@@ -43,7 +43,7 @@ public class QnaService {
                 .body(qnaCreateRequestDto.getBody())
                 .contentType("qna")
                 .author(user)
-                .authorName(user.getNickname())
+                .authorName(user.getNickname()) // Set authorName to nickname
                 .build();
         Post savedPost = postRepository.save(post);
 
@@ -78,15 +78,16 @@ public class QnaService {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
         Post post = qna.getPost();
+        User author = post.getAuthor();
         
         QnaDetailResponseDto dto = new QnaDetailResponseDto();
         dto.setQnaId(qna.getId());
         dto.setTitle(post.getTitle());
         dto.setBody(post.getBody());
-        dto.setAuthor(post.getAuthor().getNickname());
+        dto.setUsername(author.getUsername());
+        dto.setNickname(author.getNickname());
         dto.setResolved(qna.isSolved());
         dto.setPoints(qna.getRewardPoints());
-        dto.setImageUrl(post.getThumbnailUrl());
         dto.setCreatedAt(post.getCreatedAt());
         dto.setCommentsCount(post.getCommentCount());
         dto.setLikes(post.getLikeCount());

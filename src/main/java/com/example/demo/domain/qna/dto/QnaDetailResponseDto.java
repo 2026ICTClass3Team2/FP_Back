@@ -9,10 +9,10 @@ public class QnaDetailResponseDto {
     private Long qnaId;
     private String title;
     private String body;
-    private String author;
+    private String username; // Changed from author
+    private String nickname; // Added
     private boolean resolved;
     private int points;
-    private String imageUrl;
     private List<String> techStacks;
     private LocalDateTime createdAt;
     private int commentsCount;
@@ -20,5 +20,4 @@ public class QnaDetailResponseDto {
     private int dislikes;
     private int shares;
     private int views;
-    private String category; // Assuming category might be added later or derived
 }
