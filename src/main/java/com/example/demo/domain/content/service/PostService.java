@@ -1,9 +1,9 @@
-package com.example.demo.domain.content.feed.service;
+package com.example.demo.domain.content.service;
 
-import com.example.demo.domain.content.feed.dto.PostCreateRequestDto;
-import com.example.demo.domain.content.feed.dto.PostDetailResponseDto;
-import com.example.demo.domain.content.feed.dto.PostFeedResponseDto;
-import com.example.demo.domain.content.feed.dto.PostUpdateRequestDto;
+import com.example.demo.domain.content.dto.PostCreateRequestDto;
+import com.example.demo.domain.content.dto.PostDetailResponseDto;
+import com.example.demo.domain.content.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.dto.PostUpdateRequestDto;
 import org.springframework.data.domain.Slice;
 
 public interface PostService {

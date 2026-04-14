@@ -1,6 +1,6 @@
-package com.example.demo.domain.content.feed.repository;
+package com.example.demo.domain.content.repository;
 
-import com.example.demo.domain.content.feed.entity.ContentTag;
+import com.example.demo.domain.content.entity.ContentTag;
 import com.example.demo.domain.content.entity.Post;
 import org.springframework.data.jpa.repository.JpaRepository;
 

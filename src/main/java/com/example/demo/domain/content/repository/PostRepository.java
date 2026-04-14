@@ -1,4 +1,4 @@
-package com.example.demo.domain.content.feed.repository;
+package com.example.demo.domain.content.repository;
 
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.enums.PostStatus;
