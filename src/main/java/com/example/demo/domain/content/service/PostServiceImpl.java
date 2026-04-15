@@ -14,6 +14,7 @@ import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.content.service.PostService;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
@@ -25,7 +26,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,19 +42,17 @@ public class PostServiceImpl implements PostService {
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
-    // private final ViewHistoryRepository viewHistoryRepository; // NOTE: Schema validation 에러로 인해 임시 주석 처리
 
     @Override
     @Transactional
     public Long createPost(PostCreateRequestDto requestDto, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
-                .orElseGet(() -> userRepository.findByUsername(currentUsername)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Channel channel = null;
         if (requestDto.getChannelId() != null) {
             channel = channelRepository.findById(requestDto.getChannelId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채널입니다."));
+                    .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
         }
 
         Post post = Post.builder()
@@ -63,7 +61,7 @@ public class PostServiceImpl implements PostService {
                 .thumbnailUrl(requestDto.getThumbnailUrl())
                 .contentType(requestDto.getContentType() != null ? requestDto.getContentType() : "feed")
                 .author(user)
-                .authorName(user.getNickname()) // 작성자 닉네임 저장
+                .authorName(user.getNickname())
                 .channel(channel)
                 .sourceType("internal")
                 .status("active")
@@ -91,10 +89,10 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (post.getAuthor() == null || (!post.getAuthor().getUsername().equals(currentUsername) && !post.getAuthor().getEmail().equals(currentUsername))) {
-            throw new SecurityException("수정 권한이 없습니다.");
+        if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
+            throw new SecurityException("Unauthorized to modify this post");
         }
 
         post.setTitle(requestDto.getTitle());
@@ -105,7 +103,7 @@ public class PostServiceImpl implements PostService {
         
         if (requestDto.getChannelId() != null) {
             Channel channel = channelRepository.findById(requestDto.getChannelId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채널입니다."));
+                    .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
             post.setChannel(channel);
         } else {
             post.setChannel(null);
@@ -143,8 +141,7 @@ public class PostServiceImpl implements PostService {
 
         User currentUser = null;
         if (currentUsername != null) {
-            currentUser = userRepository.findByEmail(currentUsername)
-                    .orElseGet(() -> userRepository.findByUsername(currentUsername).orElse(null));
+            currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
 
         final User finalUser = currentUser;
@@ -154,34 +151,15 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
+        postRepository.increaseViewCount(postId); // 조회수 증가
+
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         User currentUser = null;
         if (currentUsername != null) {
-            currentUser = userRepository.findByEmail(currentUsername)
-                    .orElseGet(() -> userRepository.findByUsername(currentUsername).orElse(null));
+            currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
-
-        // NOTE: Schema validation 에러로 인해 임시 주석 처리
-        // if (currentUser != null) {
-        //     LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
-        //     boolean recentlyViewed = viewHistoryRepository.existsByUserIdAndTargetTypeAndTargetIdAndCreatedAtAfter(
-        //             currentUser.getId(), "posts", postId, oneHourAgo);
-            
-        //     if (!recentlyViewed) {
-        //         post.setViewCount(post.getViewCount() + 1);
-        //         ViewHistory viewHistory = ViewHistory.builder()
-        //                 .user(currentUser)
-        //                 .targetId(postId)
-        //                 .targetType("posts")
-        //                 .build();
-        //         viewHistoryRepository.save(viewHistory);
-        //     }
-        // } else {
-        //     post.setViewCount(post.getViewCount() + 1);
-        // }
-        post.setViewCount(post.getViewCount() + 1); // 조회수 증가 로직 단순화
 
         return convertToDetailDto(post, currentUser);
     }
@@ -190,10 +168,10 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void deletePost(Long postId, String currentUsername) {
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시글입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (post.getAuthor() == null || (!post.getAuthor().getUsername().equals(currentUsername) && !post.getAuthor().getEmail().equals(currentUsername))) {
-            throw new SecurityException("삭제 권한이 없습니다.");
+        if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
+            throw new SecurityException("Unauthorized to delete this post");
         }
 
         postRepository.delete(post);
@@ -204,11 +182,10 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public void toggleInteraction(Long postId, String actionType, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
-                .orElseGet(() -> userRepository.findByUsername(currentUsername)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), "feed", post.getId());
@@ -219,16 +196,9 @@ public class PostServiceImpl implements PostService {
                 interactionRepository.delete(interaction);
                 updatePostInteractionCount(post, actionType, -1);
             } else {
-                interactionRepository.delete(interaction);
-                updatePostInteractionCount(post, interaction.getActionType(), -1);
-                
-                Interaction newInteraction = Interaction.builder()
-                        .user(user)
-                        .targetId(post.getId())
-                        .targetType("feed")
-                        .actionType(actionType)
-                        .build();
-                interactionRepository.save(newInteraction);
+                String previousActionType = interaction.getActionType();
+                interaction.setActionType(actionType);
+                updatePostInteractionCount(post, previousActionType, -1);
                 updatePostInteractionCount(post, actionType, 1);
             }
         } else {
@@ -243,21 +213,6 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    // 구버전/단일 토글 대응
-    @Override
-    @Transactional
-    public boolean toggleLike(Long postId, String currentUsername) {
-        toggleInteraction(postId, "like", currentUsername);
-        return true;
-    }
-
-    @Override
-    @Transactional
-    public boolean toggleDislike(Long postId, String currentUsername) {
-        toggleInteraction(postId, "dislike", currentUsername);
-        return true;
-    }
-
     private void updatePostInteractionCount(Post post, String actionType, int delta) {
         if ("like".equals(actionType)) {
             post.setLikeCount(Math.max(0, post.getLikeCount() + delta));
@@ -270,11 +225,10 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public boolean toggleBookmark(Long postId, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
-                .orElseGet(() -> userRepository.findByUsername(currentUsername)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다.")));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
 
@@ -300,15 +254,11 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> likeInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
-            if (likeInteraction.isPresent()) {
-                if ("like".equals(likeInteraction.get().getActionType())) {
-                    isLiked = true;
-                } else if ("dislike".equals(likeInteraction.get().getActionType())) {
-                    isDisliked = true;
-                }
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            if (interaction.isPresent()) {
+                if ("like".equals(interaction.get().getActionType())) isLiked = true;
+                if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
             }
-            
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 

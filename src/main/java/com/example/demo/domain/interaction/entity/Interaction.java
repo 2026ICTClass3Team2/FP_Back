@@ -10,15 +10,12 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "interaction",
-        indexes = {
-                @Index(name = "idx_interaction_target", columnList = "target_type, target_id"),
-                @Index(name = "idx_interaction_user", columnList = "user_id")
-        },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_interaction_user_target", columnNames = {"user_id", "target_type", "target_id"})
         }
 )
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -33,7 +30,7 @@ public class Interaction {
     private Long targetId;
 
     @Column(name = "target_type", nullable = false, length = 50)
-    private String targetType; // e.g., 'comments'
+    private String targetType; // 'qna', 'feed', 'comments'
 
     @Column(name = "action_type", nullable = false, length = 20)
     private String actionType; // 'like', 'dislike'

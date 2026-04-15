@@ -1,5 +1,7 @@
 package com.example.demo.global.config;
 
+import com.example.demo.domain.user.repository.SuspendedRepository;
+import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.jwt.JWTCheckFilter;
 import com.example.demo.global.handler.ApiLoginFailurerHandler;
 import com.example.demo.global.handler.ApiLoginSuccessHandler;
@@ -11,7 +13,6 @@ import com.example.demo.global.oauth2.CustomOAuth2UserService;
 import com.example.demo.global.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.example.demo.global.oauth2.OAuth2LoginFailureHandler;
 import com.example.demo.global.oauth2.OAuth2LoginSuccessHandler;
-import com.example.demo.global.redis.RedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,7 +27,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -34,12 +35,13 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JWTUtil jwtUtil;
-    private final RedisService redisService;
     private final ApiLoginSuccessHandler apiLoginSuccessHandler;
     private final ApiLoginFailurerHandler apiLoginFailurerHandler;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
+    private final UserRepository userRepository;
+    private final SuspendedRepository suspendedRepository;
 
     // OAuth2 의존성 주입
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -48,11 +50,9 @@ public class SecurityConfig {
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // 1. 세션 사용 안함 (Stateless)
-        http.sessionManagement(sessionConfig->{
-            sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-        });
+        http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         
         // 2. CSRF 비활성화
         http.csrf(AbstractHttpConfigurer::disable);
@@ -91,7 +91,7 @@ public class SecurityConfig {
         
         // 6. JWT 확인 필터 추가
         http.addFilterBefore(
-                new JWTCheckFilter(jwtUtil, redisService),
+                new JWTCheckFilter(jwtUtil, userRepository, suspendedRepository),
                 UsernamePasswordAuthenticationFilter.class
         );
         
@@ -114,9 +114,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration=new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*")); // 프론트엔드 도메인으로 변경 권장 (예: http://localhost:3000)
-        configuration.setAllowedHeaders(Arrays.asList("Authorization","Cache-Control","Content-Type"));
-        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","HEAD"));
+        configuration.setAllowedOriginPatterns(List.of("*")); // 프론트엔드 도메인으로 변경 권장 (예: http://localhost:3000)
+        configuration.setAllowedHeaders(List.of("Authorization","Cache-Control","Content-Type"));
+        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","HEAD"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source=new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
