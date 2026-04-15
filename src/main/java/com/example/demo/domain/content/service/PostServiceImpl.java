@@ -326,4 +326,13 @@ public class PostServiceImpl implements PostService {
                 .updatedAt(post.getUpdatedAt())
                 .build();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getContentType(Long postId) {
+        // 게시물을 ID로 조회하고, 없으면 예외를 던집니다.
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found with id: " + postId));
+        return post.getContentType();
+    }
 }

@@ -1,11 +1,15 @@
 package com.example.demo.domain.qna.service;
 
+import com.example.demo.domain.content.entity.Bookmark;
 import com.example.demo.domain.content.entity.ContentTag;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.interaction.entity.Interaction;
+import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.qna.dto.QnaCardResponseDto;
 import com.example.demo.domain.qna.dto.QnaCreateRequestDto;
 import com.example.demo.domain.qna.dto.QnaDetailResponseDto;
@@ -21,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +37,8 @@ public class QnaService {
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
+    private final InteractionRepository interactionRepository;
+    private final BookmarkRepository bookmarkRepository;
 
     @Transactional
     public void createQna(QnaCreateRequestDto qnaCreateRequestDto, String email) {
@@ -43,7 +50,6 @@ public class QnaService {
                 .body(qnaCreateRequestDto.getBody())
                 .contentType("qna")
                 .author(user)
-                .authorName(user.getNickname()) // Set authorName to nickname
                 .build();
         Post savedPost = postRepository.save(post);
 
@@ -53,13 +59,40 @@ public class QnaService {
                 .build();
         qnaRepository.save(qna);
 
-        List<String> tags = qnaCreateRequestDto.getTags();
-        if (tags != null && !tags.isEmpty()) {
-            for (String tagName : tags) {
+        saveTags(savedPost, qnaCreateRequestDto.getTags());
+    }
+
+    @Transactional
+    public void updateQna(Long qnaId, QnaCreateRequestDto qnaCreateRequestDto, String email) {
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Post post = qna.getPost();
+
+        if (!post.getAuthor().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Not authorized to update this post");
+        }
+
+        post.setTitle(qnaCreateRequestDto.getTitle());
+        post.setBody(qnaCreateRequestDto.getBody());
+        qna.setRewardPoints(qnaCreateRequestDto.getRewardPoints());
+
+        // Update tags: Clear existing and save new ones
+        contentTagRepository.deleteAll(post.getContentTags());
+        post.getContentTags().clear();
+        saveTags(post, qnaCreateRequestDto.getTags());
+    }
+
+    private void saveTags(Post post, List<String> tagNames) {
+        if (tagNames != null && !tagNames.isEmpty()) {
+            for (String tagName : tagNames) {
                 Tag tag = tagRepository.findByName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
                 ContentTag contentTag = ContentTag.builder()
-                        .post(savedPost)
+                        .post(post)
                         .tag(tag)
                         .build();
                 contentTagRepository.save(contentTag);
@@ -68,13 +101,53 @@ public class QnaService {
     }
 
     @Transactional(readOnly = true)
-    public Page<QnaCardResponseDto> getQnaList(String query, String sort, String status, int page, int size) {
+    public Page<QnaCardResponseDto> getQnaList(String query, String sort, String status, int page, int size, String email) {
         Pageable pageable = PageRequest.of(page, size);
-        return qnaRepository.findQnaList(query, sort, status, pageable);
+        Page<QnaCardResponseDto> results = qnaRepository.findQnaList(query, sort, status, pageable);
+        
+        if (email != null) {
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                Long userId = user.getId();
+                results.getContent().forEach(dto -> {
+                    // Populate tech stacks for the list view
+                    Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
+                    if(qna != null) {
+                        List<String> techStacks = qna.getPost().getContentTags().stream()
+                                .map(contentTag -> contentTag.getTag().getName())
+                                .collect(Collectors.toList());
+                        dto.setTechStacks(techStacks);
+                    }
+
+                    dto.setAuthor(qna != null && qna.getPost().getAuthor().getId().equals(userId));
+                    dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, dto.getQnaId(), "qna"));
+                    
+                    Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "qna", dto.getQnaId());
+                    if (interaction.isPresent()) {
+                        String actionType = interaction.get().getActionType();
+                        dto.setLiked("like".equals(actionType));
+                        dto.setDisliked("dislike".equals(actionType));
+                    }
+                });
+            }
+        } else {
+            // Populate tech stacks even for unauthenticated users
+            results.getContent().forEach(dto -> {
+                Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
+                if(qna != null) {
+                    List<String> techStacks = qna.getPost().getContentTags().stream()
+                            .map(contentTag -> contentTag.getTag().getName())
+                            .collect(Collectors.toList());
+                    dto.setTechStacks(techStacks);
+                }
+            });
+        }
+        
+        return results;
     }
 
     @Transactional(readOnly = true)
-    public QnaDetailResponseDto getQnaDetail(Long qnaId) {
+    public QnaDetailResponseDto getQnaDetail(Long qnaId, String email) {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
         Post post = qna.getPost();
@@ -86,19 +159,149 @@ public class QnaService {
         dto.setBody(post.getBody());
         dto.setUsername(author.getUsername());
         dto.setNickname(author.getNickname());
+        dto.setAuthorProfileImageUrl(author.getProfilePicUrl());
         dto.setResolved(qna.isSolved());
         dto.setPoints(qna.getRewardPoints());
         dto.setCreatedAt(post.getCreatedAt());
-        dto.setCommentsCount(post.getCommentCount());
-        dto.setLikes(post.getLikeCount());
-        dto.setDislikes(post.getDislikeCount());
-        dto.setViews(post.getViewCount());
+        dto.setCommentCount(post.getCommentCount());
+        dto.setLikeCount(post.getLikeCount());
+        dto.setDislikeCount(post.getDislikeCount());
+        dto.setViewCount(post.getViewCount());
+        dto.setShareCount(0); // Assuming share logic isn't fully implemented in DB yet
 
         List<String> techStacks = post.getContentTags().stream()
                 .map(contentTag -> contentTag.getTag().getName())
                 .collect(Collectors.toList());
         dto.setTechStacks(techStacks);
 
+        if (email != null) {
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user != null) {
+                Long userId = user.getId();
+                dto.setAuthor(author.getId().equals(userId));
+                dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qnaId, "qna"));
+                
+                Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "qna", qnaId);
+                if (interaction.isPresent()) {
+                    String actionType = interaction.get().getActionType();
+                    dto.setLiked("like".equals(actionType));
+                    dto.setDisliked("dislike".equals(actionType));
+                }
+            }
+        }
+
         return dto;
+    }
+    
+    @Transactional
+    public void deleteQna(Long qnaId, String email) {
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+        
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                
+        if (!qna.getPost().getAuthor().getId().equals(user.getId())) {
+             throw new IllegalArgumentException("Not authorized to delete this post");
+        }
+        
+        postRepository.delete(qna.getPost());
+    }
+
+    @Transactional
+    public void toggleLike(Long qnaId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+        Post post = qna.getPost();
+
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "qna", qnaId);
+
+        if (existingInteraction.isPresent()) {
+            Interaction interaction = existingInteraction.get();
+            if ("like".equals(interaction.getActionType())) {
+                // Cancel like
+                interactionRepository.delete(interaction);
+                post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+            } else if ("dislike".equals(interaction.getActionType())) {
+                // Change dislike to like
+                interaction.setActionType("like");
+                interactionRepository.save(interaction);
+                post.setDislikeCount(Math.max(0, post.getDislikeCount() - 1));
+                post.setLikeCount(post.getLikeCount() + 1);
+            }
+        } else {
+            // New like
+            Interaction interaction = Interaction.builder()
+                    .user(user)
+                    .targetType("qna")
+                    .targetId(qnaId)
+                    .actionType("like")
+                    .build();
+            interactionRepository.save(interaction);
+            post.setLikeCount(post.getLikeCount() + 1);
+        }
+    }
+
+    @Transactional
+    public void toggleDislike(Long qnaId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+        Post post = qna.getPost();
+
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "qna", qnaId);
+
+        if (existingInteraction.isPresent()) {
+            Interaction interaction = existingInteraction.get();
+            if ("dislike".equals(interaction.getActionType())) {
+                // Cancel dislike
+                interactionRepository.delete(interaction);
+                post.setDislikeCount(Math.max(0, post.getDislikeCount() - 1));
+            } else if ("like".equals(interaction.getActionType())) {
+                // Change like to dislike
+                interaction.setActionType("dislike");
+                interactionRepository.save(interaction);
+                post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+                post.setDislikeCount(post.getDislikeCount() + 1);
+            }
+        } else {
+            // New dislike
+            Interaction interaction = Interaction.builder()
+                    .user(user)
+                    .targetType("qna")
+                    .targetId(qnaId)
+                    .actionType("dislike")
+                    .build();
+            interactionRepository.save(interaction);
+            post.setDislikeCount(post.getDislikeCount() + 1);
+        }
+    }
+
+    @Transactional
+    public void toggleBookmark(Long qnaId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Check if QnA exists
+        qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+
+        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), qnaId, "qna");
+
+        if (existingBookmark.isPresent()) {
+            // Unbookmark
+            bookmarkRepository.delete(existingBookmark.get());
+        } else {
+            // Bookmark
+            Bookmark bookmark = Bookmark.builder()
+                    .user(user)
+                    .targetId(qnaId)
+                    .targetType("qna")
+                    .build();
+            bookmarkRepository.save(bookmark);
+        }
     }
 }
