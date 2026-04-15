@@ -102,9 +102,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .provider(provider)
                     .providerId(providerId)
                     .status(UserStatus.active)
+                    .role(Role.user)
                     .build();
                     
-            user.addRole(Role.user);
             userRepository.save(user);
         } else {
             log.info("OAuth2 Login: Existing user.");
@@ -112,9 +112,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         // Role 리스트를 String 리스트로 변환
-        List<String> roleNames = user.getRoleList().stream()
-                                     .map(Enum::name)
-                                     .collect(Collectors.toList());
+        List<String> roleNames = List.of(user.getRole().name());
 
         return new MemberDTO(
                 user.getEmail(),
