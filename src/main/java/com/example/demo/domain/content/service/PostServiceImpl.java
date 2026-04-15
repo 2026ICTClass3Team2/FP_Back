@@ -14,7 +14,6 @@ import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
-import com.example.demo.domain.content.service.PostService;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.user.entity.User;
@@ -188,7 +187,7 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "feed", post.getId());
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), post.getContentType(), post.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -205,7 +204,7 @@ public class PostServiceImpl implements PostService {
             Interaction newInteraction = Interaction.builder()
                     .user(user)
                     .targetId(post.getId())
-                    .targetType("feed")
+                    .targetType(post.getContentType())
                     .actionType(actionType)
                     .build();
             interactionRepository.save(newInteraction);
@@ -230,7 +229,7 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, "feed");
+        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, post.getContentType());
 
         if (existingBookmark.isPresent()) {
             bookmarkRepository.delete(existingBookmark.get());
@@ -254,7 +253,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), post.getContentType(), post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -293,7 +292,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "feed", post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), post.getContentType(), post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -325,5 +324,22 @@ public class PostServiceImpl implements PostService {
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getContentType(Long postId) {
+        // 게시물을 ID로 조회하고, 없으면 예외.
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found with id: " + postId));
+        return post.getContentType();
+    }
+
+    //질문 게시판 조회수
+    @Override
+    @Transactional
+    public void increaseViewCount(Long postId, Long userId) {
+        // TODO: Implement view count logic, e.g., using a separate ViewHistory table to avoid incrementing on every refresh
+        postRepository.increaseViewCount(postId);
     }
 }

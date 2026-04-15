@@ -89,19 +89,26 @@ public class SecurityConfig {
                 .failureHandler(oAuth2LoginFailureHandler) // 소셜 로그인 실패 시 핸들러
         );
         
-        // 6. JWT 확인 필터 추가
+        // 6. 경로별 접근 권한 설정
+        http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*").permitAll()
+                .requestMatchers("/api/mypage/**").authenticated()
+                .anyRequest().permitAll()
+        );
+
+        // 7. JWT 확인 필터 추가
         http.addFilterBefore(
                 new JWTCheckFilter(jwtUtil, userRepository, suspendedRepository),
                 UsernamePasswordAuthenticationFilter.class
         );
         
-        // 7. 예외 처리 핸들러 등록
+        // 8. 예외 처리 핸들러 등록
         http.exceptionHandling(ex->
                 ex.accessDeniedHandler(customAccessDeniedHandler) // 인가 실패
                   .authenticationEntryPoint(customAuthenticationEntryPoint) // 인증 실패
         );
 
-        // 8. 로그아웃 설정
+        // 9. 로그아웃 설정
         http.logout(logout -> logout
                 .logoutUrl("/logout") // 로그아웃 경로
                 .logoutSuccessHandler(customLogoutSuccessHandler)
