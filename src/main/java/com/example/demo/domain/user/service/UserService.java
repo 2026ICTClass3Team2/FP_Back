@@ -46,9 +46,9 @@ public class UserService {
                 .nickname(userJoinDTO.getNickname())
                 .provider(Provider.local) // 일반 가입
                 .status(UserStatus.active)
+                .role(Role.user)
                 .build();
                 
-        user.addRole(Role.user);
         User savedUser = userRepository.save(user);
 
         // 2. 관심사 저장 (선택 입력)
