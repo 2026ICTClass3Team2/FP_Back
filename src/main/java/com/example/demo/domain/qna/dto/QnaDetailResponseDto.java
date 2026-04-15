@@ -9,15 +9,21 @@ public class QnaDetailResponseDto {
     private Long qnaId;
     private String title;
     private String body;
-    private String username; // Changed from author
-    private String nickname; // Added
+    private String username;
+    private String nickname;
+    private String authorProfileImageUrl;
     private boolean resolved;
     private int points;
     private List<String> techStacks;
     private LocalDateTime createdAt;
-    private int commentsCount;
-    private int likes;
-    private int dislikes;
-    private int shares;
-    private int views;
+    private int commentCount;
+    private int likeCount;
+    private int dislikeCount;
+    private int shareCount;
+    private int viewCount;
+
+    private boolean isLiked;
+    private boolean isDisliked;
+    private boolean isBookmarked;
+    private boolean isAuthor;
 }

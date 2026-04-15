@@ -35,6 +35,7 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                         post.body,
                         user.username,
                         user.nickname,
+                        user.profilePicUrl,
                         qna.isSolved,
                         qna.rewardPoints,
                         post.createdAt,
