@@ -6,8 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(
@@ -23,10 +21,10 @@ import java.util.List;
         }
 )
 @Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString(exclude = "roleList")
 public class User {
 
     @Id
@@ -45,6 +43,11 @@ public class User {
 
     @Column(length = 255)
     private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private Role role = Role.user; // role ENUM('user', 'admin') DEFAULT 'user' NOT NULL
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -86,17 +89,4 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "user_role_list", joinColumns = @JoinColumn(name = "user_id"))
-    @Enumerated(EnumType.STRING)
-    @Builder.Default
-    private List<Role> roleList = new ArrayList<>();
-
-    public void addRole(Role role) {
-        roleList.add(role);
-    }
-
-    public void clearRole() {
-        roleList.clear();
-    }
 }
