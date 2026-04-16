@@ -58,7 +58,7 @@ public class PostServiceImpl implements PostService {
                 .title(requestDto.getTitle())
                 .body(requestDto.getBody())
                 .thumbnailUrl(requestDto.getThumbnailUrl())
-                .contentType(requestDto.getContentType() != null ? requestDto.getContentType() : "feed")
+                .contentType("feed")
                 .author(user)
                 .authorName(user.getNickname())
                 .channel(channel)
@@ -87,8 +87,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
             throw new SecurityException("Unauthorized to modify this post");
@@ -130,7 +129,7 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
         PageRequest pageRequest = PageRequest.of(0, size);
-        
+
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
@@ -151,10 +150,8 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
+        Post post = getFeedPost(postId);
         postRepository.increaseViewCount(postId); // 조회수 증가
-
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
         User currentUser = null;
         if (currentUsername != null) {
@@ -167,8 +164,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void deletePost(Long postId, String currentUsername) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
             throw new SecurityException("Unauthorized to delete this post");
@@ -184,8 +180,7 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), post.getContentType(), post.getId());
@@ -227,8 +222,7 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, post.getContentType());
 
@@ -330,14 +324,28 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public String getContentType(Long postId) {
+        // 게시물을 ID로 조회하고, 없으면 예외.
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found with id: " + postId));
         return post.getContentType();
     }
 
+    private Post getFeedPost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (!"feed".equals(post.getContentType()) || !"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Feed post not found");
+        }
+
+        return post;
+    }
+
+    //질문 게시판 조회수
     @Override
     @Transactional
     public void increaseViewCount(Long postId, Long userId) {
+        // TODO: Implement view count logic, e.g., using a separate ViewHistory table to avoid incrementing on every refresh
         postRepository.increaseViewCount(postId);
     }
 }

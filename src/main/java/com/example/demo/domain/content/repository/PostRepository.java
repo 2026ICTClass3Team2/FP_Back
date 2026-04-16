@@ -17,7 +17,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
-           "WHERE p.id < :lastPostId AND h.id IS NULL AND b.id IS NULL " +
+           "WHERE p.id < :lastPostId AND h.id IS NULL AND b.id IS NULL AND " +
+           "p.contentType = 'feed' AND p.status = 'active'" +
            "ORDER BY p.id DESC")
     Slice<Post> findPostsByCursor(@Param("lastPostId") Long lastPostId, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
@@ -25,7 +26,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
-           "WHERE h.id IS NULL AND b.id IS NULL " +
+           "WHERE h.id IS NULL AND b.id IS NULL AND " +
+            "p.contentType = 'feed' AND p.status = 'active'" +
            "ORDER BY p.id DESC")
     Slice<Post> findPostsFirstPage(@Param("currentUserId") Long currentUserId, Pageable pageable);
 

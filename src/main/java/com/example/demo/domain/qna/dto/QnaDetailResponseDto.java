@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class QnaDetailResponseDto {
     private Long qnaId;
+    private Long postId;
     private String title;
     private String body;
     private String username;

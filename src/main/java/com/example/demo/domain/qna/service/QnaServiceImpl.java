@@ -118,6 +118,7 @@ public class QnaServiceImpl implements QnaService {
                     // Populate tech stacks for the list view
                     Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
                     if(qna != null) {
+                        dto.setPostId(qna.getPost().getId());
                         List<String> techStacks = qna.getPost().getContentTags().stream()
                                 .map(contentTag -> contentTag.getTag().getName())
                                 .collect(Collectors.toList());
@@ -140,6 +141,7 @@ public class QnaServiceImpl implements QnaService {
             results.getContent().forEach(dto -> {
                 Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
                 if(qna != null) {
+                    dto.setPostId(qna.getPost().getId());
                     List<String> techStacks = qna.getPost().getContentTags().stream()
                             .map(contentTag -> contentTag.getTag().getName())
                             .collect(Collectors.toList());
@@ -172,6 +174,7 @@ public class QnaServiceImpl implements QnaService {
         
         QnaDetailResponseDto dto = new QnaDetailResponseDto();
         dto.setQnaId(qna.getId());
+        dto.setPostId(post.getId());
         dto.setTitle(post.getTitle());
         dto.setBody(post.getBody());
         dto.setUsername(author.getUsername());
@@ -204,6 +207,14 @@ public class QnaServiceImpl implements QnaService {
         }
 
         return dto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long resolveQnaPostId(Long qnaIdentifier) {
+        Qna qna = qnaRepository.findById(qnaIdentifier)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+        return qna.getPost().getId();
     }
     
     @Override
