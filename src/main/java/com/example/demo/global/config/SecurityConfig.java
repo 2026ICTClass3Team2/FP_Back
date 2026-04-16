@@ -91,6 +91,7 @@ public class SecurityConfig {
         
         // 6. 경로별 접근 권한 설정
         http.authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/notices/**").permitAll() // 추가한겁니다!!
                 .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*").permitAll()
                 .requestMatchers("/api/mypage/**").authenticated()
                 .anyRequest().permitAll()
