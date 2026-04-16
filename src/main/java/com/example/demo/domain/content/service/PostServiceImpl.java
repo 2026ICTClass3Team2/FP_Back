@@ -149,8 +149,11 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
-        Post post = getFeedPost(postId);
-        postRepository.increaseViewCount(postId); // 조회수 증가
+        // Validate this is a feed post before incrementing, then re-fetch so the
+        // returned DTO reflects the already-incremented value.
+        getFeedPost(postId); // validate type/status first (throws if not a valid feed post)
+        postRepository.increaseViewCount(postId); // 조회수 증가 — DB updated
+        Post post = getFeedPost(postId); // re-fetch: clearAutomatically=true ensures fresh value
 
         User currentUser = null;
         if (currentUsername != null) {

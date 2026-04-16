@@ -18,7 +18,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p WHERE p.contentType = 'feed' AND p.status = 'active' ORDER BY p.id DESC")
     Slice<Post> findPostsFirstPage(Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :postId")
     void increaseViewCount(@Param("postId") Long postId);
 }
