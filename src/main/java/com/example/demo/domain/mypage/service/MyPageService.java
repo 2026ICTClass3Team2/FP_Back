@@ -179,7 +179,7 @@ public class MyPageService {
         }
 
         Pageable pageable = PageRequest.of(page, size, sortObj);
-        Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, pageable);
+        Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, user.getId(), pageable);
 
         return postPage.map(MyPostDto::from);
     }
@@ -219,7 +219,7 @@ public class MyPageService {
         }
 
         Pageable pageable = PageRequest.of(page, size, sortObj);
-        Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, pageable);
+        Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, user.getId(), pageable);
 
         return postPage.map(MyPostDto::from);
     }

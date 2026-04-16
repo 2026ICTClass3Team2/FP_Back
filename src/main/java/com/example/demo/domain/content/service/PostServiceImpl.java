@@ -130,17 +130,18 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
         PageRequest pageRequest = PageRequest.of(0, size);
-        Slice<Post> posts;
-
-        if (lastPostId == null) {
-            posts = postRepository.findPostsFirstPage(pageRequest);
-        } else {
-            posts = postRepository.findPostsByCursor(lastPostId, pageRequest);
-        }
-
+        
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
+        }
+        Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+
+        Slice<Post> posts;
+        if (lastPostId == null) {
+            posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
+        } else {
+            posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
         }
 
         final User finalUser = currentUser;
@@ -329,17 +330,14 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public String getContentType(Long postId) {
-        // 게시물을 ID로 조회하고, 없으면 예외.
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found with id: " + postId));
         return post.getContentType();
     }
 
-    //질문 게시판 조회수
     @Override
     @Transactional
     public void increaseViewCount(Long postId, Long userId) {
-        // TODO: Implement view count logic, e.g., using a separate ViewHistory table to avoid incrementing on every refresh
         postRepository.increaseViewCount(postId);
     }
 }
