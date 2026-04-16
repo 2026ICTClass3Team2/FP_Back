@@ -55,6 +55,8 @@ dependencies {
     implementation 'org.modelmapper:modelmapper:3.2.1'
 
     implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+    // PDF 파싱을 위한 라이브러리
+    implementation 'org.apache.pdfbox:pdfbox:2.0.30' // 추가사항 체크
 
     annotationProcessor "com.querydsl:querydsl-apt:5.0.0:jakarta"
     annotationProcessor "jakarta.annotation:jakarta.annotation-api"
