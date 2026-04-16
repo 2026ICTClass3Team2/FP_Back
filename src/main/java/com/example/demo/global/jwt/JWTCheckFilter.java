@@ -113,7 +113,9 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         } catch (Exception e) {
             // 그 외 일반 예외 처리
             log.error("Internal Server Error: {}", e.getMessage(), e);
-            handleException(response, "ERROR_SERVER", "Internal Server Error");
+            //다음에 프로젝트 끝날때 활성화 -> 에러를 401으로 변환
+//            handleException(response, "ERROR_SERVER", "Internal Server Error");
+            throw new ServletException(e); //500error 내용 볼수 있게
         }
     }
 
