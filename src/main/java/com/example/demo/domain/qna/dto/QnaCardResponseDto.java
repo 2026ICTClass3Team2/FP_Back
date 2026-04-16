@@ -13,31 +13,39 @@ public class QnaCardResponseDto {
     private Long qnaId;
     private String title;
     private String body;
-    private String username; // Changed from author
-    private String nickname; // Added
+    private String username;
+    private String nickname;
+    private String authorProfileImageUrl;
     private boolean resolved;
     private int points;
     private List<String> techStacks;
     private LocalDateTime createdAt;
-    private int commentsCount;
-    private int likes;
-    private int dislikes;
-    private int shares;
-    private int views;
+    private int commentCount;
+    private int likeCount;
+    private int dislikeCount;
+    private int shareCount;
+    private int viewCount;
+
+    private boolean isLiked;
+    private boolean isDisliked;
+    private boolean isBookmarked;
+    private boolean isAuthor;
 
     @QueryProjection
-    public QnaCardResponseDto(Long qnaId, String title, String body, String username, String nickname, boolean resolved, int points, LocalDateTime createdAt, int commentsCount, int likes, int dislikes, int views) {
+    public QnaCardResponseDto(Long qnaId, String title, String body, String username, String nickname, String authorProfileImageUrl, boolean resolved, int points, LocalDateTime createdAt, int commentCount, int likeCount, int dislikeCount, int viewCount) {
         this.qnaId = qnaId;
         this.title = title;
         this.body = body;
         this.username = username;
         this.nickname = nickname;
+        this.authorProfileImageUrl = authorProfileImageUrl;
         this.resolved = resolved;
         this.points = points;
         this.createdAt = createdAt;
-        this.commentsCount = commentsCount;
-        this.likes = likes;
-        this.dislikes = dislikes;
-        this.views = views;
+        this.commentCount = commentCount;
+        this.likeCount = likeCount;
+        this.dislikeCount = dislikeCount;
+        this.viewCount = viewCount;
+        this.shareCount = 0; // Defaulting share count if not in projection
     }
 }
