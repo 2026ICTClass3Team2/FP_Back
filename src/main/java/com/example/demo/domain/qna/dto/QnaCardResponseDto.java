@@ -11,6 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 public class QnaCardResponseDto {
     private Long qnaId;
+    private Long postId;
     private String title;
     private String body;
     private String username;
