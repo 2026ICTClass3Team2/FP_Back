@@ -1,5 +1,7 @@
 package com.example.demo.domain.report.entity;
 
+import com.example.demo.domain.report.enums.ReportReasonType;
+import com.example.demo.domain.report.enums.ReportTargetType;
 import com.example.demo.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -29,18 +31,20 @@ public class Report {
     @Column(name = "target_id", nullable = false)
     private Long targetId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "target_type", nullable = false)
-    private String targetType; // post, comments, user
+    private ReportTargetType targetType;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String category; // spam, harrassment, inappropriate, copyright, other
+    private ReportReasonType category;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String details;
 
     @Column(nullable = false)
     @Builder.Default
-    private String status = "pending"; // pending, approved, rejected
+    private String status = "pending"; // TODO: 이것도 Enum으로 만들 수 있습니다.
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

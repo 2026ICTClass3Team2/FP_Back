@@ -18,4 +18,5 @@ public class PostUpdateRequestDto {
     private String thumbnailUrl;
     private Long channelId; 
     private List<String> tags;
+    private String attachedUrls;
 }

@@ -7,6 +7,7 @@ import java.util.List;
 @Data
 public class QnaDetailResponseDto {
     private Long qnaId;
+    private Long postId;
     private String title;
     private String body;
     private String username;
@@ -19,7 +20,6 @@ public class QnaDetailResponseDto {
     private int commentCount;
     private int likeCount;
     private int dislikeCount;
-    private int shareCount;
     private int viewCount;
 
     private boolean isLiked;

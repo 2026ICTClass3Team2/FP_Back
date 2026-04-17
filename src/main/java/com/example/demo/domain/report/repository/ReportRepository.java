@@ -1,4 +1,7 @@
 package com.example.demo.domain.report.repository;
 
-public class ReportRepository {
+import com.example.demo.domain.report.entity.Report;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ReportRepository extends JpaRepository<Report, Long> {
 }

@@ -7,9 +7,11 @@ import com.example.demo.domain.qna.service.QnaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/qna")
@@ -19,8 +21,13 @@ public class QnaController {
     private final QnaService qnaService;
 
     @PostMapping
-    public ResponseEntity<Void> createQna(@RequestBody QnaCreateRequestDto qnaCreateRequestDto, Principal principal) {
-        qnaService.createQna(qnaCreateRequestDto, principal.getName());
+    public ResponseEntity<?> createQna(@RequestBody QnaCreateRequestDto qnaCreateRequestDto,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.createQna(qnaCreateRequestDto, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
@@ -31,46 +38,73 @@ public class QnaController {
             @RequestParam(defaultValue = "all") String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            Principal principal) {
-        String email = principal != null ? principal.getName() : null;
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String email = userDetails != null ? userDetails.getUsername() : null;
         Page<QnaCardResponseDto> qnaList = qnaService.getQnaList(q, sort, status, page, size, email);
         return ResponseEntity.ok(qnaList);
     }
 
     @GetMapping("/{qnaId}")
-    public ResponseEntity<QnaDetailResponseDto> getQnaDetail(@PathVariable Long qnaId, Principal principal) {
-        String email = principal != null ? principal.getName() : null;
+    public ResponseEntity<QnaDetailResponseDto> getQnaDetail(@PathVariable Long qnaId,
+                                                              @AuthenticationPrincipal UserDetails userDetails) {
+        String email = userDetails != null ? userDetails.getUsername() : null;
         QnaDetailResponseDto qnaDetail = qnaService.getQnaDetail(qnaId, email);
         return ResponseEntity.ok(qnaDetail);
     }
-    
+
     @PutMapping("/{qnaId}")
-    public ResponseEntity<Void> updateQna(@PathVariable Long qnaId, @RequestBody QnaCreateRequestDto qnaCreateRequestDto, Principal principal) {
-        qnaService.updateQna(qnaId, qnaCreateRequestDto, principal.getName());
+    public ResponseEntity<?> updateQna(@PathVariable Long qnaId,
+                                       @RequestBody QnaCreateRequestDto qnaCreateRequestDto,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.updateQna(qnaId, qnaCreateRequestDto, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{qnaId}")
-    public ResponseEntity<Void> deleteQna(@PathVariable Long qnaId, Principal principal) {
-        qnaService.deleteQna(qnaId, principal.getName());
+    public ResponseEntity<?> deleteQna(@PathVariable Long qnaId,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.deleteQna(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{qnaId}/like")
-    public ResponseEntity<Void> toggleLike(@PathVariable Long qnaId, Principal principal) {
-        qnaService.toggleLike(qnaId, principal.getName());
+    public ResponseEntity<?> toggleLike(@PathVariable Long qnaId,
+                                        @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.toggleLike(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{qnaId}/dislike")
-    public ResponseEntity<Void> toggleDislike(@PathVariable Long qnaId, Principal principal) {
-        qnaService.toggleDislike(qnaId, principal.getName());
+    public ResponseEntity<?> toggleDislike(@PathVariable Long qnaId,
+                                           @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.toggleDislike(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{qnaId}/bookmark")
-    public ResponseEntity<Void> toggleBookmark(@PathVariable Long qnaId, Principal principal) {
-        qnaService.toggleBookmark(qnaId, principal.getName());
+    public ResponseEntity<?> toggleBookmark(@PathVariable Long qnaId,
+                                            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.toggleBookmark(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 }
