@@ -129,17 +129,18 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
         PageRequest pageRequest = PageRequest.of(0, size);
-        Slice<Post> posts;
-
-        if (lastPostId == null) {
-            posts = postRepository.findPostsFirstPage(pageRequest);
-        } else {
-            posts = postRepository.findPostsByCursor(lastPostId, pageRequest);
-        }
 
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
+        }
+        Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+
+        Slice<Post> posts;
+        if (lastPostId == null) {
+            posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
+        } else {
+            posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
         }
 
         final User finalUser = currentUser;

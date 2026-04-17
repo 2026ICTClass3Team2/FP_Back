@@ -1,21 +1,32 @@
 package com.example.demo.domain.mypage.service;
 
+import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.mypage.dto.BlockResponseDto;
 import com.example.demo.domain.mypage.dto.MyPageProfileResponseDto;
+import com.example.demo.domain.mypage.dto.MyPostDto;
 import com.example.demo.domain.mypage.dto.PasswordUpdateRequestDto;
 import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
+import com.example.demo.domain.report.entity.Block;
+import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.Interest;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.domain.user.service.MailService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.mail.MessagingException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +37,8 @@ public class MyPageService {
     private final UserRepository userRepository;
     private final InterestRepository interestRepository;
     private final TagRepository tagRepository;
+    private final PostRepository postRepository;
+    private final BlockRepository blockRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
 
@@ -129,5 +142,108 @@ public class MyPageService {
         }
 
         user.setEmail(newEmail);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MyPostDto> getMyPosts(String email, String category, String sort, int page, int size) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<String> contentTypes;
+        if ("feed".equalsIgnoreCase(category)) {
+            contentTypes = List.of("feed");
+        } else if ("qna".equalsIgnoreCase(category)) {
+            contentTypes = List.of("qna");
+        } else {
+            contentTypes = Arrays.asList("feed", "qna");
+        }
+
+        Sort sortObj;
+        switch (sort != null ? sort.toLowerCase() : "latest") {
+            case "oldest":
+                sortObj = Sort.by(Sort.Direction.ASC, "createdAt");
+                break;
+            case "likes":
+                sortObj = Sort.by(Sort.Direction.DESC, "likeCount");
+                break;
+            case "views":
+                sortObj = Sort.by(Sort.Direction.DESC, "viewCount");
+                break;
+            case "comments":
+                sortObj = Sort.by(Sort.Direction.DESC, "commentCount");
+                break;
+            case "latest":
+            default:
+                sortObj = Sort.by(Sort.Direction.DESC, "createdAt");
+                break;
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sortObj);
+        Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, user.getId(), pageable);
+
+        return postPage.map(MyPostDto::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MyPostDto> getMyBookmarks(String email, String category, String sort, int page, int size) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<String> contentTypes;
+        if ("feed".equalsIgnoreCase(category)) {
+            contentTypes = List.of("feed");
+        } else if ("qna".equalsIgnoreCase(category)) {
+            contentTypes = List.of("qna");
+        } else {
+            contentTypes = Arrays.asList("feed", "qna");
+        }
+
+        Sort sortObj;
+        switch (sort != null ? sort.toLowerCase() : "latest") {
+            case "oldest":
+                sortObj = Sort.by(Sort.Direction.ASC, "createdAt");
+                break;
+            case "likes":
+                sortObj = Sort.by(Sort.Direction.DESC, "likeCount");
+                break;
+            case "views":
+                sortObj = Sort.by(Sort.Direction.DESC, "viewCount");
+                break;
+            case "comments":
+                sortObj = Sort.by(Sort.Direction.DESC, "commentCount");
+                break;
+            case "latest":
+            default:
+                sortObj = Sort.by(Sort.Direction.DESC, "createdAt");
+                break;
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sortObj);
+        Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, user.getId(), pageable);
+
+        return postPage.map(MyPostDto::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BlockResponseDto> getBlockedUsers(String email, Pageable pageable) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        Page<Block> blockedPage = blockRepository.findByBlockerId(user.getId(), pageable);
+        return blockedPage.map(BlockResponseDto::from);
+    }
+
+    @Transactional
+    public void unblockUser(String email, Long blockId) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        Block block = blockRepository.findById(blockId)
+                .orElseThrow(() -> new IllegalArgumentException("차단 정보를 찾을 수 없습니다."));
+
+        if (!block.getBlocker().getId().equals(user.getId())) {
+            throw new IllegalStateException("차단을 해제할 권한이 없습니다.");
+        }
+
+        blockRepository.delete(block);
     }
 }
