@@ -8,7 +8,6 @@ import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
-import com.example.demo.domain.content.service.PostService;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.qna.dto.QnaCardResponseDto;
@@ -40,7 +39,6 @@ public class QnaServiceImpl implements QnaService {
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
     private final BookmarkRepository bookmarkRepository;
-    private final PostService postService; // Inject PostService for increaseViewCount
 
     @Override
     @Transactional
@@ -76,7 +74,7 @@ public class QnaServiceImpl implements QnaService {
 
         Post post = qna.getPost();
 
-        if (!post.getAuthor().getId().equals(user.getId())) {
+        if (post.getAuthor() == null || !post.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("Not authorized to update this post");
         }
 
@@ -118,14 +116,13 @@ public class QnaServiceImpl implements QnaService {
                     // Populate tech stacks for the list view
                     Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
                     if(qna != null) {
-                        dto.setPostId(qna.getPost().getId());
                         List<String> techStacks = qna.getPost().getContentTags().stream()
                                 .map(contentTag -> contentTag.getTag().getName())
                                 .collect(Collectors.toList());
                         dto.setTechStacks(techStacks);
                     }
 
-                    dto.setAuthor(qna != null && qna.getPost().getAuthor().getId().equals(userId));
+                    dto.setAuthor(qna != null && qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
                     dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, dto.getQnaId(), "qna"));
                     
                     Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "qna", dto.getQnaId());
@@ -141,7 +138,6 @@ public class QnaServiceImpl implements QnaService {
             results.getContent().forEach(dto -> {
                 Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
                 if(qna != null) {
-                    dto.setPostId(qna.getPost().getId());
                     List<String> techStacks = qna.getPost().getContentTags().stream()
                             .map(contentTag -> contentTag.getTag().getName())
                             .collect(Collectors.toList());
@@ -159,7 +155,10 @@ public class QnaServiceImpl implements QnaService {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
         Post post = qna.getPost();
-        
+        if (post == null || post.getId() == null) {
+            throw new IllegalArgumentException("Qna post not found");
+        }
+
         // Increase view count
         Long userId = null;
         if (email != null) {
@@ -168,7 +167,16 @@ public class QnaServiceImpl implements QnaService {
                 userId = user.getId();
             }
         }
-        postService.increaseViewCount(post.getId(), userId); // Call PostService to handle view count
+        postRepository.increaseViewCount(post.getId()); // Directly increment view count in DB
+
+        // increaseViewCount uses a bulk update that clears the persistence context.
+        // Re-load Qna/Post so lazy associations (author/contentTags) are attached to the current session.
+        qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+        post = qna.getPost();
+        if (post == null || post.getId() == null) {
+            throw new IllegalArgumentException("Qna post not found");
+        }
 
         User author = post.getAuthor();
         
@@ -177,25 +185,36 @@ public class QnaServiceImpl implements QnaService {
         dto.setPostId(post.getId());
         dto.setTitle(post.getTitle());
         dto.setBody(post.getBody());
-        dto.setUsername(author.getUsername());
-        dto.setNickname(author.getNickname());
-        dto.setAuthorProfileImageUrl(author.getProfilePicUrl());
+        
+        if (author != null) {
+            dto.setUsername(author.getUsername());
+            dto.setNickname(author.getNickname());
+            dto.setAuthorProfileImageUrl(author.getProfilePicUrl());
+        } else {
+            // Handle case where author is null for old data
+            dto.setUsername("unknown");
+            dto.setNickname("익명");
+            dto.setAuthorProfileImageUrl(null);
+        }
+
         dto.setResolved(qna.isSolved());
         dto.setPoints(qna.getRewardPoints());
         dto.setCreatedAt(post.getCreatedAt());
         dto.setCommentCount(post.getCommentCount());
         dto.setLikeCount(post.getLikeCount());
         dto.setDislikeCount(post.getDislikeCount());
-        dto.setViewCount(post.getViewCount() + 1); // Return incremented count
-        dto.setShareCount(0); // Assuming share logic isn't fully implemented in DB yet
+        dto.setViewCount(post.getViewCount()); // post proxy is initialized from DB after the @Modifying UPDATE, so value is already N+1
 
         List<String> techStacks = post.getContentTags().stream()
                 .map(contentTag -> contentTag.getTag().getName())
                 .collect(Collectors.toList());
         dto.setTechStacks(techStacks);
 
-        if (userId != null) {
+        if (userId != null && author != null) {
             dto.setAuthor(author.getId().equals(userId));
+        }
+
+        if (userId != null) {
             dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qnaId, "qna"));
             
             Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "qna", qnaId);
@@ -208,14 +227,6 @@ public class QnaServiceImpl implements QnaService {
 
         return dto;
     }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Long resolveQnaPostId(Long qnaIdentifier) {
-        Qna qna = qnaRepository.findById(qnaIdentifier)
-                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
-        return qna.getPost().getId();
-    }
     
     @Override
     @Transactional
@@ -226,7 +237,7 @@ public class QnaServiceImpl implements QnaService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
                 
-        if (!qna.getPost().getAuthor().getId().equals(user.getId())) {
+        if (qna.getPost().getAuthor() == null || !qna.getPost().getAuthor().getId().equals(user.getId())) {
              throw new IllegalArgumentException("Not authorized to delete this post");
         }
         
@@ -332,4 +343,19 @@ public class QnaServiceImpl implements QnaService {
             bookmarkRepository.save(bookmark);
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long resolveQnaPostId(Long qnaIdentifier) {
+        Qna qna = qnaRepository.findById(qnaIdentifier)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+
+        Post post = qna.getPost();
+        if (post == null || post.getId() == null) {
+            throw new IllegalArgumentException("Qna post not found");
+        }
+
+        return post.getId();
+    }
 }
+
