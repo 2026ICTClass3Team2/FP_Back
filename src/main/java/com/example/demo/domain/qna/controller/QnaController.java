@@ -11,6 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/qna")
 @RequiredArgsConstructor
@@ -19,8 +21,12 @@ public class QnaController {
     private final QnaService qnaService;
 
     @PostMapping
-    public ResponseEntity<Void> createQna(@RequestBody QnaCreateRequestDto qnaCreateRequestDto,
-                                          @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> createQna(@RequestBody QnaCreateRequestDto qnaCreateRequestDto,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
         qnaService.createQna(qnaCreateRequestDto, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
@@ -47,37 +53,57 @@ public class QnaController {
     }
 
     @PutMapping("/{qnaId}")
-    public ResponseEntity<Void> updateQna(@PathVariable Long qnaId,
-                                          @RequestBody QnaCreateRequestDto qnaCreateRequestDto,
-                                          @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> updateQna(@PathVariable Long qnaId,
+                                       @RequestBody QnaCreateRequestDto qnaCreateRequestDto,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
         qnaService.updateQna(qnaId, qnaCreateRequestDto, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{qnaId}")
-    public ResponseEntity<Void> deleteQna(@PathVariable Long qnaId,
-                                          @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> deleteQna(@PathVariable Long qnaId,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
         qnaService.deleteQna(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{qnaId}/like")
-    public ResponseEntity<Void> toggleLike(@PathVariable Long qnaId,
-                                           @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> toggleLike(@PathVariable Long qnaId,
+                                        @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
         qnaService.toggleLike(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{qnaId}/dislike")
-    public ResponseEntity<Void> toggleDislike(@PathVariable Long qnaId,
-                                              @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> toggleDislike(@PathVariable Long qnaId,
+                                           @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
         qnaService.toggleDislike(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{qnaId}/bookmark")
-    public ResponseEntity<Void> toggleBookmark(@PathVariable Long qnaId,
-                                               @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> toggleBookmark(@PathVariable Long qnaId,
+                                            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
         qnaService.toggleBookmark(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
