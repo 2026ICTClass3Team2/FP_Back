@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +51,9 @@ public class CommentService {
                     .orElseThrow(() -> new IllegalArgumentException("Parent comment not found"));
             if (!"active".equals(parent.getStatus())) {
                 throw new IllegalArgumentException("Parent comment not found or not active");
+            }
+            if (parent.getPost() == null || !postId.equals(parent.getPost().getId())) {
+                throw new IllegalArgumentException("Parent comment does not belong to the requested post");
             }
         }
 
@@ -115,10 +117,9 @@ public class CommentService {
     }
 
     @Transactional
-    public CommentResponseDto updateComment(Long commentId, CommentRequestDto requestDto, String email) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
-        
+    public CommentResponseDto updateComment(Long postId, Long commentId, CommentRequestDto requestDto, String email) {
+        Comment comment = getCommentByPost(postId, commentId);
+
         if (!"active".equals(comment.getStatus())) {
             throw new IllegalArgumentException("Comment not found or not active");
         }
@@ -132,9 +133,8 @@ public class CommentService {
     }
 
     @Transactional
-    public void deleteComment(Long commentId, String email) {
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+    public void deleteComment(Long postId, Long commentId, String email) {
+        Comment comment = getCommentByPost(postId, commentId);
 
         if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new SecurityException("Unauthorized to delete this comment");
@@ -152,11 +152,10 @@ public class CommentService {
     }
 
     @Transactional
-    public void toggleInteraction(Long commentId, String actionType, String email) {
+    public void toggleInteraction(Long postId, Long commentId, String actionType, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+        Comment comment = getCommentByPost(postId, commentId);
 
         if (!"active".equals(comment.getStatus())) {
             throw new IllegalArgumentException("Comment not found or not active");
@@ -194,5 +193,16 @@ public class CommentService {
         } else if ("dislike".equals(actionType)) {
             comment.setDislikeCount(Math.max(0, comment.getDislikeCount() + delta));
         }
+    }
+
+    private Comment getCommentByPost(Long postId, Long commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+
+        if (comment.getPost() == null || !postId.equals(comment.getPost().getId())) {
+            throw new IllegalArgumentException("Comment does not belong to the requested post");
+        }
+
+        return comment;
     }
 }
