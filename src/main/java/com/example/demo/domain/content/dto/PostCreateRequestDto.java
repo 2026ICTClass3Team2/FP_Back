@@ -14,9 +14,9 @@ public class PostCreateRequestDto {
     @NotBlank(message = "본문을 입력해주세요.")
     private String body;
 
-    // 선택 사항
     private String thumbnailUrl;
-    private String contentType; // 기본값은 feed
+    private String contentType;
     private Long channelId; 
     private List<String> tags;
+    private String attachedUrls;
 }
