@@ -54,6 +54,11 @@ public class PostServiceImpl implements PostService {
                     .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
         }
 
+        String externalUrl = null;
+        if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
+            externalUrl = requestDto.getAttachedUrls();
+        }
+
         Post post = Post.builder()
                 .title(requestDto.getTitle())
                 .body(requestDto.getBody())
@@ -64,6 +69,7 @@ public class PostServiceImpl implements PostService {
                 .channel(channel)
                 .sourceType("internal")
                 .status("active")
+                .externalUrl(externalUrl)
                 .build();
 
         Post savedPost = postRepository.save(post);
@@ -98,7 +104,13 @@ public class PostServiceImpl implements PostService {
         if (requestDto.getThumbnailUrl() != null) {
             post.setThumbnailUrl(requestDto.getThumbnailUrl());
         }
-        
+
+        String externalUrl = null;
+        if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
+            externalUrl = requestDto.getAttachedUrls();
+        }
+        post.setExternalUrl(externalUrl);
+
         if (requestDto.getChannelId() != null) {
             Channel channel = channelRepository.findById(requestDto.getChannelId())
                     .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
@@ -173,8 +185,8 @@ public class PostServiceImpl implements PostService {
             throw new SecurityException("Unauthorized to delete this post");
         }
 
-        postRepository.delete(post);
-        log.info("Post deleted. postId: {}, deletedBy: {}", postId, currentUsername);
+        post.setStatus("hidden");
+        log.info("Post hidden. postId: {}, hiddenBy: {}", postId, currentUsername);
     }
 
     @Override
@@ -260,12 +272,18 @@ public class PostServiceImpl implements PostService {
         }
 
         List<String> tags = new ArrayList<>();
+        List<String> attachedUrls = new ArrayList<>();
+        if (post.getExternalUrl() != null && !post.getExternalUrl().isEmpty()) {
+            attachedUrls.add(post.getExternalUrl());
+        }
 
         return PostFeedResponseDto.builder()
                 .postId(post.getId())
                 .title(post.getTitle())
+                .body(post.getBody())
                 .createdAt(post.getCreatedAt())
                 .tags(tags)
+                .attachedUrls(attachedUrls)
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
@@ -299,6 +317,10 @@ public class PostServiceImpl implements PostService {
         }
 
         List<String> tags = new ArrayList<>();
+        List<String> attachedUrls = new ArrayList<>();
+        if (post.getExternalUrl() != null && !post.getExternalUrl().isEmpty()) {
+            attachedUrls.add(post.getExternalUrl());
+        }
 
         return PostDetailResponseDto.builder()
                 .postId(post.getId())
@@ -319,6 +341,7 @@ public class PostServiceImpl implements PostService {
                 .isBookmarked(isBookmarked)
                 .isAuthor(isAuthor)
                 .tags(tags)
+                .attachedUrls(attachedUrls)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();
