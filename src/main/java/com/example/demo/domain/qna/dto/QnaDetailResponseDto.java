@@ -20,7 +20,6 @@ public class QnaDetailResponseDto {
     private int commentCount;
     private int likeCount;
     private int dislikeCount;
-    private int shareCount;
     private int viewCount;
 
     private boolean isLiked;

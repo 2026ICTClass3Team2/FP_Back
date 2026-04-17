@@ -24,7 +24,6 @@ public class QnaCardResponseDto {
     private int commentCount;
     private int likeCount;
     private int dislikeCount;
-    private int shareCount;
     private int viewCount;
 
     private boolean isLiked;
@@ -33,7 +32,19 @@ public class QnaCardResponseDto {
     private boolean isAuthor;
 
     @QueryProjection
-    public QnaCardResponseDto(Long qnaId, String title, String body, String username, String nickname, String authorProfileImageUrl, boolean resolved, int points, LocalDateTime createdAt, int commentCount, int likeCount, int dislikeCount, int viewCount) {
+    public QnaCardResponseDto(Long qnaId,
+                              String title,
+                              String body,
+                              String username,
+                              String nickname,
+                              String authorProfileImageUrl,
+                              boolean resolved,
+                              int points,
+                              LocalDateTime createdAt,
+                              int commentCount,
+                              int likeCount,
+                              int dislikeCount,
+                              int viewCount) {
         this.qnaId = qnaId;
         this.title = title;
         this.body = body;
@@ -46,7 +57,6 @@ public class QnaCardResponseDto {
         this.commentCount = commentCount;
         this.likeCount = likeCount;
         this.dislikeCount = dislikeCount;
-        this.viewCount = viewCount;
-        this.shareCount = 0; // Defaulting share count if not in projection
+        this.viewCount = viewCount; // Defaulting share count if not in projection
     }
 }
