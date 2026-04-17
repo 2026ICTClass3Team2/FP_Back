@@ -31,6 +31,7 @@ public class PostDetailResponseDto {
     private boolean isAuthor;
 
     private List<String> tags;
+    private List<String> attachedUrls;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
