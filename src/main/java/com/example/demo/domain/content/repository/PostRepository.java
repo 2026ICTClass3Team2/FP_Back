@@ -38,13 +38,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
-           "WHERE p.author.id = :authorId AND p.contentType IN :contentTypes AND h.id IS NULL AND b.id IS NULL")
+           "WHERE p.author.id = :authorId AND p.contentType IN :contentTypes AND p.status = 'active' AND h.id IS NULL AND b.id IS NULL")
     Page<Post> findByAuthorIdAndContentTypeIn(@Param("authorId") Long authorId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
     @Query("SELECT p FROM Post p " +
            "JOIN Bookmark bm ON p.id = bm.targetId " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
-           "WHERE bm.user.id = :userId AND p.contentType IN :contentTypes AND h.id IS NULL AND b.id IS NULL")
+           "WHERE bm.user.id = :userId AND p.contentType IN :contentTypes AND p.status = 'active' AND h.id IS NULL AND b.id IS NULL")
     Page<Post> findBookmarkedPostsByUser(@Param("userId") Long userId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
 }

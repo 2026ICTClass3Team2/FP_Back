@@ -158,6 +158,9 @@ public class QnaServiceImpl implements QnaService {
         if (post == null || post.getId() == null) {
             throw new IllegalArgumentException("Qna post not found");
         }
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Qna not found");
+        }
 
         // Increase view count
         Long userId = null;
@@ -176,6 +179,9 @@ public class QnaServiceImpl implements QnaService {
         post = qna.getPost();
         if (post == null || post.getId() == null) {
             throw new IllegalArgumentException("Qna post not found");
+        }
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Qna not found");
         }
 
         User author = post.getAuthor();
@@ -240,8 +246,8 @@ public class QnaServiceImpl implements QnaService {
         if (qna.getPost().getAuthor() == null || !qna.getPost().getAuthor().getId().equals(user.getId())) {
              throw new IllegalArgumentException("Not authorized to delete this post");
         }
-        
-        postRepository.delete(qna.getPost());
+
+        qna.getPost().setStatus("hidden");
     }
 
     @Override
@@ -353,6 +359,9 @@ public class QnaServiceImpl implements QnaService {
         Post post = qna.getPost();
         if (post == null || post.getId() == null) {
             throw new IllegalArgumentException("Qna post not found");
+        }
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Qna not found");
         }
 
         return post.getId();

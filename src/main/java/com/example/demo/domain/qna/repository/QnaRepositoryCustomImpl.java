@@ -48,6 +48,7 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                 .join(qna.post, post)
                 .join(post.author, user)
                 .where(
+                        post.status.eq("active"),
                         searchQuery(query),
                         statusFilter(status)
                 )
@@ -62,6 +63,7 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                 .join(qna.post, post)
                 .join(post.author, user)
                 .where(
+                        post.status.eq("active"),
                         searchQuery(query),
                         statusFilter(status)
                 );

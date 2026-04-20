@@ -185,8 +185,8 @@ public class PostServiceImpl implements PostService {
             throw new SecurityException("Unauthorized to delete this post");
         }
 
-        postRepository.delete(post);
-        log.info("Post deleted. postId: {}, deletedBy: {}", postId, currentUsername);
+        post.setStatus("hidden");
+        log.info("Post hidden. postId: {}, hiddenBy: {}", postId, currentUsername);
     }
 
     @Override
