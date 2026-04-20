@@ -41,16 +41,16 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         }
         // 필터링을 생략할 경로 설정
         String path = request.getRequestURI();
-        
+
         // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
         // 회원가입 관련 경로 모두 허용 (이메일 인증 등)
         if(path.equals("/api/login") ||
-           path.equals("/api/logout") || 
-           path.equals("/api/member/refresh") ||
-           path.startsWith("/api/member/signup") ||
-           path.startsWith("/api/member/check-") ||
-           path.startsWith("/api/member/email/") ||
-           path.startsWith("/api/notices/")) {  // 이부분 추가했습니다
+                path.equals("/api/logout") ||
+                path.equals("/api/member/refresh") ||
+                path.startsWith("/api/member/signup") ||
+                path.startsWith("/api/member/check-") ||
+                path.startsWith("/api/member/email/") ||
+                (path.equals("/api/admin/notice/list") && request.getMethod().equalsIgnoreCase("GET"))) {
             return true;
         }
 
@@ -58,7 +58,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         if(path.startsWith("/api/")) {
             return false;
         }
-        
+
         return true;
     }
 
@@ -73,12 +73,12 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                 log.error("No valid Authorization header found");
                 throw new CustomJWTException("NO_AUTH_HEADER");
             }
-            
+
             // "Bearer " 문자열을 제외한 순수 JWT 추출
             String accessToken = authorizationStr.substring(7);
-            
+
             log.info("Access Token Validation: {}", accessToken);
-            
+
             // Token 검증 및 Claims 추출
             Claims claims = jwtUtil.validateToken(accessToken);
             String email = claims.get("email", String.class);
@@ -91,22 +91,22 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                     .ifPresent(suspended -> {
                         throw new CustomJWTException("SUSPENDED_USER");
                     });
-            
-            List<String> roleNames = List.of("USER");
+
+            List<String> roleNames = List.of(user.getRole().toString());
 
             // 사용자 정보를 MemberDTO에 저장
-            MemberDTO memberDTO = new MemberDTO(email, "", "temp_nickname", roleNames);
-            
+            MemberDTO memberDTO = new MemberDTO(email, "", user.getNickname(), roleNames);
+
             // 인증 객체 생성 및 SecurityContext 등록
             UsernamePasswordAuthenticationToken authenticationToken =
                     new UsernamePasswordAuthenticationToken(
-                            memberDTO, 
-                            "", 
+                            memberDTO,
+                            "",
                             memberDTO.getAuthorities());
-            
+
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             filterChain.doFilter(request, response);
-            
+
         } catch (CustomJWTException e) {
             // JWT 관련 커스텀 예외 처리
             log.error("JWT Exception: {}", e.getMessage());

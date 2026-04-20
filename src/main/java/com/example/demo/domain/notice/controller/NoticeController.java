@@ -14,7 +14,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/notices")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class NoticeController {
 
     private final NoticeRepository noticeRepository;

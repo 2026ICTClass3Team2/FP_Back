@@ -53,10 +53,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // 1. 세션 사용 안함 (Stateless)
         http.sessionManagement(sessionConfig -> sessionConfig.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-        
+
         // 2. CSRF 비활성화
         http.csrf(AbstractHttpConfigurer::disable);
-        
+
         // 3. 폼 로그인 방식 비활성화 (API 기반) 및 커스텀 로그인 처리
         http.formLogin(form->form
                 .loginProcessingUrl("/login") // 요구사항: /api/login 요청 시 처리
@@ -65,7 +65,7 @@ public class SecurityConfig {
                 .successHandler(apiLoginSuccessHandler)
                 .failureHandler(apiLoginFailurerHandler)
         );
-        
+
         // 4. CORS 설정 적용
         http.cors(cors->cors.configurationSource(corsConfigurationSource()));
 
@@ -88,10 +88,9 @@ public class SecurityConfig {
                 .successHandler(oAuth2LoginSuccessHandler) // 소셜 로그인 성공 시 핸들러
                 .failureHandler(oAuth2LoginFailureHandler) // 소셜 로그인 실패 시 핸들러
         );
-        
+
         // 6. 경로별 접근 권한 설정
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/notices/**").permitAll() // 추가한겁니다!!
                 .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*").permitAll()
                 .requestMatchers("/api/mypage/**").authenticated()
                 .anyRequest().permitAll()
@@ -102,11 +101,11 @@ public class SecurityConfig {
                 new JWTCheckFilter(jwtUtil, userRepository, suspendedRepository),
                 UsernamePasswordAuthenticationFilter.class
         );
-        
+
         // 8. 예외 처리 핸들러 등록
         http.exceptionHandling(ex->
                 ex.accessDeniedHandler(customAccessDeniedHandler) // 인가 실패
-                  .authenticationEntryPoint(customAuthenticationEntryPoint) // 인증 실패
+                        .authenticationEntryPoint(customAuthenticationEntryPoint) // 인증 실패
         );
 
         // 9. 로그아웃 설정
