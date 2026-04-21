@@ -147,4 +147,12 @@ public class MyPageController {
         myPageService.unblockUser(userDetails.getUsername(), blockId);
         return ResponseEntity.ok(Map.of("message", "차단이 성공적으로 해제되었습니다."));
     }
+
+    @GetMapping("/users/{userId}")
+    public ResponseEntity<MyPageProfileResponseDto> getUserProfile(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        MyPageProfileResponseDto profile = myPageService.getUserProfileById(userId);
+        return ResponseEntity.ok(profile);
+    }
 }

@@ -27,6 +27,7 @@ public class PostFeedResponseDto {
     private List<String> attachedUrls;
 
     // 2. 작성자 정보
+    private Long authorUserId;
     private String authorProfileImageUrl;
     private String authorNickname;
     private String authorUsername;
