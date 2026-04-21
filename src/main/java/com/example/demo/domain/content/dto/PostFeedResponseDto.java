@@ -18,10 +18,11 @@ public class PostFeedResponseDto {
     private Long postId;
     private String title;
     private String body; // added for completion from the requested response format
-    
+    private String thumbnailUrl;
+
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm", timezone = "Asia/Seoul")
     private LocalDateTime createdAt;
-    
+
     private List<String> tags;
     private List<String> attachedUrls;
 

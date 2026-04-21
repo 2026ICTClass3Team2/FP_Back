@@ -17,6 +17,7 @@ import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.domain.user.service.MailService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import jakarta.mail.MessagingException;
 import java.util.Arrays;
@@ -41,6 +44,10 @@ public class MyPageService {
     private final BlockRepository blockRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final S3Client s3Client;
+
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
 
     @Transactional(readOnly = true)
     public MyPageProfileResponseDto getProfile(String email) {
@@ -53,6 +60,7 @@ public class MyPageService {
                 .collect(Collectors.toList());
 
         return MyPageProfileResponseDto.builder()
+                .userId(user.getId())
                 .profilePicUrl(user.getProfilePicUrl())
                 .nickname(user.getNickname())
                 .username(user.getUsername())
@@ -77,7 +85,8 @@ public class MyPageService {
         }
 
         // 프로필 이미지 변경
-        if (requestDto.getProfilePicUrl() != null) {
+        if (requestDto.getProfilePicUrl() != null && !requestDto.getProfilePicUrl().equals(user.getProfilePicUrl())) {
+            deleteS3Object(user.getProfilePicUrl());
             user.setProfilePicUrl(requestDto.getProfilePicUrl());
         }
 
@@ -245,5 +254,14 @@ public class MyPageService {
         }
 
         blockRepository.delete(block);
+    }
+
+    private void deleteS3Object(String url) {
+        if (url == null || url.isBlank()) return;
+        String key = url.substring(url.lastIndexOf('/') + 1);
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build());
     }
 }

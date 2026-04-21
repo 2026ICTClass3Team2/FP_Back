@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface ChannelService {
     Long createChannel(String channelName, String description, MultipartFile image, List<String> techStacks, String currentUsername);
+    void updateChannel(Long channelId, String channelName, String description, MultipartFile image, List<String> techStacks, String currentUsername);
     ChannelDetailDto getChannelDetail(Long channelId, String currentUsername);
     List<ChannelSummaryDto> getSubscribedChannels(String currentUsername);
     List<ChannelSummaryDto> getPopularChannels();
