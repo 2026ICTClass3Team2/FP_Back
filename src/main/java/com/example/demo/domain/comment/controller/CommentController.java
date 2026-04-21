@@ -55,17 +55,23 @@ public class CommentController {
     }
 
     @GetMapping("/posts/{postId}/comments")
-    public ResponseEntity<List<CommentResponseDto>> getPostComments(@PathVariable Long postId) {
+    public ResponseEntity<List<CommentResponseDto>> getPostComments(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        List<CommentResponseDto> responses = commentService.getComments(postId);
+        String email = (userDetails != null) ? userDetails.getUsername() : null;
+        List<CommentResponseDto> responses = commentService.getComments(postId, email);
         return ResponseEntity.ok(responses);
     }
 
     @GetMapping("/qna/{qnaId}/comments")
-    public ResponseEntity<List<CommentResponseDto>> getQnaComments(@PathVariable Long qnaId) {
+    public ResponseEntity<List<CommentResponseDto>> getQnaComments(
+            @PathVariable Long qnaId,
+            @AuthenticationPrincipal UserDetails userDetails) {
         Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
         validateContentType(resolvedPostId, "qna");
-        List<CommentResponseDto> responses = commentService.getComments(resolvedPostId);
+        String email = (userDetails != null) ? userDetails.getUsername() : null;
+        List<CommentResponseDto> responses = commentService.getComments(resolvedPostId, email);
         return ResponseEntity.ok(responses);
     }
 

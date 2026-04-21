@@ -2,6 +2,7 @@ package com.example.demo.domain.admin.controller;
 
 import com.example.demo.domain.admin.dto.AdminDashboardStatsDto;
 import com.example.demo.domain.admin.dto.AdminUserDto;
+import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.admin.service.AdminService;
@@ -92,6 +93,22 @@ public class AdminController {
     public ResponseEntity<?> hideChannel(@PathVariable Long channelId) {
         adminService.hideChannel(channelId);
         return ResponseEntity.ok(Map.of("message", "Channel hidden"));
+    }
+
+    @GetMapping("/channels")
+    public ResponseEntity<Page<AdminChannelDto>> searchChannels(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(adminService.searchChannels(keyword, status, pageable));
+    }
+
+    @PutMapping("/channels/{channelId}/status")
+    public ResponseEntity<?> updateChannelStatus(@PathVariable Long channelId, @RequestParam String status) {
+        adminService.updateChannelStatus(channelId, status);
+        return ResponseEntity.ok(Map.of("message", "Channel status updated"));
     }
 
     @GetMapping("/suggestions")

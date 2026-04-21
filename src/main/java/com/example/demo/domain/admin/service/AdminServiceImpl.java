@@ -2,10 +2,13 @@ package com.example.demo.domain.admin.service;
 
 import com.example.demo.domain.admin.dto.AdminDashboardStatsDto;
 import com.example.demo.domain.admin.dto.AdminUserDto;
+import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.channel.entity.Channel;
+import com.example.demo.domain.channel.entity.ChannelTag;
 import com.example.demo.domain.channel.repository.ChannelRepository;
+import com.example.demo.domain.channel.repository.ChannelTagRepository;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
@@ -40,6 +43,7 @@ public class AdminServiceImpl implements AdminService {
     private final ReportRepository reportRepository;
     private final SuggestionRepository suggestionRepository;
     private final ChannelRepository channelRepository;
+    private final ChannelTagRepository channelTagRepository;
     private final PostRepository postRepository;
     private final SuspendedRepository suspendedRepository;
     private final CommentRepository commentRepository;
@@ -176,6 +180,30 @@ public class AdminServiceImpl implements AdminService {
     public void hideChannel(Long channelId) {
         Channel channel = channelRepository.findById(channelId).orElseThrow();
         channel.setStatus("hidden");
+        channelRepository.save(channel);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AdminChannelDto> searchChannels(String keyword, String status, Pageable pageable) {
+        String filterStatus = (status != null && !status.isEmpty() && !status.equalsIgnoreCase("all")) ? status : null;
+        Page<Channel> channels = channelRepository.searchChannels(keyword, filterStatus, pageable);
+        
+        List<AdminChannelDto> dtoList = channels.getContent().stream().map(channel -> {
+            List<String> techStacks = channelTagRepository.findByChannel_Id(channel.getId()).stream()
+                    .map(ct -> ct.getTag().getName())
+                    .collect(Collectors.toList());
+            return new AdminChannelDto(channel, techStacks);
+        }).collect(Collectors.toList());
+        
+        return new PageImpl<>(dtoList, pageable, channels.getTotalElements());
+    }
+
+    @Override
+    @Transactional
+    public void updateChannelStatus(Long channelId, String status) {
+        Channel channel = channelRepository.findById(channelId).orElseThrow();
+        channel.setStatus(status);
         channelRepository.save(channel);
     }
 

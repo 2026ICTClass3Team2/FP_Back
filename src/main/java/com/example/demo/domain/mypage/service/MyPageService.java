@@ -71,6 +71,28 @@ public class MyPageService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public MyPageProfileResponseDto getUserProfileById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        List<String> techStacks = interestRepository.findByUserIdAndIsProfileTagTrue(user.getId())
+                .stream()
+                .map(interest -> interest.getTag().getName())
+                .collect(Collectors.toList());
+
+        return MyPageProfileResponseDto.builder()
+                .userId(user.getId())
+                .profilePicUrl(user.getProfilePicUrl())
+                .nickname(user.getNickname())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .registeredAt(user.getRegisteredAt())
+                .currentPoint(user.getCurrentPoint())
+                .techStacks(techStacks)
+                .build();
+    }
+
     @Transactional
     public void updateProfile(String email, ProfileUpdateRequestDto requestDto) {
         User user = userRepository.findByEmail(email)
