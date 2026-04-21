@@ -367,6 +367,27 @@ public class PostServiceImpl implements PostService {
         return post;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int size, String currentUsername) {
+        PageRequest pageRequest = PageRequest.of(0, size);
+
+        User currentUser = null;
+        if (currentUsername != null) {
+            currentUser = userRepository.findByEmail(currentUsername).orElse(null);
+        }
+
+        Slice<Post> posts;
+        if (lastPostId == null) {
+            posts = postRepository.findByChannelIdFirstPage(channelId, pageRequest);
+        } else {
+            posts = postRepository.findByChannelIdCursor(channelId, lastPostId, pageRequest);
+        }
+
+        final User finalUser = currentUser;
+        return posts.map(post -> convertToDto(post, finalUser));
+    }
+
     //질문 게시판 조회수
     @Override
     @Transactional
