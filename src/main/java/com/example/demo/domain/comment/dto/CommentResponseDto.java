@@ -20,6 +20,7 @@ public class CommentResponseDto {
     private Integer dislikeCount;
     private String status;
     private LocalDateTime createdAt;
+    private Long authorUserId;
     private String authorNickname;
     private String authorProfilePicUrl;
     private Long parentId;
@@ -39,6 +40,7 @@ public class CommentResponseDto {
         this.status = comment.getStatus();
         this.createdAt = comment.getCreatedAt();
         if (comment.getAuthor() != null) {
+            this.authorUserId = comment.getAuthor().getId();
             this.authorNickname = comment.getAuthor().getNickname();
             this.authorProfilePicUrl = comment.getAuthor().getProfilePicUrl();
         }

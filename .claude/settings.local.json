@@ -3,7 +3,8 @@
     "allow": [
       "Bash(./gradlew compileJava)",
       "Bash(./gradlew compileJava --rerun-tasks)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(xargs grep *)"
     ]
   }
 }

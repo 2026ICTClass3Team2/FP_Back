@@ -60,6 +60,7 @@ public class MyPageService {
                 .collect(Collectors.toList());
 
         return MyPageProfileResponseDto.builder()
+                .userId(user.getId())
                 .profilePicUrl(user.getProfilePicUrl())
                 .nickname(user.getNickname())
                 .username(user.getUsername())
