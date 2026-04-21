@@ -9,6 +9,7 @@ import java.util.List;
 @Getter
 @Builder
 public class MyPageProfileResponseDto {
+    private Long userId;
     private String profilePicUrl;
     private String nickname;
     private String username;
