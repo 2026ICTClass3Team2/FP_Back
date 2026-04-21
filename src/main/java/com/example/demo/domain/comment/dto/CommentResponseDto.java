@@ -22,6 +22,7 @@ public class CommentResponseDto {
     private LocalDateTime createdAt;
     private String authorNickname;
     private String authorProfilePicUrl;
+    private Long userId;
     private Long parentId;
     private Integer replyCount = 0; // 대댓글 수
     private List<CommentResponseDto> children = new ArrayList<>();
@@ -41,6 +42,7 @@ public class CommentResponseDto {
         if (comment.getAuthor() != null) {
             this.authorNickname = comment.getAuthor().getNickname();
             this.authorProfilePicUrl = comment.getAuthor().getProfilePicUrl();
+            this.userId = comment.getAuthor().getId();
         }
         if (comment.getParent() != null) {
             this.parentId = comment.getParent().getId();
