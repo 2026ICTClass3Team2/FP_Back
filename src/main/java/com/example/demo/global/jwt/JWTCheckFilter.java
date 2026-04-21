@@ -38,6 +38,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         if (request.getMethod().equalsIgnoreCase("OPTIONS")) return true;
 
         String path = request.getRequestURI();
+<<<<<<< HEAD
 
         // 🟢 [명단 업데이트] 여기에 포함되면 신분증(토큰) 없어도 통과시켜줍니다.
         if (
@@ -49,6 +50,17 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                         path.contains("/view") ||
                         path.startsWith("/api/member/")
         ) {
+=======
+        
+        // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
+        // 회원가입 관련 경로 모두 허용 (이메일 인증 등)
+        if(path.equals("/api/login") ||
+           path.equals("/api/logout") || 
+           path.equals("/api/member/refresh") ||
+           path.startsWith("/api/member/signup") ||
+           path.startsWith("/api/member/check-") ||
+           path.startsWith("/api/member/email/")) {
+>>>>>>> 4a0159ad4cab0c34a5237ae5c714ab85b1e083c7
             return true;
         }
 
