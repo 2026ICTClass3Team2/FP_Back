@@ -3,19 +3,19 @@ package com.example.demo.domain.notice.controller;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.notice.repository.AdminNoticeRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/notice")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/api/admin/notice")
+@RequiredArgsConstructor // 생성자 주입
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class AdminNoticeController {
 
-    @Autowired
-    private AdminNoticeRepository postRepository;
+    private final AdminNoticeRepository postRepository;
 
     // 1. 공지사항 목록 조회
     @GetMapping("/list")
@@ -27,13 +27,18 @@ public class AdminNoticeController {
         return ResponseEntity.ok(notices);
     }
 
-    // 2. 조회수 증가
-    @PatchMapping("/view/{id}")
-    public void incrementViewCount(@PathVariable Long id) {
-        Post post = postRepository.findById(id).orElseThrow();
-        Integer currentView = post.getViewCount();
-        post.setViewCount((currentView == null ? 0 : currentView) + 1);
-        postRepository.save(post);
+    // 2. 조회수 증가 (상세 보기 클릭 시 호출)
+    @PatchMapping("/{id}/view")
+    public ResponseEntity<?> updateViewCount(@PathVariable("id") Long id) {
+        try {
+            Post post = postRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
+            post.setViewCount((post.getViewCount() == null ? 0 : post.getViewCount()) + 1);
+            postRepository.save(post);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
     }
 
     // 3. 공지사항 등록
@@ -66,8 +71,12 @@ public class AdminNoticeController {
     // 4. 공지 삭제 (DELETE)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteNotice(@PathVariable Long id) {
-        postRepository.deleteById(id);
-        return ResponseEntity.ok("삭제 완료");
+        try {
+            postRepository.deleteById(id);
+            return ResponseEntity.ok("삭제 완료");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("삭제 실패");
+        }
     }
 
     // 5. 공지 수정 (PUT)
@@ -75,11 +84,8 @@ public class AdminNoticeController {
     public ResponseEntity<?> updateNotice(@PathVariable Long id, @RequestBody PostCreateRequestDto request) {
         try {
             Post post = postRepository.findById(id).orElseThrow();
-
-            // 🔴 수정 포인트: getPostId() 대신 getId() 사용 시도
-            // 만약 엔티티 필드명이 postId라면 그대로 두시고, id라면 getId()로 바꾸세요.
             Post updatedPost = Post.builder()
-                    .id(post.getId()) // 👈 이 부분을 엔티티 필드명에 맞춰 'id'로 수정했습니다.
+                    .id(post.getId())
                     .title(request.getTitle())
                     .body(request.getBody())
                     .authorName(post.getAuthorName())
@@ -89,12 +95,15 @@ public class AdminNoticeController {
                     .status(post.getStatus())
                     .sourceType(post.getSourceType())
                     .isHidden(post.getIsHidden())
+                    .commentCount(post.getCommentCount())
+                    .likeCount(post.getLikeCount())
+                    .dislikeCount(post.getDislikeCount())
                     .build();
 
             postRepository.save(updatedPost);
             return ResponseEntity.ok("수정 완료");
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("수정 실패: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("수정 실패");
         }
     }
 }
