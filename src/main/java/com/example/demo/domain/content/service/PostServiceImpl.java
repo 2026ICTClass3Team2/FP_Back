@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -101,9 +102,7 @@ public class PostServiceImpl implements PostService {
 
         post.setTitle(requestDto.getTitle());
         post.setBody(requestDto.getBody());
-        if (requestDto.getThumbnailUrl() != null) {
-            post.setThumbnailUrl(requestDto.getThumbnailUrl());
-        }
+        post.setThumbnailUrl(requestDto.getThumbnailUrl());
 
         String externalUrl = null;
         if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
@@ -271,7 +270,9 @@ public class PostServiceImpl implements PostService {
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
-        List<String> tags = new ArrayList<>();
+        List<String> tags = post.getContentTags().stream()
+                .map(ct -> ct.getTag().getName())
+                .collect(Collectors.toList());
         List<String> attachedUrls = new ArrayList<>();
         if (post.getExternalUrl() != null && !post.getExternalUrl().isEmpty()) {
             attachedUrls.add(post.getExternalUrl());
@@ -281,6 +282,7 @@ public class PostServiceImpl implements PostService {
                 .postId(post.getId())
                 .title(post.getTitle())
                 .body(post.getBody())
+                .thumbnailUrl(post.getThumbnailUrl())
                 .createdAt(post.getCreatedAt())
                 .tags(tags)
                 .attachedUrls(attachedUrls)
@@ -316,7 +318,9 @@ public class PostServiceImpl implements PostService {
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
-        List<String> tags = new ArrayList<>();
+        List<String> tags = post.getContentTags().stream()
+                .map(ct -> ct.getTag().getName())
+                .collect(Collectors.toList());
         List<String> attachedUrls = new ArrayList<>();
         if (post.getExternalUrl() != null && !post.getExternalUrl().isEmpty()) {
             attachedUrls.add(post.getExternalUrl());
