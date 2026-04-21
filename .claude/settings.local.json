@@ -6,7 +6,11 @@
       "Bash(npx vite *)",
       "Bash(xargs grep *)",
       "Bash(grep -v \"jwtAxios\\\\|node_modules\\\\|//.*fetch\")",
-      "Bash(grep -v \"test\\\\|//.*refreshToken\")"
+      "Bash(grep -v \"test\\\\|//.*refreshToken\")",
+      "Bash(npx tsc *)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npm run *)",
+      "Bash(node -e \"const fi = require\\('C:/finalProject/final_project/node_modules/react-icons/fi'\\); console.log\\('FiSlash' in fi\\);\")"
     ]
   }
 }

@@ -15,6 +15,7 @@ public class PostDetailResponseDto {
     private String thumbnailUrl;
     private String contentType;
     
+    private Long authorUserId;
     private String authorNickname;
     private String authorProfileImageUrl;
     private String authorUsername;

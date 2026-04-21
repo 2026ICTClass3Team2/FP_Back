@@ -8,6 +8,9 @@ import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.report.enums.HiddenTargetType;
+import com.example.demo.domain.report.repository.BlockRepository;
+import com.example.demo.domain.report.repository.HiddenRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,10 +19,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,13 +37,15 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final InteractionRepository interactionRepository;
+    private final BlockRepository blockRepository;
+    private final HiddenRepository hiddenRepository;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
         log.info("Creating comment for post {} by user {}", postId, email);
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
-        
+
         if (!"active".equals(post.getStatus())) {
             throw new IllegalArgumentException("Post not found or not active");
         }
@@ -74,44 +82,80 @@ public class CommentService {
     }
 
     @Transactional(readOnly = true)
-    public List<CommentResponseDto> getComments(Long postId) {
+    public List<CommentResponseDto> getComments(Long postId, String currentUserEmail) {
         // 1. 부모 댓글 조회 (최신순)
         List<Comment> rootComments = commentRepository.findRootCommentsByPostId(postId);
         if (rootComments.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // 2. 부모 댓글 ID 리스트 추출
+        // 2. 현재 사용자의 차단/숨김 정보 조회
+        Set<Long> blockedUserIds = Collections.emptySet();
+        Set<Long> hiddenCommentIds = Collections.emptySet();
+
+        if (currentUserEmail != null) {
+            User currentUser = userRepository.findByEmail(currentUserEmail).orElse(null);
+            if (currentUser != null) {
+                blockedUserIds = new HashSet<>(blockRepository.findBlockedUserIdsByBlockerId(currentUser.getId()));
+                hiddenCommentIds = new HashSet<>(hiddenRepository.findTargetIdsByUserIdAndTargetType(currentUser.getId(), HiddenTargetType.comment));
+            }
+        }
+
+        // 3. 부모 댓글 ID 리스트 추출
         List<Long> rootCommentIds = rootComments.stream()
                 .map(Comment::getId)
                 .collect(Collectors.toList());
 
-        // 3. 대댓글 조회 (등록순)
+        // 4. 대댓글 조회 (등록순)
         List<Comment> replies = commentRepository.findRepliesByParentIds(rootCommentIds);
 
-        // 4. DTO 변환 및 트리 구조 조립
+        final Set<Long> finalBlockedUserIds = blockedUserIds;
+        final Set<Long> finalHiddenCommentIds = hiddenCommentIds;
+
+        // 5. DTO 변환 및 트리 구조 조립
         Map<Long, CommentResponseDto> commentMap = new HashMap<>();
         List<CommentResponseDto> rootCommentDtos = rootComments.stream()
                 .map(comment -> {
                     CommentResponseDto dto = new CommentResponseDto(comment);
+                    if (finalHiddenCommentIds.contains(comment.getId())) {
+                        dto.setReported(true);
+                    }
                     commentMap.put(dto.getId(), dto);
                     return dto;
                 })
                 .collect(Collectors.toList());
 
         for (Comment reply : replies) {
+            // 차단된 유저의 대댓글 제외
+            if (reply.getAuthor() != null && finalBlockedUserIds.contains(reply.getAuthor().getId())) {
+                continue;
+            }
             CommentResponseDto parentDto = commentMap.get(reply.getParent().getId());
             if (parentDto != null) {
                 if (!"deleted".equals(reply.getStatus())) {
-                    parentDto.getChildren().add(new CommentResponseDto(reply));
+                    CommentResponseDto replyDto = new CommentResponseDto(reply);
+                    if (finalHiddenCommentIds.contains(reply.getId())) {
+                        replyDto.setReported(true);
+                    }
+                    parentDto.getChildren().add(replyDto);
                 }
             }
         }
 
-        // 5. 최종 리스트 필터링 및 replyCount 설정
+        // 6. 최종 리스트 필터링 (차단 유저 + replyCount 설정)
         return rootCommentDtos.stream()
+                .filter(dto -> {
+                    // 차단된 유저의 루트 댓글 제외 (단, 삭제된 댓글은 남김)
+                    if (!"deleted".equals(dto.getStatus())) {
+                        Long authorId = dto.getAuthorUserId();
+                        if (authorId != null && finalBlockedUserIds.contains(authorId)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                })
                 .peek(dto -> dto.setReplyCount(dto.getChildren().size()))
-                .filter(dto -> "active".equals(dto.getStatus()) || 
+                .filter(dto -> "active".equals(dto.getStatus()) ||
                                ("deleted".equals(dto.getStatus()) && dto.getReplyCount() > 0))
                 .collect(Collectors.toList());
     }
@@ -123,7 +167,7 @@ public class CommentService {
         if (!"active".equals(comment.getStatus())) {
             throw new IllegalArgumentException("Comment not found or not active");
         }
-        
+
         if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new SecurityException("Unauthorized to modify this comment");
         }
