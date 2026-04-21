@@ -84,3 +84,11 @@ server:
   port: 8090
   servlet:
     context-path: "/api"
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET}
+  region: ${AWS_REGION}
+  credentials:
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}

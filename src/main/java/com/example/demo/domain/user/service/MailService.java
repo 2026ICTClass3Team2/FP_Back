@@ -80,6 +80,46 @@ public class MailService {
         }
     }
 
+    // --- 이메일 변경 인증을 위한 새로운 메서드들 ---
+
+    public MimeMessage createUpdateEmailMail(String mail, String number) throws MessagingException, UnsupportedEncodingException {
+        MimeMessage message = javaMailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(new InternetAddress(senderEmail, "dead bug"));
+        helper.setTo(mail);
+        helper.setSubject("[dead bug] 이메일 주소 변경 인증 번호");
+
+        Context context = new Context();
+        context.setVariable("authCode", number);
+
+        // 새로운 템플릿 사용 (email-update.html)
+        String htmlContent = templateEngine.process("email-update", context);
+
+        helper.setText(htmlContent, true);
+
+        return message;
+    }
+
+    public void sendUpdateVerificationMessage(String sendEmail) throws MessagingException {
+        String number = createNumber();
+
+        log.info("Sending update verification email to: {} from: {}", sendEmail, senderEmail);
+
+        try {
+            MimeMessage message = createUpdateEmailMail(sendEmail, number);
+            javaMailSender.send(message);
+
+            redisService.saveAuthCode(sendEmail, number, 3 * 60 * 1000);
+            log.info("Update verification email sent successfully to {}", sendEmail);
+        } catch (Exception e) {
+            log.error("Failed to send update verification email to {}", sendEmail, e);
+            throw new IllegalArgumentException("메일 발송에 실패했습니다: " + e.getMessage());
+        }
+    }
+
+    // --- 기존 코드 유지 ---
+
     // 인증번호 검증
     public boolean verifyAuthCode(String email, String code) {
         String savedCode = redisService.getAuthCode(email);

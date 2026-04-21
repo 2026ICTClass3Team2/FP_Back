@@ -23,6 +23,7 @@ public class CommentResponseDto {
     private String authorNickname;
     private String authorProfilePicUrl;
     private Long parentId;
+    private Integer replyCount = 0; // 대댓글 수
     private List<CommentResponseDto> children = new ArrayList<>();
 
     public CommentResponseDto(Comment comment) {

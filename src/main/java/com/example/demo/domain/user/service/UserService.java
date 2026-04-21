@@ -1,8 +1,10 @@
 package com.example.demo.domain.user.service;
 
+import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.user.dto.UserJoinDTO;
 import com.example.demo.domain.user.entity.*;
-import com.example.demo.domain.user.repository.TechStackRepository;
+import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,8 +19,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final TechStackRepository techStackRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TagRepository tagRepository;
+    private final InterestRepository interestRepository;
 
     @Transactional
     public void join(UserJoinDTO userJoinDTO) {
@@ -43,20 +46,24 @@ public class UserService {
                 .nickname(userJoinDTO.getNickname())
                 .provider(Provider.local) // 일반 가입
                 .status(UserStatus.active)
+                .role(Role.user)
                 .build();
                 
-        user.addRole(Role.user);
         User savedUser = userRepository.save(user);
 
-        // 2. 기술 스택 저장 (선택 입력)
+        // 2. 관심사 저장 (선택 입력)
         List<String> techStacks = userJoinDTO.getTechStacks();
         if (techStacks != null && !techStacks.isEmpty()) {
-            for (String stack : techStacks) {
-                TechStack techStack = TechStack.builder()
+            for (String stackName : techStacks) {
+                Tag tag = tagRepository.findByName(stackName) // Changed from findByTagName
+                        .orElseGet(() -> tagRepository.save(Tag.builder().name(stackName).build())); // Changed from tagName
+
+                Interest interest = Interest.builder()
                         .user(savedUser)
-                        .stackName(stack)
+                        .tag(tag)
+                        .isProfileTag(true)
                         .build();
-                techStackRepository.save(techStack);
+                interestRepository.save(interest);
             }
         }
     }

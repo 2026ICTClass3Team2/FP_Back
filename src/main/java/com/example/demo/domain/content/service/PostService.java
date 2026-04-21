@@ -21,4 +21,8 @@ public interface PostService {
     Long createPost(PostCreateRequestDto requestDto, String currentUsername);
 
     void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername);
+
+    String getContentType(Long postId);
+
+    void increaseViewCount(Long postId, Long userId);
 }
