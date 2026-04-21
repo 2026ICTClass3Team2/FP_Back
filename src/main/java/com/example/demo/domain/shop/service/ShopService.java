@@ -1,20 +1,22 @@
 package com.example.demo.domain.shop.service;
 
-import com.example.demo.domain.shop.entity.Emote;
-import com.example.demo.domain.shop.repository.ShopRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.example.demo.domain.shop.dto.EmoteResponseDto;
+import com.example.demo.domain.shop.dto.EmoteUploadRequestDto;
+import com.example.demo.domain.shop.dto.PurchaseHistoryDto;
+import org.springframework.data.domain.Page;
 
-@Service
-public class ShopService {
-    private final ShopRepository shopRepository;
+import java.util.Map;
 
-    public ShopService(ShopRepository shopRepository) {
-        this.shopRepository = shopRepository;
-    }
+public interface ShopService {
 
-    @Transactional
-    public Long register (Emote item){
-        return shopRepository.save(item).getId();
-    }
+    Page<EmoteResponseDto> getEmotes(String sort, boolean purchasedOnly, boolean unpurchasedOnly,
+                                     int page, int size, String email);
+
+    EmoteResponseDto uploadEmote(EmoteUploadRequestDto dto);
+
+    Map<String, Object> purchaseEmote(Long emoteId, String email);
+
+    Page<PurchaseHistoryDto> getPurchaseHistory(String email, int page, int size);
+
+    int getUserPoints(String email);
 }
