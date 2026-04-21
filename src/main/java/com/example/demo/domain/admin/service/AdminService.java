@@ -2,6 +2,7 @@ package com.example.demo.domain.admin.service;
 
 import com.example.demo.domain.admin.dto.AdminDashboardStatsDto;
 import com.example.demo.domain.admin.dto.AdminUserDto;
+import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.suggestion.entity.Suggestion;
@@ -26,6 +27,10 @@ public interface AdminService {
     void deleteComment(Long commentId);
     void hidePost(Long postId);
     void hideChannel(Long channelId);
+    
+    // Channel Management
+    Page<AdminChannelDto> searchChannels(String keyword, String status, Pageable pageable);
+    void updateChannelStatus(Long channelId, String status);
     
     // Suggestion Management
     Page<Suggestion> getSuggestions(Boolean isSeen, Pageable pageable);
