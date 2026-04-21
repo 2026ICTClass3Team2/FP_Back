@@ -20,10 +20,13 @@ import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +45,10 @@ public class PostServiceImpl implements PostService {
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
+    private final S3Client s3Client;
+
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
 
     @Override
     @Transactional
@@ -102,7 +109,12 @@ public class PostServiceImpl implements PostService {
 
         post.setTitle(requestDto.getTitle());
         post.setBody(requestDto.getBody());
-        post.setThumbnailUrl(requestDto.getThumbnailUrl());
+
+        String newThumbnailUrl = requestDto.getThumbnailUrl();
+        if (newThumbnailUrl != null && !newThumbnailUrl.equals(post.getThumbnailUrl())) {
+            deleteS3Object(post.getThumbnailUrl());
+        }
+        post.setThumbnailUrl(newThumbnailUrl);
 
         String externalUrl = null;
         if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
@@ -398,5 +410,14 @@ public class PostServiceImpl implements PostService {
     public void increaseViewCount(Long postId, Long userId) {
         // TODO: Implement view count logic, e.g., using a separate ViewHistory table to avoid incrementing on every refresh
         postRepository.increaseViewCount(postId);
+    }
+
+    private void deleteS3Object(String url) {
+        if (url == null || url.isBlank()) return;
+        String key = url.substring(url.lastIndexOf('/') + 1);
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build());
     }
 }
