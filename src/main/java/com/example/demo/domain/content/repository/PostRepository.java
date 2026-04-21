@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
+    
+    long countByContentType(String contentType);
 
     // 무한 스크롤용 - Cursor 기반 페이징 (No-Offset)
     @Query("SELECT p FROM Post p " +
