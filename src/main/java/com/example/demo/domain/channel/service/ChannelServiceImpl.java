@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -115,6 +116,7 @@ public class ChannelServiceImpl implements ChannelService {
                 .subscribed(isSubscribed)
                 .ownerNickname(channel.getOwner() != null ? channel.getOwner().getNickname() : null)
                 .ownerUsername(channel.getOwner() != null ? channel.getOwner().getUsername() : null)
+                .ownerEmail(channel.getOwner() != null ? channel.getOwner().getEmail() : null)
                 .ownerId(channel.getOwner() != null ? channel.getOwner().getId() : null)
                 .build();
     }
@@ -202,6 +204,36 @@ public class ChannelServiceImpl implements ChannelService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public void updateChannel(Long channelId, String channelName, String description, MultipartFile image, List<String> techStacks, String currentUsername) {
+        Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new IllegalArgumentException("채널을 찾을 수 없습니다."));
+
+        if (channel.getOwner() == null || !channel.getOwner().getEmail().equals(currentUsername)) {
+            throw new SecurityException("채널 수정 권한이 없습니다.");
+        }
+
+        String newImageUrl = channel.getImageUrl();
+        if (image != null && !image.isEmpty()) {
+            deleteS3Object(channel.getImageUrl());
+            newImageUrl = uploadImageToS3(image);
+        }
+
+        channel.update(channelName, description, newImageUrl);
+
+        channelTagRepository.deleteByChannel_Id(channelId);
+        if (techStacks != null && !techStacks.isEmpty()) {
+            for (String techName : techStacks) {
+                Tag tag = tagRepository.findByName(techName)
+                        .orElseGet(() -> tagRepository.save(Tag.builder().name(techName).build()));
+                channelTagRepository.save(ChannelTag.builder().channel(channel).tag(tag).build());
+            }
+        }
+
+        log.info("Channel updated. channelId: {}, updatedBy: {}", channelId, currentUsername);
+    }
+
     private String uploadImageToS3(MultipartFile image) {
         String uniqueFileName = UUID.randomUUID() + "_" + image.getOriginalFilename();
         try {
@@ -215,5 +247,14 @@ public class ChannelServiceImpl implements ChannelService {
             throw new RuntimeException("이미지 업로드에 실패했습니다.", e);
         }
         return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, uniqueFileName);
+    }
+
+    private void deleteS3Object(String url) {
+        if (url == null || url.isBlank()) return;
+        String key = url.substring(url.lastIndexOf('/') + 1);
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build());
     }
 }

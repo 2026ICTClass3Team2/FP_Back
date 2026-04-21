@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew compileJava)",
+      "Bash(./gradlew compileJava --rerun-tasks)",
+      "Bash(npx vite *)",
+      "Bash(xargs grep *)",
+      "Bash(grep -v \"jwtAxios\\\\|node_modules\\\\|//.*fetch\")",
+      "Bash(grep -v \"test\\\\|//.*refreshToken\")"
+    ]
+  }
+}

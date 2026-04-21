@@ -93,6 +93,9 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*").permitAll()
                 .requestMatchers("/api/mypage/**").authenticated()
+                .requestMatchers("/shop/emotes").permitAll()
+                .requestMatchers("/shop/emotes/**").authenticated()
+                .requestMatchers("/shop/purchase-history", "/shop/point-history", "/shop/my-points").authenticated()
                 .anyRequest().permitAll()
         );
 

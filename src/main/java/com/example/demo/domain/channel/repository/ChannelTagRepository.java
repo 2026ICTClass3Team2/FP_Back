@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface ChannelTagRepository extends JpaRepository<ChannelTag, Long> {
     List<ChannelTag> findByChannel_Id(Long channelId);
+    void deleteByChannel_Id(Long channelId);
 }
