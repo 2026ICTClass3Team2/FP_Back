@@ -41,6 +41,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
            "WHERE p.author.id = :authorId AND p.contentType IN :contentTypes AND p.status = 'active' AND h.id IS NULL AND b.id IS NULL")
     Page<Post> findByAuthorIdAndContentTypeIn(@Param("authorId") Long authorId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
+    @Query("SELECT p FROM Post p WHERE p.channel.id = :channelId AND p.contentType = 'feed' AND p.status = 'active' ORDER BY p.id DESC")
+    Slice<Post> findByChannelIdFirstPage(@Param("channelId") Long channelId, Pageable pageable);
+
+    @Query("SELECT p FROM Post p WHERE p.channel.id = :channelId AND p.id < :lastPostId AND p.contentType = 'feed' AND p.status = 'active' ORDER BY p.id DESC")
+    Slice<Post> findByChannelIdCursor(@Param("channelId") Long channelId, @Param("lastPostId") Long lastPostId, Pageable pageable);
+
     @Query("SELECT p FROM Post p " +
            "JOIN Bookmark bm ON p.id = bm.targetId " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.user.id = :currentUserId " +
