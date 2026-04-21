@@ -61,6 +61,31 @@ public class Channel {
         }
     }
 
+    @PutMapping(value = "/{channelId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateChannel(
+            @PathVariable Long channelId,
+            @RequestParam("channelName") String channelName,
+            @RequestParam("description") String description,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestParam(value = "techStacks", required = false) List<String> techStacks,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+        try {
+            channelService.updateChannel(channelId, channelName, description, image, techStacks, userDetails.getUsername());
+            return ResponseEntity.ok(Map.of("message", "채널이 성공적으로 수정되었습니다."));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Failed to update channel", e);
+            return ResponseEntity.internalServerError().body(Map.of("message", "채널 수정 중 오류가 발생했습니다."));
+        }
+    }
+
     @GetMapping("/subscribed")
     public ResponseEntity<?> getSubscribedChannels(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {

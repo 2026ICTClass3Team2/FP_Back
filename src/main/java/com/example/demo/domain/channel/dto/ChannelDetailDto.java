@@ -19,5 +19,6 @@ public class ChannelDetailDto {
     private boolean subscribed;
     private String ownerNickname;
     private String ownerUsername;
+    private String ownerEmail;
     private Long ownerId;
 }
