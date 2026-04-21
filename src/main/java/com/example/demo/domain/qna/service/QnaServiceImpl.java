@@ -196,11 +196,13 @@ public class QnaServiceImpl implements QnaService {
             dto.setUsername(author.getUsername());
             dto.setNickname(author.getNickname());
             dto.setAuthorProfileImageUrl(author.getProfilePicUrl());
+            dto.setUserId(author.getId());
         } else {
             // Handle case where author is null for old data
             dto.setUsername("unknown");
             dto.setNickname("익명");
             dto.setAuthorProfileImageUrl(null);
+            dto.setUserId(null);
         }
 
         dto.setResolved(qna.isSolved());
