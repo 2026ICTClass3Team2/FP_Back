@@ -1,5 +1,7 @@
 package com.example.demo.global.handler;
 
+import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.jwt.JWTUtil;
 import com.example.demo.global.redis.RedisService;
 import com.google.gson.Gson;
@@ -24,11 +26,12 @@ import java.util.Objects;
 public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JWTUtil jwtUtil;
     private final RedisService redisService;
+    private final UserRepository userRepository;
 
     @Override
     public void onAuthenticationSuccess(@Nonnull HttpServletRequest request,
-                                        @Nonnull HttpServletResponse response,
-                                        @Nonnull Authentication authentication) throws IOException {
+            @Nonnull HttpServletResponse response,
+            @Nonnull Authentication authentication) throws IOException {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         Objects.requireNonNull(userDetails, "UserDetails cannot be null");
         String username = userDetails.getUsername(); // 이메일이나 ID 등
@@ -37,7 +40,7 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         // 1. Access Token 발급 (30분)
         String accessToken = jwtUtil.generateToken(claims, 30);
-        
+
         // 2. Refresh Token 발급 (7일)
         String refreshToken = jwtUtil.generateToken(claims, 60 * 24 * 7);
 
@@ -56,6 +59,12 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("accessToken", accessToken);
         responseData.put("username", username);
+        
+        User user = userRepository.findByEmail(username).orElse(null);
+        if (user != null) {
+            responseData.put("userId", user.getId());
+            responseData.put("role", user.getRole().name());
+        }
 
         Gson gson = new Gson();
         String jsonStr = gson.toJson(responseData);
