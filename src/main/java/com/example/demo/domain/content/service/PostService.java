@@ -25,4 +25,6 @@ public interface PostService {
     String getContentType(Long postId);
 
     void increaseViewCount(Long postId, Long userId);
+
+    Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int size, String currentUsername);
 }
