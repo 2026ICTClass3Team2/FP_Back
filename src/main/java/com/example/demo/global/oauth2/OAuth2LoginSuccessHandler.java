@@ -46,46 +46,38 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         MemberDTO memberDTO = (MemberDTO) authentication.getPrincipal();
         String email = memberDTO.getEmail();
-        String username = memberDTO.getNickname(); // React에서 필요한 username(또는 닉네임)
-        
-        // OAuth2 공급자로부터 받은 attributes를 로그로 확인
+        String username = memberDTO.getNickname();
+        boolean isNewUser = memberDTO.isNewOAuthUser();
+
         Map<String, Object> attributes = memberDTO.getAttributes();
         log.info("OAuth2 User Attributes: {}", attributes);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", email);
 
-        // JWT 토큰 생성
         String accessToken = jwtUtil.generateToken(claims, 30);
         String refreshToken = jwtUtil.generateToken(claims, 60 * 24 * 7);
 
-        // Redis 저장
         redisService.saveRefreshToken(email, refreshToken, 7);
 
-        // 응답 쿠키에 Refresh Token 추가
         Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
         refreshTokenCookie.setHttpOnly(true);
-        // refreshTokenCookie.setSecure(true); // 로컬 테스트 시 http 환경이라면 Secure 속성 때문에 쿠키가 저장되지 않을 수 있습니다. 운영 환경에서는 true로 변경하세요.
         refreshTokenCookie.setPath("/");
         refreshTokenCookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(refreshTokenCookie);
 
-        // 쿠키에 담겼던 OAuth2 요청 정보 삭제
         clearAuthenticationAttributes(request, response);
 
-        // 프론트엔드 연동: OAuthCallback 컴포넌트가 있는 라우터로 이동
-        // 1순위: 쿠키에 명시된 redirectUri
-        // 2순위: 기본 콜백 페이지 URL (/oauth/callback)
         String targetUrl = redirectUri.orElse(frontendUrl + "/oauth/callback");
-        
-        // 한글 이름(username)이 포함되어 있으면 URL Encoding을 거쳐야 에러가 발생하지 않습니다.
         String encodedUsername = URLEncoder.encode(username != null ? username : "소셜유저", StandardCharsets.UTF_8.name());
-        
         String finalUrl = targetUrl + "?token=" + accessToken + "&username=" + encodedUsername;
-        
+
         User user = userRepository.findByEmail(email).orElse(null);
         if (user != null) {
             finalUrl += "&userId=" + user.getId() + "&role=" + user.getRole().name();
+        }
+        if (isNewUser) {
+            finalUrl += "&isNewUser=true";
         }
         
         log.info("Redirecting to frontend: {}", finalUrl);

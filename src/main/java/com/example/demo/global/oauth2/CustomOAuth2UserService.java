@@ -81,37 +81,33 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         User user = null;
+        boolean isNewUser = false;
 
         if (optionalUser.isEmpty()) {
             log.info("OAuth2 Login: First time login. Proceed to join.");
             String randomPw = UUID.randomUUID().toString();
-            
-            // username은 고유해야 하므로 임시 생성 (예: provider_providerId)
+            // 임시 username — 이후 /member/oauth/setup-username 에서 사용자가 직접 설정
             String username = providerStr + "_" + providerId;
-            
-            // 만약에 username이 이미 존재한다면 랜덤하게 처리
             while (userRepository.existsByUsername(username)) {
-                 username = username + "_" + UUID.randomUUID().toString().substring(0, 4);
+                username = username + "_" + UUID.randomUUID().toString().substring(0, 4);
             }
-            
             user = User.builder()
                     .email(email)
                     .username(username)
-                    .password(passwordEncoder.encode(randomPw)) // OAuth 사용 시에도 임의의 값을 암호화하여 저장
+                    .password(passwordEncoder.encode(randomPw))
                     .nickname(name)
                     .provider(provider)
                     .providerId(providerId)
                     .status(UserStatus.active)
                     .role(Role.user)
                     .build();
-                    
             userRepository.save(user);
+            isNewUser = true;
         } else {
             log.info("OAuth2 Login: Existing user.");
             user = optionalUser.get();
         }
 
-        // Role 리스트를 String 리스트로 변환
         List<String> roleNames = List.of(user.getRole().name());
 
         return new MemberDTO(
@@ -119,7 +115,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 user.getPassword(),
                 user.getNickname(),
                 roleNames,
-                oAuth2User.getAttributes()
+                oAuth2User.getAttributes(),
+                isNewUser
         );
     }
 
