@@ -115,6 +115,55 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
+    @Transactional
+    public void revertWarnUser(Long userId, Long adminId, String reason) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (user.getWarningCount() > 0) {
+            boolean wasSuspendedByWarning = (user.getWarningCount() % 3 == 0) && user.getIsSuspended();
+            user.setWarningCount(user.getWarningCount() - 1);
+            
+            if (wasSuspendedByWarning) {
+                user.setIsSuspended(false);
+                user.setStatus(UserStatus.active);
+                suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(userId).ifPresent(suspended -> {
+                    suspended.setReleasedAt(LocalDateTime.now());
+                    suspended.setReason(reason);
+                    suspendedRepository.save(suspended);
+                });
+            }
+            userRepository.save(user);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void revertSuspendUser(Long userId, Long adminId, String reason) {
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setIsSuspended(false);
+        user.setStatus(UserStatus.active);
+        userRepository.save(user);
+        
+        suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(userId).ifPresent(suspended -> {
+            suspended.setReleasedAt(LocalDateTime.now());
+            suspended.setReason(reason);
+            suspendedRepository.save(suspended);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void updateUserStatus(Long userId, String status) {
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setStatus(UserStatus.valueOf(status.toLowerCase()));
+        if (!status.equalsIgnoreCase("suspended")) {
+            user.setIsSuspended(false);
+        } else {
+            user.setIsSuspended(true);
+        }
+        userRepository.save(user);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<ReportAdminDto> getReports(String status, Pageable pageable) {
         List<Report> reports;
@@ -169,9 +218,25 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
+    public void updateCommentStatus(Long commentId, String status) {
+        Comment comment = commentRepository.findById(commentId).orElseThrow();
+        comment.setStatus(status.toLowerCase());
+        commentRepository.save(comment);
+    }
+
+    @Override
+    @Transactional
     public void hidePost(Long postId) {
         Post post = postRepository.findById(postId).orElseThrow();
         post.setStatus("hidden");
+        postRepository.save(post);
+    }
+
+    @Override
+    @Transactional
+    public void updatePostStatus(Long postId, String status) {
+        Post post = postRepository.findById(postId).orElseThrow();
+        post.setStatus(status.toLowerCase());
         postRepository.save(post);
     }
 

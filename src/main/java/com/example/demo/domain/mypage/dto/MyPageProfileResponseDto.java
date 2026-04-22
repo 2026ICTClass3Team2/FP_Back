@@ -17,4 +17,5 @@ public class MyPageProfileResponseDto {
     private LocalDateTime registeredAt;
     private Integer currentPoint;
     private List<String> techStacks;
+    private String provider; // "local" | "google" | "github" | "kakao"
 }

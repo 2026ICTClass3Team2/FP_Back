@@ -100,6 +100,13 @@ public class Channel {
         return ResponseEntity.ok(channelService.getPopularChannels());
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<ChannelSummaryDto>> searchChannels(
+            @RequestParam(required = false, defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(channelService.searchChannels(keyword, size));
+    }
+
     @GetMapping("/{channelId}")
     public ResponseEntity<?> getChannelDetail(
             @PathVariable Long channelId,

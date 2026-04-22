@@ -56,11 +56,11 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Channel channel = null;
-        if (requestDto.getChannelId() != null) {
-            channel = channelRepository.findById(requestDto.getChannelId())
-                    .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
+        if (requestDto.getChannelId() == null) {
+            throw new IllegalArgumentException("채널을 선택해주세요.");
         }
+        Channel channel = channelRepository.findById(requestDto.getChannelId())
+                .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
 
         String externalUrl = null;
         if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
@@ -101,7 +101,12 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername) {
-        Post post = getFeedPost(postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("이 게시물은 수정할 수 없는 상태입니다. (동결 또는 삭제)");
+        }
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
             throw new SecurityException("Unauthorized to modify this post");
@@ -173,11 +178,19 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
-        // Validate this is a feed post before incrementing, then re-fetch so the
-        // returned DTO reflects the already-incremented value.
-        getFeedPost(postId); // validate type/status first (throws if not a valid feed post)
+        // Validate this is a feed post before incrementing
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (!"feed".equals(post.getContentType()) || 
+            (!"active".equals(post.getStatus()) && !"frozen".equals(post.getStatus()))) {
+            throw new IllegalArgumentException("Feed post not found or hidden");
+        }
+
         postRepository.increaseViewCount(postId); // 조회수 증가 — DB updated
-        Post post = getFeedPost(postId); // re-fetch: clearAutomatically=true ensures fresh value
+        
+        // re-fetch to get updated view count
+        post = postRepository.findById(postId).get(); 
 
         User currentUser = null;
         if (currentUsername != null) {
@@ -190,7 +203,12 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void deletePost(Long postId, String currentUsername) {
-        Post post = getFeedPost(postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("이 게시물은 삭제할 수 없는 상태입니다. (이미 삭제되었거나 동결됨)");
+        }
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
             throw new SecurityException("Unauthorized to delete this post");
@@ -206,7 +224,12 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = getFeedPost(postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("동결되거나 삭제된 게시물에는 상호작용할 수 없습니다.");
+        }
 
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), post.getContentType(), post.getId());
@@ -248,7 +271,12 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = getFeedPost(postId);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("동결되거나 삭제된 게시물은 북마크할 수 없습니다.");
+        }
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, post.getContentType());
 
@@ -302,7 +330,9 @@ public class PostServiceImpl implements PostService {
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
+                .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                 .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
                 .likeCount(post.getLikeCount())
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())
@@ -395,11 +425,13 @@ public class PostServiceImpl implements PostService {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
 
+        Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+
         Slice<Post> posts;
         if (lastPostId == null) {
-            posts = postRepository.findByChannelIdFirstPage(channelId, pageRequest);
+            posts = postRepository.findByChannelIdFirstPage(channelId, currentUserId, pageRequest);
         } else {
-            posts = postRepository.findByChannelIdCursor(channelId, lastPostId, pageRequest);
+            posts = postRepository.findByChannelIdCursor(channelId, lastPostId, currentUserId, pageRequest);
         }
 
         final User finalUser = currentUser;

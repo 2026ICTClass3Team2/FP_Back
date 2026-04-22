@@ -39,7 +39,7 @@ public class ShopController {
 
     /** 관리자 이모티콘 등록 */
     @PostMapping("/emotes")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('admin')")
     public ResponseEntity<EmoteResponseDto> uploadEmote(
             @RequestBody EmoteUploadRequestDto dto) {
         return ResponseEntity.ok(shopService.uploadEmote(dto));

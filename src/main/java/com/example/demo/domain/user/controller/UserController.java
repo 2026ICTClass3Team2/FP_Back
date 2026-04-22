@@ -2,6 +2,7 @@ package com.example.demo.domain.user.controller;
 
 import com.example.demo.domain.user.dto.EmailAuthRequestDTO;
 import com.example.demo.domain.user.dto.EmailVerifyRequestDTO;
+import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.domain.user.dto.UserJoinDTO;
 import com.example.demo.domain.user.service.MailService;
 import com.example.demo.domain.user.service.UserService;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
@@ -110,6 +112,70 @@ public class UserController {
             return ResponseEntity.ok(Map.of("message", "인증에 성공했습니다.", "verified", true));
         } else {
             return ResponseEntity.badRequest().body(Map.of("error", "인증 번호가 일치하지 않거나 만료되었습니다.", "verified", false));
+        }
+    }
+
+    // OAuth 신규 가입 후 username 설정 (JWT 필요)
+    @PatchMapping("/oauth/setup-username")
+    public ResponseEntity<?> setupOAuthUsername(
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal MemberDTO memberDTO) {
+        String username = body.get("username");
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "아이디를 입력해주세요."));
+        }
+        try {
+            userService.setupOAuthUsername(memberDTO.getEmail(), username);
+            return ResponseEntity.ok(Map.of("result", "success"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // 비밀번호 찾기 — 재설정 메일 발송
+    @PostMapping("/password/forgot")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "이메일을 입력해주세요."));
+        }
+        try {
+            userService.sendPasswordResetEmail(email);
+            return ResponseEntity.ok(Map.of("message", "비밀번호 재설정 메일이 발송되었습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (MessagingException e) {
+            log.error("Password reset email failed: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "메일 발송에 실패했습니다."));
+        }
+    }
+
+    // 비밀번호 재설정 토큰 유효성 확인
+    @GetMapping("/password/verify-token")
+    public ResponseEntity<?> verifyPasswordResetToken(@RequestParam String token) {
+        boolean valid = userService.verifyPasswordResetToken(token);
+        if (valid) {
+            return ResponseEntity.ok(Map.of("valid", true));
+        }
+        return ResponseEntity.badRequest().body(Map.of("valid", false, "error", "유효하지 않거나 만료된 링크입니다."));
+    }
+
+    // 비밀번호 재설정
+    @PostMapping("/password/reset")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        if (token == null || token.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "요청이 유효하지 않습니다."));
+        }
+        if (newPassword.length() < 8 || newPassword.length() > 32 || newPassword.contains(" ")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "비밀번호는 공백 없이 8~32자여야 합니다."));
+        }
+        try {
+            userService.resetPassword(token, newPassword);
+            return ResponseEntity.ok(Map.of("message", "비밀번호가 성공적으로 변경되었습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

@@ -10,7 +10,9 @@
       "Bash(npx tsc *)",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(npm run *)",
-      "Bash(node -e \"const fi = require\\('C:/finalProject/final_project/node_modules/react-icons/fi'\\); console.log\\('FiSlash' in fi\\);\")"
+      "Bash(node -e \"const fi = require\\('C:/finalProject/final_project/node_modules/react-icons/fi'\\); console.log\\('FiSlash' in fi\\);\")",
+      "Bash(xargs ls *)",
+      "Bash(./gradlew classes *)"
     ]
   }
 }
