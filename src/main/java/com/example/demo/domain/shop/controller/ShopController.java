@@ -12,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -100,7 +101,7 @@ public class ShopController {
             return ResponseEntity.status(401).build();
         }
         return ResponseEntity.ok(Map.of(
-                "content", java.util.List.of(),
+                "content", List.of(),
                 "totalPages", 0,
                 "totalElements", 0,
                 "number", page
