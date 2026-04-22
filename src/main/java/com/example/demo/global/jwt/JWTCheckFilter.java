@@ -73,8 +73,8 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             String authorizationStr = request.getHeader("Authorization");
             if (authorizationStr == null || !authorizationStr.startsWith("Bearer ")) {
                 log.error("No valid Authorization header found for URI: {}", request.getRequestURI());
-                request.getHeaderNames().asIterator().forEachRemaining(headerName -> 
-                    log.error("Header: {} = {}", headerName, request.getHeader(headerName))
+                request.getHeaderNames().asIterator().forEachRemaining(headerName ->
+                        log.error("Header: {} = {}", headerName, request.getHeader(headerName))
                 );
                 throw new CustomJWTException("NO_AUTH_HEADER");
             }
