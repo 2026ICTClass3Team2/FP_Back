@@ -69,10 +69,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             // 헤더에서 Access Token 추출
             String authorizationStr = request.getHeader("Authorization");
             if (authorizationStr == null || !authorizationStr.startsWith("Bearer ")) {
-                log.error("No valid Authorization header found for URI: {}", request.getRequestURI());
-                request.getHeaderNames().asIterator().forEachRemaining(headerName -> 
-                    log.error("Header: {} = {}", headerName, request.getHeader(headerName))
-                );
+                log.error("No valid Authorization header found");
                 throw new CustomJWTException("NO_AUTH_HEADER");
             }
             
