@@ -70,6 +70,21 @@ public class ShopServiceImpl implements ShopService {
 
     @Override
     @Transactional
+    public EmoteResponseDto updateEmote(Long id, EmoteUploadRequestDto dto) {
+        Emote emote = shopRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("이모티콘을 찾을 수 없습니다."));
+
+        emote.setName(dto.getName());
+        emote.setPrice(dto.getPrice());
+        if (dto.getImageUrl() != null && !dto.getImageUrl().isEmpty()) {
+            emote.setImageUrl(dto.getImageUrl());
+        }
+
+        return EmoteResponseDto.from(shopRepository.save(emote), false);
+    }
+
+    @Override
+    @Transactional
     public Map<String, Object> purchaseEmote(Long emoteId, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
