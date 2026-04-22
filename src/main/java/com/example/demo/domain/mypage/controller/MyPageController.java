@@ -1,12 +1,16 @@
 package com.example.demo.domain.mypage.controller;
 
+import com.example.demo.domain.mypage.dto.BlockResponseDto;
 import com.example.demo.domain.mypage.dto.EmailAuthRequestDto;
 import com.example.demo.domain.mypage.dto.EmailVerifyRequestDto;
 import com.example.demo.domain.mypage.dto.MyPageProfileResponseDto;
+import com.example.demo.domain.mypage.dto.MyPostDto;
 import com.example.demo.domain.mypage.dto.PasswordUpdateRequestDto;
 import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
 import com.example.demo.domain.mypage.service.MyPageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -90,7 +94,65 @@ public class MyPageController {
             myPageService.verifyEmailAndChange(userDetails.getUsername(), requestDto.getEmail(), requestDto.getCode());
             return ResponseEntity.ok(Map.of("message", "이메일이 변경되었습니다."));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("message", "e.getMessage()"));
         }
+    }
+
+    @GetMapping("/posts")
+    public ResponseEntity<Page<MyPostDto>> getMyPosts(
+            @RequestParam(defaultValue = "all") String category,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        Page<MyPostDto> posts = myPageService.getMyPosts(userDetails.getUsername(), category, sort, page, size);
+        return ResponseEntity.ok(posts);
+    }
+
+    @GetMapping("/bookmarks")
+    public ResponseEntity<Page<MyPostDto>> getMyBookmarks(
+            @RequestParam(defaultValue = "all") String category,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        Page<MyPostDto> bookmarks = myPageService.getMyBookmarks(userDetails.getUsername(), category, sort, page, size);
+        return ResponseEntity.ok(bookmarks);
+    }
+
+    @GetMapping("/blocks")
+    public ResponseEntity<Page<BlockResponseDto>> getBlockedUsers(
+            @AuthenticationPrincipal UserDetails userDetails,
+            Pageable pageable) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        Page<BlockResponseDto> blockedUsers = myPageService.getBlockedUsers(userDetails.getUsername(), pageable);
+        return ResponseEntity.ok(blockedUsers);
+    }
+
+    @DeleteMapping("/blocks/{blockId}")
+    public ResponseEntity<?> unblockUser(
+            @PathVariable Long blockId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        myPageService.unblockUser(userDetails.getUsername(), blockId);
+        return ResponseEntity.ok(Map.of("message", "차단이 성공적으로 해제되었습니다."));
+    }
+
+    @GetMapping("/users/{userId}")
+    public ResponseEntity<MyPageProfileResponseDto> getUserProfile(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        MyPageProfileResponseDto profile = myPageService.getUserProfileById(userId);
+        return ResponseEntity.ok(profile);
     }
 }

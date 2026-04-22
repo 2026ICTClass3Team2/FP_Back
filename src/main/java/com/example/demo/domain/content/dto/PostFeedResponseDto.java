@@ -17,13 +17,17 @@ public class PostFeedResponseDto {
     // 1. 게시글 정보 (본문 제외)
     private Long postId;
     private String title;
-    
+    private String body; // added for completion from the requested response format
+    private String thumbnailUrl;
+
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm", timezone = "Asia/Seoul")
     private LocalDateTime createdAt;
-    
+
     private List<String> tags;
+    private List<String> attachedUrls;
 
     // 2. 작성자 정보
+    private Long authorUserId;
     private String authorProfileImageUrl;
     private String authorNickname;
     private String authorUsername;

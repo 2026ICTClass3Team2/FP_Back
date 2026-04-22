@@ -15,6 +15,7 @@ public class PostDetailResponseDto {
     private String thumbnailUrl;
     private String contentType;
     
+    private Long authorUserId;
     private String authorNickname;
     private String authorProfileImageUrl;
     private String authorUsername;
@@ -31,6 +32,7 @@ public class PostDetailResponseDto {
     private boolean isAuthor;
 
     private List<String> tags;
+    private List<String> attachedUrls;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

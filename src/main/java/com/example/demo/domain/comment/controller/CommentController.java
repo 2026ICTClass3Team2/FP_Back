@@ -4,6 +4,7 @@ import com.example.demo.domain.comment.dto.CommentRequestDto;
 import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.service.CommentService;
 import com.example.demo.domain.content.service.PostService;
+import com.example.demo.domain.qna.service.QnaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,6 +19,7 @@ public class CommentController {
 
     private final CommentService commentService;
     private final PostService postService; // Injected to verify the post's content type
+    private final QnaService qnaService;
 
     // Helper method to validate if the postId corresponds to the expected content_type
     private void validateContentType(Long postId, String expectedType) {
@@ -41,27 +43,35 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/qna/{postId}/comments")
+    @PostMapping("/qna/{qnaId}/comments")
     public ResponseEntity<CommentResponseDto> createQnaComment(
-            @PathVariable Long postId,
+            @PathVariable Long qnaId,
             @RequestBody CommentRequestDto requestDto,
             @AuthenticationPrincipal UserDetails userDetails) {
-        validateContentType(postId, "qna");
-        CommentResponseDto response = commentService.createComment(postId, requestDto, userDetails.getUsername());
+        Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
+        validateContentType(resolvedPostId, "qna");
+        CommentResponseDto response = commentService.createComment(resolvedPostId, requestDto, userDetails.getUsername());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/posts/{postId}/comments")
-    public ResponseEntity<List<CommentResponseDto>> getPostComments(@PathVariable Long postId) {
+    public ResponseEntity<List<CommentResponseDto>> getPostComments(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        List<CommentResponseDto> responses = commentService.getComments(postId);
+        String email = (userDetails != null) ? userDetails.getUsername() : null;
+        List<CommentResponseDto> responses = commentService.getComments(postId, email);
         return ResponseEntity.ok(responses);
     }
 
-    @GetMapping("/qna/{postId}/comments")
-    public ResponseEntity<List<CommentResponseDto>> getQnaComments(@PathVariable Long postId) {
-        validateContentType(postId, "qna");
-        List<CommentResponseDto> responses = commentService.getComments(postId);
+    @GetMapping("/qna/{qnaId}/comments")
+    public ResponseEntity<List<CommentResponseDto>> getQnaComments(
+            @PathVariable Long qnaId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
+        validateContentType(resolvedPostId, "qna");
+        String email = (userDetails != null) ? userDetails.getUsername() : null;
+        List<CommentResponseDto> responses = commentService.getComments(resolvedPostId, email);
         return ResponseEntity.ok(responses);
     }
 
@@ -72,18 +82,19 @@ public class CommentController {
             @RequestBody CommentRequestDto requestDto,
             @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        CommentResponseDto response = commentService.updateComment(commentId, requestDto, userDetails.getUsername());
+        CommentResponseDto response = commentService.updateComment(postId, commentId, requestDto, userDetails.getUsername());
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/qna/{postId}/comments/{commentId}")
+    @PutMapping("/qna/{qnaId}/comments/{commentId}")
     public ResponseEntity<CommentResponseDto> updateQnaComment(
-            @PathVariable("postId") Long postId, // Keep to avoid PathVariable mismatch error but we don't need it in service
+            @PathVariable("qnaId") Long qnaId,
             @PathVariable("commentId") Long commentId,
             @RequestBody CommentRequestDto requestDto,
             @AuthenticationPrincipal UserDetails userDetails) {
-        validateContentType(postId, "qna");
-        CommentResponseDto response = commentService.updateComment(commentId, requestDto, userDetails.getUsername());
+        Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
+        validateContentType(resolvedPostId, "qna");
+        CommentResponseDto response = commentService.updateComment(resolvedPostId, commentId, requestDto, userDetails.getUsername());
         return ResponseEntity.ok(response);
     }
 
@@ -93,17 +104,18 @@ public class CommentController {
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        commentService.deleteComment(commentId, userDetails.getUsername());
+        commentService.deleteComment(postId, commentId, userDetails.getUsername());
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/qna/{postId}/comments/{commentId}")
+    @DeleteMapping("/qna/{qnaId}/comments/{commentId}")
     public ResponseEntity<Void> deleteQnaComment(
-            @PathVariable("postId") Long postId,
+            @PathVariable("qnaId") Long qnaId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        validateContentType(postId, "qna");
-        commentService.deleteComment(commentId, userDetails.getUsername());
+        Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
+        validateContentType(resolvedPostId, "qna");
+        commentService.deleteComment(resolvedPostId, commentId, userDetails.getUsername());
         return ResponseEntity.noContent().build();
     }
 
@@ -113,17 +125,18 @@ public class CommentController {
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        commentService.toggleInteraction(commentId, "like", userDetails.getUsername());
+        commentService.toggleInteraction(postId, commentId, "like", userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/qna/{postId}/comments/{commentId}/like")
+    @PostMapping("/qna/{qnaId}/comments/{commentId}/like")
     public ResponseEntity<Void> toggleQnaLike(
-            @PathVariable("postId") Long postId,
+            @PathVariable("qnaId") Long qnaId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        validateContentType(postId, "qna");
-        commentService.toggleInteraction(commentId, "like", userDetails.getUsername());
+        Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
+        validateContentType(resolvedPostId, "qna");
+        commentService.toggleInteraction(resolvedPostId, commentId, "like", userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
@@ -133,17 +146,18 @@ public class CommentController {
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        commentService.toggleInteraction(commentId, "dislike", userDetails.getUsername());
+        commentService.toggleInteraction(postId, commentId, "dislike", userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/qna/{postId}/comments/{commentId}/dislike")
+    @PostMapping("/qna/{qnaId}/comments/{commentId}/dislike")
     public ResponseEntity<Void> toggleQnaDislike(
-            @PathVariable("postId") Long postId,
+            @PathVariable("qnaId") Long qnaId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        validateContentType(postId, "qna");
-        commentService.toggleInteraction(commentId, "dislike", userDetails.getUsername());
+        Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
+        validateContentType(resolvedPostId, "qna");
+        commentService.toggleInteraction(resolvedPostId, commentId, "dislike", userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
 }

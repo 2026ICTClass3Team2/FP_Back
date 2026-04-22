@@ -1,6 +1,8 @@
 package com.example.demo.global.oauth2;
 
 import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.jwt.JWTUtil;
 import com.example.demo.global.redis.RedisService;
 import jakarta.servlet.ServletException;
@@ -30,6 +32,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final JWTUtil jwtUtil;
     private final RedisService redisService;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
+    private final UserRepository userRepository;
 
     @Value(value = "${app.frontend.url}")
     private String frontendUrl;
@@ -79,6 +82,11 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         String encodedUsername = URLEncoder.encode(username != null ? username : "소셜유저", StandardCharsets.UTF_8.name());
         
         String finalUrl = targetUrl + "?token=" + accessToken + "&username=" + encodedUsername;
+        
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            finalUrl += "&userId=" + user.getId() + "&role=" + user.getRole().name();
+        }
         
         log.info("Redirecting to frontend: {}", finalUrl);
         getRedirectStrategy().sendRedirect(request, response, finalUrl);

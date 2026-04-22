@@ -10,7 +10,9 @@ public interface QnaService {
     void updateQna(Long qnaId, QnaCreateRequestDto qnaCreateRequestDto, String email);
     Page<QnaCardResponseDto> getQnaList(String query, String sort, String status, int page, int size, String email);
     QnaDetailResponseDto getQnaDetail(Long qnaId, String email);
+    Long resolveQnaPostId(Long qnaIdentifier);
     void deleteQna(Long qnaId, String email);
+    void acceptAnswer(Long qnaId, Long commentId, String email);
     void toggleLike(Long qnaId, String email);
     void toggleDislike(Long qnaId, String email);
     void toggleBookmark(Long qnaId, String email);

@@ -1,6 +1,7 @@
 package com.example.demo.domain.comment.dto;
 
 import com.example.demo.domain.comment.entity.Comment;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,10 +21,16 @@ public class CommentResponseDto {
     private Integer dislikeCount;
     private String status;
     private LocalDateTime createdAt;
+    private Long authorUserId;
     private String authorNickname;
     private String authorProfilePicUrl;
+    private Long userId;
     private Long parentId;
-    private Integer replyCount = 0; // 대댓글 수
+    private Integer replyCount = 0;
+    
+    @JsonProperty("isReported")
+    private boolean isReported = false;
+
     private List<CommentResponseDto> children = new ArrayList<>();
 
     public CommentResponseDto(Comment comment) {
@@ -39,8 +46,10 @@ public class CommentResponseDto {
         this.status = comment.getStatus();
         this.createdAt = comment.getCreatedAt();
         if (comment.getAuthor() != null) {
+            this.authorUserId = comment.getAuthor().getId();
             this.authorNickname = comment.getAuthor().getNickname();
             this.authorProfilePicUrl = comment.getAuthor().getProfilePicUrl();
+            this.userId = comment.getAuthor().getId();
         }
         if (comment.getParent() != null) {
             this.parentId = comment.getParent().getId();

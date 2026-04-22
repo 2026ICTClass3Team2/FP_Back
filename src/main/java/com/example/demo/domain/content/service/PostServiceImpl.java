@@ -20,14 +20,18 @@ import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -41,6 +45,10 @@ public class PostServiceImpl implements PostService {
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
+    private final S3Client s3Client;
+
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
 
     @Override
     @Transactional
@@ -54,16 +62,22 @@ public class PostServiceImpl implements PostService {
                     .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
         }
 
+        String externalUrl = null;
+        if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
+            externalUrl = requestDto.getAttachedUrls();
+        }
+
         Post post = Post.builder()
                 .title(requestDto.getTitle())
                 .body(requestDto.getBody())
                 .thumbnailUrl(requestDto.getThumbnailUrl())
-                .contentType(requestDto.getContentType() != null ? requestDto.getContentType() : "feed")
+                .contentType("feed")
                 .author(user)
                 .authorName(user.getNickname())
                 .channel(channel)
                 .sourceType("internal")
                 .status("active")
+                .externalUrl(externalUrl)
                 .build();
 
         Post savedPost = postRepository.save(post);
@@ -87,8 +101,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void updatePost(Long postId, PostUpdateRequestDto requestDto, String currentUsername) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
             throw new SecurityException("Unauthorized to modify this post");
@@ -96,10 +109,19 @@ public class PostServiceImpl implements PostService {
 
         post.setTitle(requestDto.getTitle());
         post.setBody(requestDto.getBody());
-        if (requestDto.getThumbnailUrl() != null) {
-            post.setThumbnailUrl(requestDto.getThumbnailUrl());
+
+        String newThumbnailUrl = requestDto.getThumbnailUrl();
+        if (newThumbnailUrl != null && !newThumbnailUrl.equals(post.getThumbnailUrl())) {
+            deleteS3Object(post.getThumbnailUrl());
         }
-        
+        post.setThumbnailUrl(newThumbnailUrl);
+
+        String externalUrl = null;
+        if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
+            externalUrl = requestDto.getAttachedUrls();
+        }
+        post.setExternalUrl(externalUrl);
+
         if (requestDto.getChannelId() != null) {
             Channel channel = channelRepository.findById(requestDto.getChannelId())
                     .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
@@ -130,17 +152,18 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
         PageRequest pageRequest = PageRequest.of(0, size);
-        Slice<Post> posts;
-
-        if (lastPostId == null) {
-            posts = postRepository.findPostsFirstPage(pageRequest);
-        } else {
-            posts = postRepository.findPostsByCursor(lastPostId, pageRequest);
-        }
 
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
+        }
+        Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+
+        Slice<Post> posts;
+        if (lastPostId == null) {
+            posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
+        } else {
+            posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
         }
 
         final User finalUser = currentUser;
@@ -150,10 +173,11 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PostDetailResponseDto getPostDetail(Long postId, String currentUsername) {
-        postRepository.increaseViewCount(postId); // 조회수 증가
-
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        // Validate this is a feed post before incrementing, then re-fetch so the
+        // returned DTO reflects the already-incremented value.
+        getFeedPost(postId); // validate type/status first (throws if not a valid feed post)
+        postRepository.increaseViewCount(postId); // 조회수 증가 — DB updated
+        Post post = getFeedPost(postId); // re-fetch: clearAutomatically=true ensures fresh value
 
         User currentUser = null;
         if (currentUsername != null) {
@@ -166,15 +190,14 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public void deletePost(Long postId, String currentUsername) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         if (post.getAuthor() == null || !post.getAuthor().getEmail().equals(currentUsername)) {
             throw new SecurityException("Unauthorized to delete this post");
         }
 
-        postRepository.delete(post);
-        log.info("Post deleted. postId: {}, deletedBy: {}", postId, currentUsername);
+        post.setStatus("hidden");
+        log.info("Post hidden. postId: {}, hiddenBy: {}", postId, currentUsername);
     }
 
     @Override
@@ -183,8 +206,7 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), post.getContentType(), post.getId());
@@ -226,8 +248,7 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Post post = getFeedPost(postId);
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), postId, post.getContentType());
 
@@ -261,13 +282,23 @@ public class PostServiceImpl implements PostService {
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
-        List<String> tags = new ArrayList<>();
+        List<String> tags = post.getContentTags().stream()
+                .map(ct -> ct.getTag().getName())
+                .collect(Collectors.toList());
+        List<String> attachedUrls = new ArrayList<>();
+        if (post.getExternalUrl() != null && !post.getExternalUrl().isEmpty()) {
+            attachedUrls.add(post.getExternalUrl());
+        }
 
         return PostFeedResponseDto.builder()
                 .postId(post.getId())
                 .title(post.getTitle())
+                .body(post.getBody())
+                .thumbnailUrl(post.getThumbnailUrl())
                 .createdAt(post.getCreatedAt())
                 .tags(tags)
+                .attachedUrls(attachedUrls)
+                .authorUserId(post.getAuthor() != null ? post.getAuthor().getId() : null)
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
@@ -300,7 +331,13 @@ public class PostServiceImpl implements PostService {
             isBookmarked = bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), post.getId(), post.getContentType());
         }
 
-        List<String> tags = new ArrayList<>();
+        List<String> tags = post.getContentTags().stream()
+                .map(ct -> ct.getTag().getName())
+                .collect(Collectors.toList());
+        List<String> attachedUrls = new ArrayList<>();
+        if (post.getExternalUrl() != null && !post.getExternalUrl().isEmpty()) {
+            attachedUrls.add(post.getExternalUrl());
+        }
 
         return PostDetailResponseDto.builder()
                 .postId(post.getId())
@@ -308,6 +345,7 @@ public class PostServiceImpl implements PostService {
                 .body(post.getBody())
                 .thumbnailUrl(post.getThumbnailUrl())
                 .contentType(post.getContentType())
+                .authorUserId(post.getAuthor() != null ? post.getAuthor().getId() : null)
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
@@ -321,6 +359,7 @@ public class PostServiceImpl implements PostService {
                 .isBookmarked(isBookmarked)
                 .isAuthor(isAuthor)
                 .tags(tags)
+                .attachedUrls(attachedUrls)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
                 .build();
@@ -335,11 +374,52 @@ public class PostServiceImpl implements PostService {
         return post.getContentType();
     }
 
+    private Post getFeedPost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (!"feed".equals(post.getContentType()) || !"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Feed post not found");
+        }
+
+        return post;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int size, String currentUsername) {
+        PageRequest pageRequest = PageRequest.of(0, size);
+
+        User currentUser = null;
+        if (currentUsername != null) {
+            currentUser = userRepository.findByEmail(currentUsername).orElse(null);
+        }
+
+        Slice<Post> posts;
+        if (lastPostId == null) {
+            posts = postRepository.findByChannelIdFirstPage(channelId, pageRequest);
+        } else {
+            posts = postRepository.findByChannelIdCursor(channelId, lastPostId, pageRequest);
+        }
+
+        final User finalUser = currentUser;
+        return posts.map(post -> convertToDto(post, finalUser));
+    }
+
     //질문 게시판 조회수
     @Override
     @Transactional
     public void increaseViewCount(Long postId, Long userId) {
         // TODO: Implement view count logic, e.g., using a separate ViewHistory table to avoid incrementing on every refresh
         postRepository.increaseViewCount(postId);
+    }
+
+    private void deleteS3Object(String url) {
+        if (url == null || url.isBlank()) return;
+        String key = url.substring(url.lastIndexOf('/') + 1);
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build());
     }
 }

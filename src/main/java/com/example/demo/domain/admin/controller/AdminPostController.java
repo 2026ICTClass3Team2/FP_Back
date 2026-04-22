@@ -1,7 +1,7 @@
 package com.example.demo.domain.admin.controller;
 
 import com.example.demo.domain.admin.dto.AdminPostDto;
-import com.example.demo.domain.admin.service.AdminPostService; // 🔴 여기서 에러 나면 안 됩니다!
+import com.example.demo.domain.admin.service.AdminPostService;
 import com.example.demo.domain.content.entity.Post;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

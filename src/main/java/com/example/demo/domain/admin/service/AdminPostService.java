@@ -1,4 +1,4 @@
-package com.example.demo.domain.admin.service; // 🔴 이 주소가 폴더 구조와 똑같아야 합니다!
+package com.example.demo.domain.admin.service; // 🔴 이 경로가 실제 폴더 구조와 일치해야 합니다!
 
 import com.example.demo.domain.admin.dto.AdminPostDto;
 import com.example.demo.domain.admin.repository.AdminPostRepository;
@@ -13,7 +13,6 @@ public class AdminPostService {
 
     private final AdminPostRepository adminPostRepository;
 
-    // 🔴 @Qualifier 안에 방금 만드신 "adminNoticeRepo"를 정확히 적어주세요.
     public AdminPostService(@Qualifier("adminNoticeRepo") AdminPostRepository adminPostRepository) {
         this.adminPostRepository = adminPostRepository;
     }
@@ -38,7 +37,7 @@ public class AdminPostService {
                 .authorName("관리자")
                 .contentType("notice")
                 .sourceType("internal")
-                .status("active")
+                .status("HIDDEN") // 🔴 기획대로 처음엔 비공개(HIDDEN) 저장
                 .viewCount(0)
                 .build();
         adminPostRepository.save(post);
@@ -54,5 +53,15 @@ public class AdminPostService {
     @Transactional
     public void delete(Long id) {
         adminPostRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void toggleNoticeStatus(Long id) {
+        Post post = adminPostRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("공지를 찾을 수 없습니다."));
+
+        // VISIBLE <-> HIDDEN 토글
+        String newStatus = "VISIBLE".equals(post.getStatus()) ? "HIDDEN" : "VISIBLE";
+        post.setStatus(newStatus);
     }
 }

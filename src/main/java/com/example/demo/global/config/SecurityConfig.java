@@ -91,7 +91,7 @@ public class SecurityConfig {
         
         // 6. 경로별 접근 권한 설정
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/admin/notice/**", "/admin/notice/**").permitAll() // 추가한겁니다!!
+                .requestMatchers("/api/notices/**").permitAll() // 추가한겁니다!!
                 .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*").permitAll()
                 .requestMatchers("/api/mypage/**").authenticated()
                 .anyRequest().permitAll()
@@ -124,7 +124,7 @@ public class SecurityConfig {
         CorsConfiguration configuration=new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of("*")); // 프론트엔드 도메인으로 변경 권장 (예: http://localhost:3000)
         configuration.setAllowedHeaders(List.of("Authorization","Cache-Control","Content-Type"));
-        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","HEAD"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source=new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
