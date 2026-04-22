@@ -107,4 +107,16 @@ public class QnaController {
         qnaService.toggleBookmark(qnaId, userDetails.getUsername());
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{qnaId}/comments/{commentId}/accept")
+    public ResponseEntity<?> acceptAnswer(@PathVariable Long qnaId,
+                                          @PathVariable Long commentId,
+                                          @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+
+        qnaService.acceptAnswer(qnaId, commentId, userDetails.getUsername());
+        return ResponseEntity.ok().build();
+    }
 }

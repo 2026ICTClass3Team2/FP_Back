@@ -12,6 +12,7 @@ public interface QnaService {
     QnaDetailResponseDto getQnaDetail(Long qnaId, String email);
     Long resolveQnaPostId(Long qnaIdentifier);
     void deleteQna(Long qnaId, String email);
+    void acceptAnswer(Long qnaId, Long commentId, String email);
     void toggleLike(Long qnaId, String email);
     void toggleDislike(Long qnaId, String email);
     void toggleBookmark(Long qnaId, String email);

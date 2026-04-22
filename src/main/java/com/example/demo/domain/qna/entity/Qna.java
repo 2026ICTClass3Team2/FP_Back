@@ -1,5 +1,6 @@
 package com.example.demo.domain.qna.entity;
 
+import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.content.entity.Post;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -28,8 +29,9 @@ public class Qna {
     @Column(name = "reward_points", nullable = false)
     private int rewardPoints;
 
-    @Column(name = "answer_id")
-    private Long answerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "answer_id")
+    private Comment answerId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
