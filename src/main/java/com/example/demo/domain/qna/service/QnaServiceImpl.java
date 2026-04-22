@@ -10,6 +10,10 @@ import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.point.entity.PointTransaction;
+import com.example.demo.domain.point.repository.PointTransactionRepository;
+import com.example.demo.domain.comment.entity.Comment;
+import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.qna.dto.QnaCardResponseDto;
 import com.example.demo.domain.qna.dto.QnaCreateRequestDto;
 import com.example.demo.domain.qna.dto.QnaDetailResponseDto;
@@ -39,12 +43,22 @@ public class QnaServiceImpl implements QnaService {
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
     private final BookmarkRepository bookmarkRepository;
+    private final PointTransactionRepository pointTransactionRepository;
+    private final CommentRepository commentRepository;
 
     @Override
     @Transactional
     public void createQna(QnaCreateRequestDto qnaCreateRequestDto, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        int rewardPoints = qnaCreateRequestDto.getRewardPoints();
+        if (rewardPoints > user.getCurrentPoint()) {
+            throw new IllegalArgumentException("보유한 포인트보다 많은 포인트를 걸 수 없습니다.");
+        }
+
+        user.setCurrentPoint(user.getCurrentPoint() - rewardPoints);
+        userRepository.save(user);
 
         Post post = Post.builder()
                 .title(qnaCreateRequestDto.getTitle())
@@ -56,9 +70,20 @@ public class QnaServiceImpl implements QnaService {
 
         Qna qna = Qna.builder()
                 .post(savedPost)
-                .rewardPoints(qnaCreateRequestDto.getRewardPoints())
+                .rewardPoints(rewardPoints)
                 .build();
-        qnaRepository.save(qna);
+        Qna savedQna = qnaRepository.save(qna);
+
+        if (rewardPoints > 0) {
+            PointTransaction transaction = PointTransaction.builder()
+                    .user(user)
+                    .targetId(savedQna.getId())
+                    .targetType("qna")
+                    .pointChange(-rewardPoints)
+                    .pointBalance(user.getCurrentPoint())
+                    .build();
+            pointTransactionRepository.save(transaction);
+        }
 
         saveTags(savedPost, qnaCreateRequestDto.getTags());
     }
@@ -78,9 +103,44 @@ public class QnaServiceImpl implements QnaService {
             throw new IllegalArgumentException("Not authorized to update this post");
         }
 
+        int oldRewardPoints = qna.getRewardPoints();
+        int newRewardPoints = qnaCreateRequestDto.getRewardPoints();
+        int pointDifference = newRewardPoints - oldRewardPoints;
+
+        if (pointDifference > 0) {
+            if (pointDifference > user.getCurrentPoint()) {
+                throw new IllegalArgumentException("보유한 포인트보다 많은 포인트를 걸 수 없습니다.");
+            }
+            user.setCurrentPoint(user.getCurrentPoint() - pointDifference);
+            userRepository.save(user);
+
+            PointTransaction transaction = PointTransaction.builder()
+                    .user(user)
+                    .targetId(qna.getId())
+                    .targetType("qna")
+                    .pointChange(-pointDifference)
+                    .pointBalance(user.getCurrentPoint())
+                    .build();
+            pointTransactionRepository.save(transaction);
+        } else if (pointDifference < 0) {
+            // If they reduced the points, refund the difference
+            int refund = Math.abs(pointDifference);
+            user.setCurrentPoint(user.getCurrentPoint() + refund);
+            userRepository.save(user);
+
+            PointTransaction transaction = PointTransaction.builder()
+                    .user(user)
+                    .targetId(qna.getId())
+                    .targetType("qna")
+                    .pointChange(refund)
+                    .pointBalance(user.getCurrentPoint())
+                    .build();
+            pointTransactionRepository.save(transaction);
+        }
+
         post.setTitle(qnaCreateRequestDto.getTitle());
         post.setBody(qnaCreateRequestDto.getBody());
-        qna.setRewardPoints(qnaCreateRequestDto.getRewardPoints());
+        qna.setRewardPoints(newRewardPoints);
 
         // Update tags: Clear existing and save new ones
         contentTagRepository.deleteAll(post.getContentTags());
@@ -99,6 +159,58 @@ public class QnaServiceImpl implements QnaService {
                         .build();
                 contentTagRepository.save(contentTag);
             }
+        }
+    }
+
+    @Transactional
+    public void acceptAnswer(Long qnaId, Long commentId, String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+
+        if (!qna.getPost().getAuthor().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("질문 작성자만 답변을 채택할 수 있습니다.");
+        }
+
+        if (qna.isSolved()) {
+            throw new IllegalArgumentException("이미 채택된 질문입니다.");
+        }
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+
+        if (comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("자신의 답변은 채택할 수 없습니다.");
+        }
+
+        // 1. Update states
+        qna.setSolved(true);
+        qna.setAnswerId(comment);
+        qnaRepository.save(qna);
+
+        Post post = qna.getPost();
+        post.setIsSolved(true);
+        postRepository.save(post);
+
+        comment.setIsAnswer(true);
+        commentRepository.save(comment);
+
+        // 2. Give points to the comment author
+        if (qna.getRewardPoints() > 0 && comment.getAuthor() != null) {
+            User commentAuthor = comment.getAuthor();
+            commentAuthor.setCurrentPoint(commentAuthor.getCurrentPoint() + qna.getRewardPoints());
+            userRepository.save(commentAuthor);
+
+            PointTransaction transaction = PointTransaction.builder()
+                    .user(commentAuthor)
+                    .targetId(comment.getId())
+                    .targetType("comment")
+                    .pointChange(qna.getRewardPoints())
+                    .pointBalance(commentAuthor.getCurrentPoint())
+                    .build();
+            pointTransactionRepository.save(transaction);
         }
     }
 
