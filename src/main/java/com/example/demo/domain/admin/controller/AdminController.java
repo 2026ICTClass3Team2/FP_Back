@@ -22,7 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
-// @PreAuthorize("hasRole('ADMIN')") // Enable if Roles are setup properly with 'ROLE_ADMIN'
+@PreAuthorize("hasRole('ADMIN')") // Enable if Roles are setup properly with 'ROLE_ADMIN'
 public class AdminController {
 
     private final AdminService adminService;

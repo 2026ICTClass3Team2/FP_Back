@@ -2,10 +2,10 @@ name: Backend Dev CI
 
 # 1. When should this run?
 on:
-  push:
-    branches: [ "dev" ]
-#  pull_request:
+#  push:
 #    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
 
 # 2. What should it do?
 jobs:

@@ -62,7 +62,7 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("accessToken", accessToken);
         responseData.put("username", username);
-        
+
         User user = userRepository.findByEmail(username).orElse(null);
         if (user != null) {
             responseData.put("userId", user.getId());
@@ -70,7 +70,7 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
             responseData.put("status", user.getStatus().name());
             if (user.getStatus() == UserStatus.suspended) {
                 suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(user.getId())
-                    .ifPresent(s -> responseData.put("releasedAt", s.getReleasedAt()));
+                        .ifPresent(s -> responseData.put("releasedAt", s.getReleasedAt()));
             }
         }
 
