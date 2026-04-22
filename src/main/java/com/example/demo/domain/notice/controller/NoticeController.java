@@ -3,17 +3,16 @@ package com.example.demo.domain.notice.controller;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.notice.repository.NoticeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional; // 추가
 
-import java.io.InputStream;
 import java.util.List;
 
-@RestController
-@RequestMapping("/notice")
+//@RestController
+//@RequestMapping("/api/notice")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class NoticeController {
 
     private final NoticeRepository noticeRepository;
@@ -24,64 +23,60 @@ public class NoticeController {
         return noticeRepository.findAll();
     }
 
-    // 2. PDF 파일을 직접 서버로 올릴 때 쓰는 메서드
-    @PostMapping("/upload-pdf")
-    public String uploadPDF(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty()) return "파일이 없습니다.";
+    // 2. 리액트에서 보낸 공지사항 저장 (CKEditor 마크다운/HTML 본문 그대로 저장)
+    @PostMapping("/save")
+    public String addNotice(@RequestBody Post notice) {
+        try {
+            if (notice.getTitle() == null || notice.getBody() == null) {
+                return "ERROR: 필수 입력값이 없습니다.";
+            }
 
-        try (InputStream is = file.getInputStream()) {
-            PDDocument document = PDDocument.load(is);
-            PDFTextStripper stripper = new PDFTextStripper();
-            String extractedText = stripper.getText(document);
-            document.close();
-
-            Post notice = Post.builder()
-                    .title(file.getOriginalFilename() + " (파싱됨)")
-                    .body(extractedText)
-                    .authorName("관리자")
-                    .contentType("notice")
-                    .status("active")
-                    .viewCount(0)
-                    .commentCount(0)
-                    .dislikeCount(0)
-                    .isHidden(false)
-                    .isSolved(false)
-                    .build();
+            // 기본값 설정 (리액트에서 안 보냈을 경우 대비)
+            if (notice.getContentType() == null) notice.setContentType("notice");
+            if (notice.getStatus() == null) notice.setStatus("active");
+            if (notice.getViewCount() == null) notice.setViewCount(0);
 
             noticeRepository.save(notice);
-            return "SUCCESS: PDF 파일 파싱 완료!";
+            return "SUCCESS";
         } catch (Exception e) {
-            e.printStackTrace();
             return "ERROR: " + e.getMessage();
         }
     }
 
-    // 3. 리액트에서 데이터를 보낼 때 받는 메서드 (여기를 수정했습니다!)
-    @PostMapping("/add")
-    public String addNotice(@RequestBody Post notice) {
+    @PostMapping("/increase-view/{id}")
+    @Transactional // DB 수정을 위해 트랜잭션 유지
+    public ResponseEntity<?> increaseView(@PathVariable Long id) {
         try {
-            // [추가] 제목이 이미 존재하면 저장하지 않고 종료 (중복 방지)
-            if (noticeRepository.existsByTitle(notice.getTitle())) {
-                System.out.println("중복된 공지사항 제외: " + notice.getTitle());
-                return "SUCCESS: ALREADY_EXISTS";
+            // 1. Repository에 새로 만든 쿼리 메서드 호출 (DB에서 직접 +1)
+            int updatedRows = noticeRepository.incrementViewCount(id);
+
+            if (updatedRows == 0) {
+                return ResponseEntity.status(404).body("공지사항을 찾을 수 없습니다.");
             }
 
-            // [안전장치] 이름 매칭 실패로 null이 들어왔을 때를 대비한 방어막
-            if (notice.getContentType() == null) notice.setContentType("notice");
-            if (notice.getSourceType() == null) notice.setSourceType("internal");
-            if (notice.getViewCount() == null) notice.setViewCount(0);
-            if (notice.getCommentCount() == null) notice.setCommentCount(0);
-            if (notice.getLikeCount() == null) notice.setLikeCount(0);
-            if (notice.getDislikeCount() == null) notice.setDislikeCount(0);
-            if (notice.getIsHidden() == null) notice.setIsHidden(false);
-            if (notice.getIsSolved() == null) notice.setIsSolved(false);
+            // 2. 증가된 데이터를 DB에서 다시 읽어옴 (정확한 숫자를 위해)
+            Post updatedNotice = noticeRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("데이터 재조회 실패"));
 
-            noticeRepository.save(notice);
-            System.out.println("공지사항 신규 저장 성공: " + notice.getTitle());
+            System.out.println("ID: " + id + " 조회수 증가 완료 -> " + updatedNotice.getViewCount());
+
+            // 3. 리액트에서 필요한건 "증가된 숫자" 그 자체입니다.
+            return ResponseEntity.ok(updatedNotice.getViewCount());
+
+        } catch (Exception e) {
+            e.printStackTrace(); // 서버 로그에 에러 출력
+            return ResponseEntity.internalServerError().body("ERROR: " + e.getMessage());
+        }
+    }
+
+    // 4. 공지사항 삭제
+    @DeleteMapping("/delete/{id}")
+    public String deleteNotice(@PathVariable Long id) {
+        try {
+            noticeRepository.deleteById(id);
             return "SUCCESS";
         } catch (Exception e) {
-            e.printStackTrace();
-            return "ERROR: " + e.getMessage();
+            return "ERROR";
         }
     }
 }

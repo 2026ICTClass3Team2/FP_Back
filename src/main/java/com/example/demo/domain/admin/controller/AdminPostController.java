@@ -1,47 +1,38 @@
 package com.example.demo.domain.admin.controller;
 
 import com.example.demo.domain.admin.dto.AdminPostDto;
-import com.example.demo.domain.admin.service.AdminPostService;
+import com.example.demo.domain.admin.service.AdminPostService; // 🔴 여기서 에러 나면 안 됩니다!
 import com.example.demo.domain.content.entity.Post;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
 @RequestMapping("/admin/notice")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class AdminPostController {
 
     private final AdminPostService adminPostService;
 
-    // 등록
-    @PostMapping
-    public String create(@RequestBody AdminPostDto dto) {
-        adminPostService.save(dto);
-        return "등록 완료";
-    }
-
-    // 목록 조회
     @GetMapping("/list")
     public List<Post> list() {
         return adminPostService.findAll();
     }
 
-    // 수정
-    @PutMapping("/{id}")
-    public String update(
-            @PathVariable Long id,
-            @RequestBody AdminPostDto dto
-    ) {
-        adminPostService.update(id, dto);
-        return "수정 완료";
+    @PostMapping("/write")
+    public String create(@RequestBody AdminPostDto dto) {
+        adminPostService.save(dto);
+        return "SUCCESS";
     }
 
-    // 삭제
-    @DeleteMapping("/{id}")
-    public String delete(@PathVariable Long id) {
-        adminPostService.delete(id);
-        return "삭제 완료";
+    @PatchMapping("/{id}/view")
+    public ResponseEntity<?> updateViewCount(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(adminPostService.incrementView(id).getViewCount());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
     }
 }

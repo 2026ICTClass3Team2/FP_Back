@@ -6,8 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-@Repository
+@Repository("adminNoticeRepo")
 public interface AdminPostRepository extends JpaRepository<Post, Long> {
-
     List<Post> findAllByContentTypeOrderByCreatedAtDesc(String contentType);
 }
