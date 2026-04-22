@@ -4,8 +4,8 @@ name: Backend Dev CI
 on:
   push:
     branches: [ "dev" ]
-  pull_request:
-    branches: [ "dev" ]
+#  pull_request:
+#    branches: [ "dev" ]
 
 # 2. What should it do?
 jobs:
