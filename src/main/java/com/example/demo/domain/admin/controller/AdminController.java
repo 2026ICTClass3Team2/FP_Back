@@ -57,6 +57,26 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "User suspended successfully"));
     }
 
+    @PostMapping("/users/{userId}/revert-warn")
+    public ResponseEntity<?> revertWarnUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+        String reason = (body != null && body.containsKey("reason")) ? body.get("reason") : "I made a mistake";
+        adminService.revertWarnUser(userId, 1L, reason);
+        return ResponseEntity.ok(Map.of("message", "Warning reverted successfully"));
+    }
+
+    @PostMapping("/users/{userId}/revert-suspend")
+    public ResponseEntity<?> revertSuspendUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+        String reason = (body != null && body.containsKey("reason")) ? body.get("reason") : "I made a mistake";
+        adminService.revertSuspendUser(userId, 1L, reason);
+        return ResponseEntity.ok(Map.of("message", "Suspension reverted successfully"));
+    }
+
+    @PutMapping("/users/{userId}/status")
+    public ResponseEntity<?> updateUserStatus(@PathVariable Long userId, @RequestParam String status) {
+        adminService.updateUserStatus(userId, status);
+        return ResponseEntity.ok(Map.of("message", "User status updated"));
+    }
+
     @GetMapping("/reports")
     public ResponseEntity<Page<ReportAdminDto>> getReports(
             @RequestParam(required = false) String status,
@@ -83,10 +103,22 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Comment deleted"));
     }
 
+    @PutMapping("/comments/{commentId}/status")
+    public ResponseEntity<?> updateCommentStatus(@PathVariable Long commentId, @RequestParam String status) {
+        adminService.updateCommentStatus(commentId, status);
+        return ResponseEntity.ok(Map.of("message", "Comment status updated"));
+    }
+
     @PutMapping("/posts/{postId}/hide")
     public ResponseEntity<?> hidePost(@PathVariable Long postId) {
         adminService.hidePost(postId);
         return ResponseEntity.ok(Map.of("message", "Post hidden"));
+    }
+
+    @PutMapping("/posts/{postId}/status")
+    public ResponseEntity<?> updatePostStatus(@PathVariable Long postId, @RequestParam String status) {
+        adminService.updatePostStatus(postId, status);
+        return ResponseEntity.ok(Map.of("message", "Post status updated"));
     }
 
     @PutMapping("/channels/{channelId}/hide")

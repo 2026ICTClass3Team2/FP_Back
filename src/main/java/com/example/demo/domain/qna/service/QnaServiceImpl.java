@@ -98,7 +98,11 @@ public class QnaServiceImpl implements QnaService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Post post = qna.getPost();
-
+        
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("이 질문은 수정할 수 없는 상태입니다. (동결 또는 삭제)");
+        }
+        
         if (post.getAuthor() == null || !post.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("Not authorized to update this post");
         }
@@ -172,6 +176,10 @@ public class QnaServiceImpl implements QnaService {
 
         if (!qna.getPost().getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("질문 작성자만 답변을 채택할 수 있습니다.");
+        }
+
+        if (!"active".equals(qna.getPost().getStatus())) {
+            throw new IllegalArgumentException("동결되거나 삭제된 질문에서는 답변을 채택할 수 없습니다.");
         }
 
         if (qna.isSolved()) {
@@ -270,7 +278,7 @@ public class QnaServiceImpl implements QnaService {
         if (post == null || post.getId() == null) {
             throw new IllegalArgumentException("Qna post not found");
         }
-        if (!"active".equals(post.getStatus())) {
+        if (!"active".equals(post.getStatus()) && !"frozen".equals(post.getStatus())) {
             throw new IllegalArgumentException("Qna not found");
         }
 
@@ -292,7 +300,7 @@ public class QnaServiceImpl implements QnaService {
         if (post == null || post.getId() == null) {
             throw new IllegalArgumentException("Qna post not found");
         }
-        if (!"active".equals(post.getStatus())) {
+        if (!"active".equals(post.getStatus()) && !"frozen".equals(post.getStatus())) {
             throw new IllegalArgumentException("Qna not found");
         }
 
@@ -361,6 +369,10 @@ public class QnaServiceImpl implements QnaService {
              throw new IllegalArgumentException("Not authorized to delete this post");
         }
 
+        if (!"active".equals(qna.getPost().getStatus())) {
+            throw new IllegalArgumentException("이미 삭제되었거나 동결된 게시물은 삭제할 수 없습니다.");
+        }
+
         qna.getPost().setStatus("hidden");
     }
 
@@ -372,6 +384,10 @@ public class QnaServiceImpl implements QnaService {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
         Post post = qna.getPost();
+
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
+        }
 
         Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "qna", qnaId);
 
@@ -410,6 +426,10 @@ public class QnaServiceImpl implements QnaService {
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
         Post post = qna.getPost();
 
+        if (!"active".equals(post.getStatus())) {
+            throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
+        }
+
         Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "qna", qnaId);
 
         if (existingInteraction.isPresent()) {
@@ -445,8 +465,12 @@ public class QnaServiceImpl implements QnaService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         // Check if QnA exists
-        qnaRepository.findById(qnaId)
+        Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+
+        if (!"active".equals(qna.getPost().getStatus())) {
+            throw new IllegalArgumentException("동결되거나 삭제된 질문은 북마크할 수 없습니다.");
+        }
 
         Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), qnaId, "qna");
 
