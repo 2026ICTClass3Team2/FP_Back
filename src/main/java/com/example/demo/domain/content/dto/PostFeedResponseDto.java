@@ -33,7 +33,9 @@ public class PostFeedResponseDto {
     private String authorUsername;
 
     // 3. 채널 정보 (일반 글은 null)
+    private Long channelId;
     private String channelName;
+    private String channelImageUrl;
 
     // 4. 통계 정보
     private int likeCount;

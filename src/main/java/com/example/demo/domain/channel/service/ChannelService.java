@@ -16,4 +16,5 @@ public interface ChannelService {
     void subscribeChannel(Long channelId, String currentUsername);
     void unsubscribeChannel(Long channelId, String currentUsername);
     List<SubscriberDto> getSubscribers(Long channelId);
+    List<ChannelSummaryDto> searchChannels(String keyword, int size);
 }
