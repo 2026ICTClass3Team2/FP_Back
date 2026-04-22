@@ -12,6 +12,7 @@ import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
 import com.example.demo.domain.report.entity.Block;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.Interest;
+import com.example.demo.domain.user.entity.Provider;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
@@ -68,6 +69,7 @@ public class MyPageService {
                 .registeredAt(user.getRegisteredAt())
                 .currentPoint(user.getCurrentPoint())
                 .techStacks(techStacks)
+                .provider(user.getProvider().name())
                 .build();
     }
 
@@ -90,6 +92,7 @@ public class MyPageService {
                 .registeredAt(user.getRegisteredAt())
                 .currentPoint(user.getCurrentPoint())
                 .techStacks(techStacks)
+                .provider(user.getProvider().name())
                 .build();
     }
 
@@ -137,6 +140,10 @@ public class MyPageService {
     public void updatePassword(String email, PasswordUpdateRequestDto requestDto) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        if (user.getProvider() != Provider.local) {
+            throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다.");
+        }
 
         if (!passwordEncoder.matches(requestDto.getCurrentPassword(), user.getPassword())) {
             throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");

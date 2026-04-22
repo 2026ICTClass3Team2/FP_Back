@@ -118,6 +118,36 @@ public class MailService {
         }
     }
 
+    // --- 비밀번호 재설정 메일 ---
+
+    public MimeMessage createPasswordResetMail(String mail, String resetLink) throws MessagingException, UnsupportedEncodingException {
+        MimeMessage message = javaMailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+        helper.setFrom(new InternetAddress(senderEmail, "dead bug"));
+        helper.setTo(mail);
+        helper.setSubject("[dead bug] 비밀번호 재설정 안내");
+
+        Context context = new Context();
+        context.setVariable("resetLink", resetLink);
+
+        String htmlContent = templateEngine.process("email-password-reset", context);
+        helper.setText(htmlContent, true);
+
+        return message;
+    }
+
+    public void sendPasswordResetEmail(String sendEmail, String resetLink) throws MessagingException {
+        try {
+            MimeMessage message = createPasswordResetMail(sendEmail, resetLink);
+            javaMailSender.send(message);
+            log.info("Password reset email sent to {}", sendEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}", sendEmail, e);
+            throw new IllegalArgumentException("메일 발송에 실패했습니다: " + e.getMessage());
+        }
+    }
+
     // --- 기존 코드 유지 ---
 
     // 인증번호 검증
