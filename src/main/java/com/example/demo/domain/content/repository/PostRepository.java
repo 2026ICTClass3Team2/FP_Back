@@ -15,6 +15,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     long countByContentType(String contentType);
 
+    long countByChannel_IdAndContentTypeAndStatus(Long channelId, String contentType, String status);
+
     // 무한 스크롤용 - Cursor 기반 페이징 (No-Offset)
     @Query("SELECT p FROM Post p " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.user.id = :currentUserId " +

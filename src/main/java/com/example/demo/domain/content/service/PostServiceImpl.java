@@ -81,6 +81,7 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post savedPost = postRepository.save(post);
+        channelRepository.updatePostCount(channel.getId(), 1);
 
         if (requestDto.getTags() != null && !requestDto.getTags().isEmpty()) {
             for (String tagName : requestDto.getTags()) {
@@ -215,6 +216,9 @@ public class PostServiceImpl implements PostService {
         }
 
         post.setStatus("hidden");
+        if (post.getChannel() != null) {
+            channelRepository.updatePostCount(post.getChannel().getId(), -1);
+        }
         log.info("Post hidden. postId: {}, hiddenBy: {}", postId, currentUsername);
     }
 
@@ -379,7 +383,9 @@ public class PostServiceImpl implements PostService {
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
+                .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                 .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
                 .likeCount(post.getLikeCount())
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())

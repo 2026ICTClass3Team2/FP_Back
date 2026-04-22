@@ -8,6 +8,7 @@ import com.example.demo.domain.channel.entity.ChannelTag;
 import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.channel.repository.ChannelTagRepository;
 import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.follow.entity.Follow;
 import com.example.demo.domain.follow.repository.FollowRepository;
@@ -41,6 +42,7 @@ public class ChannelServiceImpl implements ChannelService {
     private final ChannelRepository channelRepository;
     private final ChannelTagRepository channelTagRepository;
     private final TagRepository tagRepository;
+    private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
     private final S3Client s3Client;
@@ -106,13 +108,15 @@ public class ChannelServiceImpl implements ChannelService {
         boolean isSubscribed = currentUser != null &&
                 followRepository.existsByUser_IdAndTargetIdAndTargetType(currentUser.getId(), channelId, TARGET_TYPE_CHANNEL);
 
+        int postCount = (int) postRepository.countByChannel_IdAndContentTypeAndStatus(channelId, "feed", "active");
+
         return ChannelDetailDto.builder()
                 .channelId(channel.getId())
                 .name(channel.getName())
                 .description(channel.getDescription())
                 .imageUrl(channel.getImageUrl())
                 .followerCount(channel.getFollowerCount())
-                .postCount(channel.getPostCount())
+                .postCount(postCount)
                 .status(channel.getStatus())
                 .techStacks(techStacks)
                 .subscribed(isSubscribed)
