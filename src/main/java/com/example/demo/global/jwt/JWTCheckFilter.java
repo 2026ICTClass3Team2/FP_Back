@@ -51,7 +51,6 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                         path.startsWith("/oauth2/") ||
                         path.startsWith("/api/oauth2/") ||
                         path.startsWith("/login/oauth2/code/") ||
-                        // ⭐ 공지사항 관련 API는 누구나 접근 가능해야 함 (상세보기 /view 포함)
                         path.startsWith("/api/admin/notice") ||
                         path.contains("/view")
         ) {

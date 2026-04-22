@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/notice")
+@RequestMapping("/admin/notice") //  리액트와 주소를 통일
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 public class AdminPostController {
@@ -27,10 +27,43 @@ public class AdminPostController {
         return "SUCCESS";
     }
 
+    // 🔴 404 해결: /api/admin/notice/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable(value = "id") Long id, @RequestBody AdminPostDto dto) {
+        try {
+            adminPostService.update(id, dto);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+
     @PatchMapping("/{id}/view")
-    public ResponseEntity<?> updateViewCount(@PathVariable Long id) {
+    public ResponseEntity<?> updateViewCount(@PathVariable(value = "id") Long id) {
         try {
             return ResponseEntity.ok(adminPostService.incrementView(id).getViewCount());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+
+    // 🔴 ERR_FAILED 해결: 토글 주소 명확화
+    @PatchMapping("/{id}/toggle-status")
+    public ResponseEntity<?> toggleStatus(@PathVariable(value = "id") Long id) {
+        try {
+            adminPostService.toggleNoticeStatus(id);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+
+    // 🔴 404 해결: 삭제 주소
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> delete(@PathVariable(value = "id") Long id) {
+        try {
+            adminPostService.delete(id);
+            return ResponseEntity.ok("SUCCESS");
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("ERROR");
         }
