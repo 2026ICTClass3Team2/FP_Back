@@ -1,5 +1,5 @@
 package com.example.demo.domain.report.enums;
 
 public enum HiddenTargetType {
-    feed, qna, comment
+    feed, qna, comment, channel
 }

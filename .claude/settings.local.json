@@ -14,7 +14,9 @@
       "Bash(xargs ls *)",
       "Bash(./gradlew classes *)",
       "Bash(./mvnw compile *)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(./gradlew compileJava -q)",
+      "Bash(cmd /c \"gradlew.bat compileJava 2>&1\")"
     ]
   }
 }

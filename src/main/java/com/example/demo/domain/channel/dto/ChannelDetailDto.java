@@ -17,6 +17,7 @@ public class ChannelDetailDto {
     private String status;
     private List<String> techStacks;
     private boolean subscribed;
+    private boolean blocked;
     private String ownerNickname;
     private String ownerUsername;
     private String ownerEmail;
