@@ -24,6 +24,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -192,6 +194,16 @@ public class ChannelServiceImpl implements ChannelService {
                         .username(follow.getUser().getUsername())
                         .profilePicUrl(follow.getUser().getProfilePicUrl())
                         .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChannelSummaryDto> searchChannels(String keyword, int size) {
+        return channelRepository.searchChannels(keyword, "active", PageRequest.of(0, Math.min(size, 10)))
+                .getContent()
+                .stream()
+                .map(this::toSummaryDto)
                 .collect(Collectors.toList());
     }
 
