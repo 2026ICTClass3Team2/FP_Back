@@ -19,13 +19,18 @@ public interface AdminService {
     Page<AdminUserDto> searchUsers(String keyword, String status, Pageable pageable);
     void warnUser(Long userId, Long adminId);
     void suspendUser(Long userId, Long adminId, SuspendRequestDto requestDto);
+    void revertWarnUser(Long userId, Long adminId, String reason);
+    void revertSuspendUser(Long userId, Long adminId, String reason);
+    void updateUserStatus(Long userId, String status);
     
     // Report Management
     Page<ReportAdminDto> getReports(String status, Pageable pageable);
     void updateReportStatus(Long reportId, String status);
     Map<String, Object> getReportTargetDetails(Long reportId);
     void deleteComment(Long commentId);
+    void updateCommentStatus(Long commentId, String status);
     void hidePost(Long postId);
+    void updatePostStatus(Long postId, String status);
     void hideChannel(Long channelId);
     
     // Channel Management
