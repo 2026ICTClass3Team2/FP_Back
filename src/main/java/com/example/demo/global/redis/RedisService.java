@@ -48,6 +48,23 @@ public class RedisService {
         redisTemplate.delete("AUTH:" + email);
     }
 
+    // 비밀번호 재설정 토큰 저장 (30분 유효)
+    public void savePasswordResetToken(String token, String email) {
+        redisTemplate.opsForValue().set(
+                "PWD_RESET:" + token,
+                email,
+                Duration.ofMinutes(30)
+        );
+    }
+
+    public String getPasswordResetEmail(String token) {
+        return redisTemplate.opsForValue().get("PWD_RESET:" + token);
+    }
+
+    public void deletePasswordResetToken(String token) {
+        redisTemplate.delete("PWD_RESET:" + token);
+    }
+
     // Access Token 블랙리스트 추가
     public void setBlackList(String accessToken, long durationMillis) {
         redisTemplate.opsForValue().set(

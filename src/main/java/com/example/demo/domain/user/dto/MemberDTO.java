@@ -20,7 +20,8 @@ public class MemberDTO extends User implements OAuth2User { // OAuth2User 인터
     private String password;
     private String nickname;
     private List<String> roleNames;
-    private Map<String, Object> attributes; // OAuth2User 속성 저장
+    private Map<String, Object> attributes;
+    private boolean isNewOAuthUser; // 신규 OAuth 가입 여부
 
     // 일반 로그인용 생성자
     public MemberDTO(String email, String password, String nickname, List<String> roleNames) {
@@ -35,8 +36,18 @@ public class MemberDTO extends User implements OAuth2User { // OAuth2User 인터
 
     // OAuth2 로그인용 생성자
     public MemberDTO(String email, String password, String nickname, List<String> roleNames, Map<String, Object> attributes) {
-        this(email, password, nickname, roleNames); // 기존 생성자 호출
+        this(email, password, nickname, roleNames);
         this.attributes = attributes;
+    }
+
+    // OAuth2 신규 가입 여부 포함 생성자
+    public MemberDTO(String email, String password, String nickname, List<String> roleNames, Map<String, Object> attributes, boolean isNewOAuthUser) {
+        this(email, password, nickname, roleNames, attributes);
+        this.isNewOAuthUser = isNewOAuthUser;
+    }
+
+    public boolean isNewOAuthUser() {
+        return isNewOAuthUser;
     }
 
     @Override
