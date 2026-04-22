@@ -18,4 +18,12 @@ public interface HiddenRepository extends JpaRepository<Hidden, Long> {
 
     @Query("SELECT h.targetId FROM Hidden h WHERE h.user.id = :userId AND h.targetType = :targetType")
     List<Long> findTargetIdsByUserIdAndTargetType(@Param("userId") Long userId, @Param("targetType") HiddenTargetType targetType);
+
+    // 언어 숨김 전용 — 어떤 관리자가 숨겼든 전체 목록 반환
+    @Query("SELECT DISTINCT h.targetId FROM Hidden h WHERE h.targetType = :targetType")
+    List<Long> findTargetIdsByTargetType(@Param("targetType") HiddenTargetType targetType);
+
+    boolean existsByTargetTypeAndTargetId(HiddenTargetType targetType, Long targetId);
+
+    void deleteByTargetTypeAndTargetId(HiddenTargetType targetType, Long targetId);
 }
