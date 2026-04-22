@@ -74,7 +74,7 @@ public class MyPageService {
     }
 
     @Transactional(readOnly = true)
-    public MyPageProfileResponseDto getUserProfileById(Long userId) {
+    public MyPageProfileResponseDto getUserProfileById(Long userId, String viewerEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -82,6 +82,21 @@ public class MyPageService {
                 .stream()
                 .map(interest -> interest.getTag().getName())
                 .collect(Collectors.toList());
+
+        boolean isMine = false;
+        Boolean isBlocked = null;
+
+        if (viewerEmail != null) {
+            userRepository.findByEmail(viewerEmail).ifPresent(viewer -> {});
+            java.util.Optional<User> viewerOpt = userRepository.findByEmail(viewerEmail);
+            if (viewerOpt.isPresent()) {
+                User viewer = viewerOpt.get();
+                isMine = viewer.getId().equals(user.getId());
+                if (!isMine) {
+                    isBlocked = blockRepository.existsByBlockerIdAndBlockedId(viewer.getId(), user.getId());
+                }
+            }
+        }
 
         return MyPageProfileResponseDto.builder()
                 .userId(user.getId())
@@ -93,7 +108,37 @@ public class MyPageService {
                 .currentPoint(user.getCurrentPoint())
                 .techStacks(techStacks)
                 .provider(user.getProvider().name())
+                .isMine(isMine)
+                .isBlocked(isBlocked)
                 .build();
+    }
+
+    @Transactional
+    public void blockUserDirectly(String blockerEmail, Long targetUserId) {
+        User blocker = userRepository.findByEmail(blockerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User blocked = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new IllegalArgumentException("차단할 사용자를 찾을 수 없습니다."));
+
+        if (blocker.getId().equals(blocked.getId())) {
+            throw new IllegalArgumentException("자기 자신을 차단할 수 없습니다.");
+        }
+
+        if (!blockRepository.existsByBlockerIdAndBlockedId(blocker.getId(), blocked.getId())) {
+            Block block = Block.builder()
+                    .blocker(blocker)
+                    .blocked(blocked)
+                    .build();
+            blockRepository.save(block);
+        }
+    }
+
+    @Transactional
+    public void unblockUserByTargetId(String blockerEmail, Long targetUserId) {
+        User blocker = userRepository.findByEmail(blockerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        blockRepository.deleteByBlockerIdAndBlockedId(blocker.getId(), targetUserId);
     }
 
     @Transactional
