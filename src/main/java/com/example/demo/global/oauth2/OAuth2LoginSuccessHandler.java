@@ -38,7 +38,8 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private String frontendUrl;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+            Authentication authentication) throws IOException, ServletException {
         // 프론트엔드에서 보낸 redirect_uri 쿠키에서 꺼내오기
         Optional<String> redirectUri = getCookie(request, "redirect_uri")
                 .map(Cookie::getValue)
@@ -79,7 +80,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         if (isNewUser) {
             finalUrl += "&isNewUser=true";
         }
-        
+
         log.info("Redirecting to frontend: {}", finalUrl);
         getRedirectStrategy().sendRedirect(request, response, finalUrl);
     }

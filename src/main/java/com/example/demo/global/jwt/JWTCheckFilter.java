@@ -97,10 +97,9 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                         throw new CustomJWTException("SUSPENDED_USER");
                     });
             
-            List<String> roleNames = List.of("USER");
-
+            List<String> roleNames = List.of(user.getRole().name());
             // 사용자 정보를 MemberDTO에 저장
-            MemberDTO memberDTO = new MemberDTO(email, "", "temp_nickname", roleNames);
+            MemberDTO memberDTO = new MemberDTO(user.getEmail(), "", user.getNickname(), roleNames);
             
             // 인증 객체 생성 및 SecurityContext 등록
             UsernamePasswordAuthenticationToken authenticationToken =
