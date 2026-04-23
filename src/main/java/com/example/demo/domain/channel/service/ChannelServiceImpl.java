@@ -8,9 +8,12 @@ import com.example.demo.domain.channel.entity.ChannelTag;
 import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.channel.repository.ChannelTagRepository;
 import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.follow.entity.Follow;
 import com.example.demo.domain.follow.repository.FollowRepository;
+import com.example.demo.domain.report.enums.HiddenTargetType;
+import com.example.demo.domain.report.repository.HiddenRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,8 +44,10 @@ public class ChannelServiceImpl implements ChannelService {
     private final ChannelRepository channelRepository;
     private final ChannelTagRepository channelTagRepository;
     private final TagRepository tagRepository;
+    private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+    private final HiddenRepository hiddenRepository;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -106,16 +111,22 @@ public class ChannelServiceImpl implements ChannelService {
         boolean isSubscribed = currentUser != null &&
                 followRepository.existsByUser_IdAndTargetIdAndTargetType(currentUser.getId(), channelId, TARGET_TYPE_CHANNEL);
 
+        boolean isBlocked = currentUser != null &&
+                hiddenRepository.existsByUserIdAndTargetIdAndTargetType(currentUser.getId(), channelId, HiddenTargetType.channel);
+
+        int postCount = (int) postRepository.countByChannel_IdAndContentTypeAndStatus(channelId, "feed", "active");
+
         return ChannelDetailDto.builder()
                 .channelId(channel.getId())
                 .name(channel.getName())
                 .description(channel.getDescription())
                 .imageUrl(channel.getImageUrl())
                 .followerCount(channel.getFollowerCount())
-                .postCount(channel.getPostCount())
+                .postCount(postCount)
                 .status(channel.getStatus())
                 .techStacks(techStacks)
                 .subscribed(isSubscribed)
+                .blocked(isBlocked)
                 .ownerNickname(channel.getOwner() != null ? channel.getOwner().getNickname() : null)
                 .ownerUsername(channel.getOwner() != null ? channel.getOwner().getUsername() : null)
                 .ownerEmail(channel.getOwner() != null ? channel.getOwner().getEmail() : null)
@@ -139,11 +150,31 @@ public class ChannelServiceImpl implements ChannelService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChannelSummaryDto> getPopularChannels() {
+    public List<ChannelSummaryDto> getPopularChannels(String currentUsername) {
+        List<Long> blockedChannelIds = List.of();
+        if (currentUsername != null) {
+            userRepository.findByEmail(currentUsername).ifPresent(user -> {
+                // no-op: side-effect handled below
+            });
+            blockedChannelIds = userRepository.findByEmail(currentUsername)
+                    .map(user -> hiddenRepository.findTargetIdsByUserIdAndTargetType(user.getId(), HiddenTargetType.channel))
+                    .orElse(List.of());
+        }
+
+        final List<Long> finalBlockedIds = blockedChannelIds;
         return channelRepository.findTop5ByStatusOrderByFollowerCountDesc("active")
                 .stream()
+                .filter(ch -> !finalBlockedIds.contains(ch.getId()))
                 .map(this::toSummaryDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void unblockChannel(Long channelId, String currentUsername) {
+        User user = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        hiddenRepository.deleteByUserIdAndTargetIdAndTargetType(user.getId(), channelId, HiddenTargetType.channel);
     }
 
     @Override
