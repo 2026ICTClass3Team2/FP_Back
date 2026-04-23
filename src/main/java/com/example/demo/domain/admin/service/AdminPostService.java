@@ -37,7 +37,7 @@ public class AdminPostService {
                 .authorName("관리자")
                 .contentType("notice")
                 .sourceType("internal")
-                .status("HIDDEN") // 🔴 기획대로 처음엔 비공개(HIDDEN) 저장
+                .status("hidden") // 처음엔 비공개(HIDDEN) 저장 (이미 5개 공개상태에서 공개할려면 6개가 되니까 선택지도 줄 이유가 x)
                 .viewCount(0)
                 .build();
         adminPostRepository.save(post);
@@ -61,7 +61,7 @@ public class AdminPostService {
                 .orElseThrow(() -> new RuntimeException("공지를 찾을 수 없습니다."));
 
         // VISIBLE <-> HIDDEN 토글
-        String newStatus = "VISIBLE".equals(post.getStatus()) ? "HIDDEN" : "VISIBLE";
+        String newStatus = "active".equals(post.getStatus()) ? "hidden" : "active";
         post.setStatus(newStatus);
     }
 }

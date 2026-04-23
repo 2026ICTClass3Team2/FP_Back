@@ -11,7 +11,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/notice") //  리액트와 주소를 통일
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+@CrossOrigin(
+        origins = "http://localhost:5173",
+        allowCredentials = "true",
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH, RequestMethod.OPTIONS}
+)
+
 public class AdminPostController {
 
     private final AdminPostService adminPostService;

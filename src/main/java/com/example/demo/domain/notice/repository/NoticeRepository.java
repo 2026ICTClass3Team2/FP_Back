@@ -13,9 +13,10 @@ public interface NoticeRepository extends JpaRepository<Post, Long> {
 
     boolean existsByTitle(String title);
 
-    // 🔴 조회수 1 증가 쿼리 추가
+    // 조회수 1 증가 쿼리
     @Modifying
-    @Transactional // 트랜잭션이 필수
+    @Transactional // 필수적으로 사용
+    // JPQL 사용
     @Query("UPDATE Post p SET p.viewCount = COALESCE(p.viewCount, 0) + 1 WHERE p.id = :id")
     int incrementViewCount(@Param("id") Long id);
 }
