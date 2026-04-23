@@ -132,9 +132,40 @@ public class PostServiceImpl implements PostService {
                 message
             );
         }
-        // ---------------------------
+
+        // 3. Mentions
+        processMentions(savedPost, user);
 
         return savedPost.getId();
+    }
+
+    private void processMentions(Post post, User author) {
+        if (post.getBody() == null) return;
+        
+        // Strip HTML tags for clean nickname extraction
+        String plainContent = post.getBody().replaceAll("<[^>]*>", "");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(plainContent);
+        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+        
+        while (matcher.find()) {
+            mentionedNicknames.add(matcher.group(1));
+        }
+
+        for (String nickname : mentionedNicknames) {
+            userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
+                if (!mentionedUser.getId().equals(author.getId())) {
+                    String message = author.getNickname() + " mentioned you in a post";
+                    notificationService.sendNotification(
+                        mentionedUser,
+                        "mention",
+                        NotificationTargetType.post,
+                        post.getId(),
+                        message
+                    );
+                }
+            });
+        }
     }
 
     @Override
@@ -190,6 +221,9 @@ public class PostServiceImpl implements PostService {
         }
         
         log.info("Post updated. postId: {}, updatedBy: {}", postId, currentUsername);
+        
+        // Mentions on update
+        processMentions(post, post.getAuthor());
     }
 
     @Override

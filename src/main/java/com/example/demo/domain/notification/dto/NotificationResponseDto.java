@@ -1,7 +1,6 @@
 package com.example.demo.domain.notification.dto;
 
 import com.example.demo.domain.notification.entity.Notification;
-import com.example.demo.domain.notification.entity.NotificationTargetType;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,6 +12,7 @@ public class NotificationResponseDto {
     private String targetType;
     private Long targetId;
     private Long postId; // For comments/mentions
+    private Long qnaId;
     private boolean isRead;
     private LocalDateTime createdAt;
 

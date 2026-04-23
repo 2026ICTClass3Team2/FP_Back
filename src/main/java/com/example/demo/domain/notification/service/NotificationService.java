@@ -1,5 +1,6 @@
 package com.example.demo.domain.notification.service;
 
+import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.notification.dto.NotificationResponseDto;
 import com.example.demo.domain.notification.dto.NotificationSettingDto;
@@ -8,6 +9,8 @@ import com.example.demo.domain.notification.entity.NotificationSetting;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.repository.NotificationRepository;
 import com.example.demo.domain.notification.repository.NotificationSettingRepository;
+import com.example.demo.domain.qna.entity.Qna;
+import com.example.demo.domain.qna.repository.QnaRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ public class NotificationService {
     private final NotificationSettingRepository notificationSettingRepository;
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
+    private final QnaRepository qnaRepository;
 
     @Transactional
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
@@ -89,14 +93,24 @@ public class NotificationService {
     private List<NotificationResponseDto> convertToDto(List<Notification> notifications) {
         return notifications.stream().map(n -> {
             Long postId = null;
+            Long qnaId = null;
             if (n.getTargetType() == NotificationTargetType.comment || n.getTargetType() == NotificationTargetType.mention) {
-                postId = commentRepository.findById(n.getTargetId())
-                        .map(c -> c.getPost() != null ? c.getPost().getId() : null)
-                        .orElse(null);
+                Comment comment = commentRepository.findById(n.getTargetId()).orElse(null);
+                if (comment != null && comment.getPost() != null) {
+                    postId = comment.getPost().getId();
+                    if ("qna".equals(comment.getPost().getContentType())) {
+                        Qna qna = qnaRepository.findByPostId(postId);
+                        if (qna != null) qnaId = qna.getId();
+                    }
+                }
             } else if (n.getTargetType() == NotificationTargetType.post) {
                 postId = n.getTargetId();
+                Qna qna = qnaRepository.findByPostId(postId);
+                if (qna != null) qnaId = qna.getId();
             }
-            return new NotificationResponseDto(n, postId);
+            NotificationResponseDto dto = new NotificationResponseDto(n, postId);
+            dto.setQnaId(qnaId);
+            return dto;
         }).collect(java.util.stream.Collectors.toList());
     }
 
