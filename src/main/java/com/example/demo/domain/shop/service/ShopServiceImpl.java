@@ -1,5 +1,9 @@
 package com.example.demo.domain.shop.service;
 
+import com.example.demo.domain.notification.entity.NotificationTargetType;
+import com.example.demo.domain.notification.service.NotificationService;
+import com.example.demo.domain.point.entity.PointTransaction;
+import com.example.demo.domain.point.repository.PointTransactionRepository;
 import com.example.demo.domain.shop.dto.EmoteResponseDto;
 import com.example.demo.domain.shop.dto.EmoteUploadRequestDto;
 import com.example.demo.domain.shop.dto.PurchaseHistoryDto;
@@ -27,6 +31,8 @@ public class ShopServiceImpl implements ShopService {
     private final ShopRepository shopRepository;
     private final InventoryRepository inventoryRepository;
     private final UserRepository userRepository;
+    private final PointTransactionRepository pointTransactionRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -104,6 +110,19 @@ public class ShopServiceImpl implements ShopService {
         userRepository.save(user);
 
         inventoryRepository.save(new Inventory(user, emote));
+
+        // --- Point Transaction & Notification Logic ---
+        PointTransaction transaction = PointTransaction.builder()
+                .user(user)
+                .targetId(emote.getId())
+                .targetType("emote")
+                .pointChange(-emote.getPrice())
+                .pointBalance(user.getCurrentPoint())
+                .build();
+        pointTransactionRepository.save(transaction);
+
+        notificationService.sendNotification(user, "point", NotificationTargetType.system, emote.getId(), "points deducted for emote purchase: -" + emote.getPrice());
+        // -----------------------------------------------
 
         return Map.of(
                 "message", "구매가 완료되었습니다.",
