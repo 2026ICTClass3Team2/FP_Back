@@ -92,6 +92,37 @@ public class QnaServiceImpl implements QnaService {
         }
 
         saveTags(savedPost, qnaCreateRequestDto.getTags());
+
+        // Mentions
+        processMentions(savedPost, user);
+    }
+
+    private void processMentions(Post post, User author) {
+        if (post.getBody() == null) return;
+        
+        String plainContent = post.getBody().replaceAll("<[^>]*>", "");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(plainContent);
+        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+        
+        while (matcher.find()) {
+            mentionedNicknames.add(matcher.group(1));
+        }
+
+        for (String nickname : mentionedNicknames) {
+            userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
+                if (!mentionedUser.getId().equals(author.getId())) {
+                    String message = author.getNickname() + " mentioned you in a QnA";
+                    notificationService.sendNotification(
+                        mentionedUser,
+                        "mention",
+                        NotificationTargetType.post, // QnA is a post with contentType='qna'
+                        post.getId(),
+                        message
+                    );
+                }
+            });
+        }
     }
 
     @Override
@@ -164,6 +195,9 @@ public class QnaServiceImpl implements QnaService {
         contentTagRepository.deleteAll(post.getContentTags());
         post.getContentTags().clear();
         saveTags(post, qnaCreateRequestDto.getTags());
+
+        // Mentions on update
+        processMentions(post, user);
     }
 
     private void saveTags(Post post, List<String> tagNames) {

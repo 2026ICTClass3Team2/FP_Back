@@ -9,6 +9,8 @@ import com.example.demo.domain.mypage.dto.MyPageProfileResponseDto;
 import com.example.demo.domain.mypage.dto.MyPostDto;
 import com.example.demo.domain.mypage.dto.PasswordUpdateRequestDto;
 import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
+import com.example.demo.domain.qna.entity.Qna;
+import com.example.demo.domain.qna.repository.QnaRepository;
 import com.example.demo.domain.report.entity.Block;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.Interest;
@@ -46,6 +48,7 @@ public class MyPageService {
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final S3Client s3Client;
+    private final QnaRepository qnaRepository;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
@@ -264,7 +267,28 @@ public class MyPageService {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, user.getId(), pageable);
 
-        return postPage.map(MyPostDto::from);
+        return postPage.map(post -> {
+            MyPostDto dto = MyPostDto.from(post);
+            if ("qna".equals(post.getContentType())) {
+                Qna qna = qnaRepository.findByPostId(post.getId());
+                if (qna != null) {
+                    return MyPostDto.builder()
+                            .id(post.getId())
+                            .qnaId(qna.getId())
+                            .contentType(post.getContentType())
+                            .title(post.getTitle())
+                            .likeCount(post.getLikeCount())
+                            .commentCount(post.getCommentCount())
+                            .viewCount(post.getViewCount())
+                            .createdAt(post.getCreatedAt())
+                            .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
+                            .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                            .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                            .build();
+                }
+            }
+            return dto;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -304,7 +328,28 @@ public class MyPageService {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, user.getId(), pageable);
 
-        return postPage.map(MyPostDto::from);
+        return postPage.map(post -> {
+            MyPostDto dto = MyPostDto.from(post);
+            if ("qna".equals(post.getContentType())) {
+                Qna qna = qnaRepository.findByPostId(post.getId());
+                if (qna != null) {
+                    return MyPostDto.builder()
+                            .id(post.getId())
+                            .qnaId(qna.getId())
+                            .contentType(post.getContentType())
+                            .title(post.getTitle())
+                            .likeCount(post.getLikeCount())
+                            .commentCount(post.getCommentCount())
+                            .viewCount(post.getViewCount())
+                            .createdAt(post.getCreatedAt())
+                            .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
+                            .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                            .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                            .build();
+                }
+            }
+            return dto;
+        });
     }
 
     @Transactional(readOnly = true)
