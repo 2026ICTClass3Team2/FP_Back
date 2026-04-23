@@ -25,4 +25,6 @@ public class ReportRequestDto {
     private boolean blockPost = false;
 
     private boolean blockUser = false;
+
+    private boolean blockChannel = false;
 }

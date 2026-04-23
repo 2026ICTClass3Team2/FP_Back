@@ -56,11 +56,11 @@ public class PostServiceImpl implements PostService {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        Channel channel = null;
-        if (requestDto.getChannelId() != null) {
-            channel = channelRepository.findById(requestDto.getChannelId())
-                    .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
+        if (requestDto.getChannelId() == null) {
+            throw new IllegalArgumentException("채널을 선택해주세요.");
         }
+        Channel channel = channelRepository.findById(requestDto.getChannelId())
+                .orElseThrow(() -> new IllegalArgumentException("Channel not found"));
 
         String externalUrl = null;
         if (requestDto.getAttachedUrls() != null && !requestDto.getAttachedUrls().isEmpty()) {
@@ -81,6 +81,7 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post savedPost = postRepository.save(post);
+        channelRepository.updatePostCount(channel.getId(), 1);
 
         if (requestDto.getTags() != null && !requestDto.getTags().isEmpty()) {
             for (String tagName : requestDto.getTags()) {
@@ -215,6 +216,9 @@ public class PostServiceImpl implements PostService {
         }
 
         post.setStatus("hidden");
+        if (post.getChannel() != null) {
+            channelRepository.updatePostCount(post.getChannel().getId(), -1);
+        }
         log.info("Post hidden. postId: {}, hiddenBy: {}", postId, currentUsername);
     }
 
@@ -330,7 +334,9 @@ public class PostServiceImpl implements PostService {
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
+                .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                 .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
                 .likeCount(post.getLikeCount())
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())
@@ -377,7 +383,9 @@ public class PostServiceImpl implements PostService {
                 .authorNickname(post.getAuthor() != null ? post.getAuthor().getNickname() : post.getAuthorName())
                 .authorProfileImageUrl(post.getAuthor() != null ? post.getAuthor().getProfilePicUrl() : null)
                 .authorUsername(post.getAuthor() != null ? post.getAuthor().getUsername() : null)
+                .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                 .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
                 .likeCount(post.getLikeCount())
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())
@@ -423,11 +431,13 @@ public class PostServiceImpl implements PostService {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
 
+        Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+
         Slice<Post> posts;
         if (lastPostId == null) {
-            posts = postRepository.findByChannelIdFirstPage(channelId, pageRequest);
+            posts = postRepository.findByChannelIdFirstPage(channelId, currentUserId, pageRequest);
         } else {
-            posts = postRepository.findByChannelIdCursor(channelId, lastPostId, pageRequest);
+            posts = postRepository.findByChannelIdCursor(channelId, lastPostId, currentUserId, pageRequest);
         }
 
         final User finalUser = currentUser;

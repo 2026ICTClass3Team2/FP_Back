@@ -19,7 +19,9 @@ public class PostDetailResponseDto {
     private String authorNickname;
     private String authorProfileImageUrl;
     private String authorUsername;
+    private Long channelId;
     private String channelName;
+    private String channelImageUrl;
     
     private int likeCount;
     private int dislikeCount;

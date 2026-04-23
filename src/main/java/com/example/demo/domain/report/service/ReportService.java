@@ -1,9 +1,11 @@
 package com.example.demo.domain.report.service;
 
+import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.follow.repository.FollowRepository;
 import com.example.demo.domain.report.dto.ReportRequestDto;
 import com.example.demo.domain.report.entity.Block;
 import com.example.demo.domain.report.entity.Hidden;
@@ -24,12 +26,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReportService {
 
+    private static final String TARGET_TYPE_CHANNEL = "channel";
+
     private final ReportRepository reportRepository;
     private final BlockRepository blockRepository;
     private final HiddenRepository hiddenRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
+    private final FollowRepository followRepository;
+    private final ChannelRepository channelRepository;
 
     @Transactional
     public boolean processReport(ReportRequestDto requestDto, String reporterEmail) {
@@ -79,7 +85,31 @@ public class ReportService {
             isBlockedOrHidden = true;
         }
 
-        // 4. 유저 차단 처리
+        // 4. 채널 차단 처리 (채널 신고 + blockChannel 체크 시)
+        if (requestDto.getTargetType() == ReportTargetType.channel && requestDto.isBlockChannel()) {
+            Long channelId = requestDto.getTargetId();
+
+            if (!hiddenRepository.existsByUserIdAndTargetIdAndTargetType(reporter.getId(), channelId, HiddenTargetType.channel)) {
+                Hidden hidden = Hidden.builder()
+                        .user(reporter)
+                        .targetId(channelId)
+                        .targetType(HiddenTargetType.channel)
+                        .reason(HiddenReasonType.reported)
+                        .build();
+                hiddenRepository.save(hidden);
+            }
+
+            // 구독 중이면 자동 구독 취소
+            followRepository.findByUser_IdAndTargetIdAndTargetType(reporter.getId(), channelId, TARGET_TYPE_CHANNEL)
+                    .ifPresent(follow -> {
+                        followRepository.delete(follow);
+                        channelRepository.updateFollowerCount(channelId, -1);
+                    });
+
+            isBlockedOrHidden = true;
+        }
+
+        // 5. 유저 차단 처리
         if (requestDto.isBlockUser()) {
             Long userIdToBlock = findUserIdToBlock(requestDto.getTargetType(), requestDto.getTargetId());
             User userToBlock = userRepository.findById(userIdToBlock)
