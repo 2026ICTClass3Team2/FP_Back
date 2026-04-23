@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -29,8 +30,21 @@ public class S3Controller {
     @Value(value = "${aws.region}")
     private String region;
 
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"
+    );
+
     @GetMapping("/presigned-url")
-    public ResponseEntity<Map<String, String>> getPresignedUrl (@RequestParam String filename){
+    public ResponseEntity<?> getPresignedUrl(
+            @RequestParam String filename,
+            @RequestParam(required = false) String contentType) {
+
+        // 서버 측 MIME 타입 검증 (contentType 파라미터가 있을 때만 검사)
+        if (contentType != null && !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "이미지 파일만 업로드 가능합니다. (JPEG, PNG, GIF, WEBP, SVG)"));
+        }
+
         //1. method makes an unique file name to prevent overwriting -> Unique-UID_imageName.png
         String uniqueFileName = UUID.randomUUID().toString() + "_" + filename;
 
