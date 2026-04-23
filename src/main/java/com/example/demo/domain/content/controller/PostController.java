@@ -37,13 +37,19 @@ public class PostController {
     }
 
     @GetMapping("/{postId}")
-    public ResponseEntity<PostDetailResponseDto> getPostDetail(
+    public ResponseEntity<?> getPostDetail(
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         String currentUsername = (userDetails != null) ? userDetails.getUsername() : null;
-        PostDetailResponseDto detailDto = postService.getPostDetail(postId, currentUsername);
-        return ResponseEntity.ok(detailDto);
+        try {
+            PostDetailResponseDto detailDto = postService.getPostDetail(postId, currentUsername);
+            return ResponseEntity.ok(detailDto);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(410).body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PostMapping

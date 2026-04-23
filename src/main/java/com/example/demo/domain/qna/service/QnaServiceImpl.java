@@ -10,6 +10,7 @@ import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.point.entity.PointTransaction;
 import com.example.demo.domain.point.repository.PointTransactionRepository;
 import com.example.demo.domain.comment.entity.Comment;
@@ -45,6 +46,7 @@ public class QnaServiceImpl implements QnaService {
     private final BookmarkRepository bookmarkRepository;
     private final PointTransactionRepository pointTransactionRepository;
     private final CommentRepository commentRepository;
+    private final com.example.demo.domain.notification.service.NotificationService notificationService;
 
     @Override
     @Transactional
@@ -83,9 +85,44 @@ public class QnaServiceImpl implements QnaService {
                     .pointBalance(user.getCurrentPoint())
                     .build();
             pointTransactionRepository.save(transaction);
+            
+            // --- Notification Logic ---
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, savedQna.getId(), "points deducted for QnA reward: -" + rewardPoints);
+            // ---------------------------
         }
 
         saveTags(savedPost, qnaCreateRequestDto.getTags());
+
+        // Mentions
+        processMentions(savedPost, user);
+    }
+
+    private void processMentions(Post post, User author) {
+        if (post.getBody() == null) return;
+        
+        String plainContent = post.getBody().replaceAll("<[^>]*>", "");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(plainContent);
+        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+        
+        while (matcher.find()) {
+            mentionedNicknames.add(matcher.group(1));
+        }
+
+        for (String nickname : mentionedNicknames) {
+            userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
+                if (!mentionedUser.getId().equals(author.getId())) {
+                    String message = author.getNickname() + " mentioned you in a QnA";
+                    notificationService.sendNotification(
+                        mentionedUser,
+                        "mention",
+                        NotificationTargetType.post, // QnA is a post with contentType='qna'
+                        post.getId(),
+                        message
+                    );
+                }
+            });
+        }
     }
 
     @Override
@@ -126,6 +163,10 @@ public class QnaServiceImpl implements QnaService {
                     .pointBalance(user.getCurrentPoint())
                     .build();
             pointTransactionRepository.save(transaction);
+
+            // --- Notification Logic ---
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "points deducted for QnA reward update: -" + pointDifference);
+            // ---------------------------
         } else if (pointDifference < 0) {
             // If they reduced the points, refund the difference
             int refund = Math.abs(pointDifference);
@@ -140,6 +181,10 @@ public class QnaServiceImpl implements QnaService {
                     .pointBalance(user.getCurrentPoint())
                     .build();
             pointTransactionRepository.save(transaction);
+
+            // --- Notification Logic ---
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "points refunded for QnA reward update: +" + refund);
+            // ---------------------------
         }
 
         post.setTitle(qnaCreateRequestDto.getTitle());
@@ -150,6 +195,9 @@ public class QnaServiceImpl implements QnaService {
         contentTagRepository.deleteAll(post.getContentTags());
         post.getContentTags().clear();
         saveTags(post, qnaCreateRequestDto.getTags());
+
+        // Mentions on update
+        processMentions(post, user);
     }
 
     private void saveTags(Post post, List<String> tagNames) {
@@ -219,6 +267,11 @@ public class QnaServiceImpl implements QnaService {
                     .pointBalance(commentAuthor.getCurrentPoint())
                     .build();
             pointTransactionRepository.save(transaction);
+
+            // --- Notification Logic ---
+            notificationService.sendNotification(commentAuthor, "point", NotificationTargetType.system, comment.getId(), "points received for accepted answer: +" + qna.getRewardPoints());
+            notificationService.sendNotification(commentAuthor, "qna selected", NotificationTargetType.comment, comment.getId(), "your comment was selected as the answer!");
+            // ---------------------------
         }
     }
 

@@ -6,13 +6,14 @@ import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.channel.entity.Channel;
-import com.example.demo.domain.channel.entity.ChannelTag;
 import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.channel.repository.ChannelTagRepository;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
+import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.report.entity.Report;
 import com.example.demo.domain.report.repository.ReportRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
@@ -47,6 +48,7 @@ public class AdminServiceImpl implements AdminService {
     private final PostRepository postRepository;
     private final SuspendedRepository suspendedRepository;
     private final CommentRepository commentRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -81,6 +83,15 @@ public class AdminServiceImpl implements AdminService {
         User user = userRepository.findById(userId).orElseThrow();
         user.setWarningCount(user.getWarningCount() + 1);
 
+        // Send notification to user
+        notificationService.sendNotification(
+            user, 
+            "admin", 
+            NotificationTargetType.user, 
+            userId, 
+            "운영자로부터 경고를 받았습니다. 누적 경고: " + user.getWarningCount() + "회"
+        );
+
         if (user.getWarningCount() % 3 == 0) {
             User admin = userRepository.findById(adminId).orElseThrow();
             user.setIsSuspended(true);
@@ -93,6 +104,14 @@ public class AdminServiceImpl implements AdminService {
                     .releasedAt(LocalDateTime.now().plusDays(1))
                     .build();
             suspendedRepository.save(suspended);
+
+            notificationService.sendNotification(
+                user, 
+                "admin", 
+                NotificationTargetType.user, 
+                userId, 
+                "누적 경고 3회로 인해 계정이 1일간 정지되었습니다."
+            );
         }
     }
 
@@ -112,6 +131,14 @@ public class AdminServiceImpl implements AdminService {
                 .releasedAt(requestDto.getReleasedAt())
                 .build();
         suspendedRepository.save(suspended);
+
+        notificationService.sendNotification(
+            user, 
+            "admin", 
+            NotificationTargetType.user, 
+            userId, 
+            "운영자에 의해 계정이 정지되었습니다. 사유: " + requestDto.getReason()
+        );
     }
 
     @Override

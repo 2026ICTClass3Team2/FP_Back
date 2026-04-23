@@ -1,5 +1,7 @@
 package com.example.demo.global.oauth2;
 
+import com.example.demo.domain.notification.entity.NotificationSetting;
+import com.example.demo.domain.notification.repository.NotificationSettingRepository;
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.domain.user.entity.Provider;
 import com.example.demo.domain.user.entity.Role;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationSettingRepository notificationSettingRepository;
 
     @Override
     @Transactional
@@ -102,6 +105,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .role(Role.user)
                     .build();
             userRepository.save(user);
+            
+            // Notification Setting Logic
+            notificationSettingRepository.save(NotificationSetting.builder()
+                    .user(user)
+                    .build());
+            
             isNewUser = true;
         } else {
             log.info("OAuth2 Login: Existing user.");
