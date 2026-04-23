@@ -46,8 +46,12 @@ public class CommentService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (!"active".equals(post.getStatus())) {
-            throw new IllegalArgumentException("Post not found or not active");
+        if ("hidden".equals(post.getStatus()) || "deleted".equals(post.getStatus())) {
+            throw new IllegalArgumentException("Post not found");
+        }
+
+        if ("frozen".equals(post.getStatus())) {
+            throw new IllegalArgumentException("이 게시물은 동결되어 댓글을 작성할 수 없습니다.");
         }
 
         User user = userRepository.findByEmail(email)
@@ -168,6 +172,10 @@ public class CommentService {
             throw new IllegalArgumentException("Comment not found or not active");
         }
 
+        if (comment.getPost() != null && "frozen".equals(comment.getPost().getStatus())) {
+            throw new IllegalArgumentException("이 게시물은 동결되어 댓글을 수정할 수 없습니다.");
+        }
+
         if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new SecurityException("Unauthorized to modify this comment");
         }
@@ -182,6 +190,10 @@ public class CommentService {
 
         if (comment.getAuthor() == null || !comment.getAuthor().getEmail().equals(email)) {
             throw new SecurityException("Unauthorized to delete this comment");
+        }
+
+        if (comment.getPost() != null && "frozen".equals(comment.getPost().getStatus())) {
+            throw new IllegalArgumentException("이 게시물은 동결되어 댓글을 삭제할 수 없습니다.");
         }
 
         if ("deleted".equals(comment.getStatus())) {
@@ -203,6 +215,10 @@ public class CommentService {
 
         if (!"active".equals(comment.getStatus())) {
             throw new IllegalArgumentException("Comment not found or not active");
+        }
+
+        if (comment.getPost() != null && "frozen".equals(comment.getPost().getStatus())) {
+            throw new IllegalArgumentException("이 게시물은 동결되어 상호작용할 수 없습니다.");
         }
 
         Optional<Interaction> existingInteraction = interactionRepository

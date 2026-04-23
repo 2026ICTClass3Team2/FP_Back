@@ -11,6 +11,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.example.demo.domain.user.entity.UserStatus;
+import java.time.LocalDateTime;
+import java.util.List;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -33,4 +35,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "(:keyword IS NULL OR :keyword = '' OR u.nickname LIKE %:keyword% OR u.username LIKE %:keyword% OR u.email LIKE %:keyword%) " +
            "AND (:status IS NULL OR u.status = :status)")
     Page<User> searchUsers(@Param("keyword") String keyword, @Param("status") UserStatus status, Pageable pageable);
+
+    List<User> findByStatusAndUpdatedAtBefore(UserStatus status, LocalDateTime dateTime);
 }

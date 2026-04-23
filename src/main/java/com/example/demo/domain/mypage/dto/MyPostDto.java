@@ -20,6 +20,9 @@ public class MyPostDto {
     private Integer commentCount;
     private Integer viewCount;
     private LocalDateTime createdAt;
+    private Long channelId;
+    private String channelName;
+    private String channelImageUrl;
 
     public static MyPostDto from(Post post) {
         return MyPostDto.builder()
@@ -30,6 +33,9 @@ public class MyPostDto {
                 .commentCount(post.getCommentCount())
                 .viewCount(post.getViewCount())
                 .createdAt(post.getCreatedAt())
+                .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
+                .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
                 .build();
     }
 }

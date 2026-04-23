@@ -2,6 +2,8 @@ package com.example.demo.global.handler;
 
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
+import com.example.demo.domain.user.repository.SuspendedRepository;
+import com.example.demo.domain.user.entity.UserStatus;
 import com.example.demo.global.jwt.JWTUtil;
 import com.example.demo.global.redis.RedisService;
 import com.google.gson.Gson;
@@ -27,6 +29,7 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JWTUtil jwtUtil;
     private final RedisService redisService;
     private final UserRepository userRepository;
+    private final SuspendedRepository suspendedRepository;
 
     @Override
     public void onAuthenticationSuccess(@Nonnull HttpServletRequest request,
@@ -59,11 +62,16 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("accessToken", accessToken);
         responseData.put("username", username);
-        
+
         User user = userRepository.findByEmail(username).orElse(null);
         if (user != null) {
             responseData.put("userId", user.getId());
             responseData.put("role", user.getRole().name());
+            responseData.put("status", user.getStatus().name());
+            if (user.getStatus() == UserStatus.suspended) {
+                suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(user.getId())
+                        .ifPresent(s -> responseData.put("releasedAt", s.getReleasedAt()));
+            }
         }
 
         Gson gson = new Gson();

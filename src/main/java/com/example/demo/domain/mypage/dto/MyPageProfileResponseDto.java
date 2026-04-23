@@ -17,4 +17,7 @@ public class MyPageProfileResponseDto {
     private LocalDateTime registeredAt;
     private Integer currentPoint;
     private List<String> techStacks;
+    private String provider; // "local" | "google" | "github" | "kakao"
+    private Boolean isBlocked;  // 내가 이 유저를 차단했는지 (null = 자기 자신 조회 시)
+    private Boolean isMine;     // 내 프로필인지
 }

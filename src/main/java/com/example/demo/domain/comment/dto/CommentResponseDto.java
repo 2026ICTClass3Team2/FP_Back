@@ -27,7 +27,7 @@ public class CommentResponseDto {
     private Long userId;
     private Long parentId;
     private Integer replyCount = 0;
-    
+
     @JsonProperty("isReported")
     private boolean isReported = false;
 

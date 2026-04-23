@@ -49,7 +49,10 @@ public class JWTCheckFilter extends OncePerRequestFilter {
            path.equals("/api/member/refresh") ||
            path.startsWith("/api/member/signup") ||
            path.startsWith("/api/member/check-") ||
-           path.startsWith("/api/member/email/")) {
+           path.startsWith("/api/member/email/") ||
+           path.startsWith("/api/member/password/") ||
+           path.startsWith("/api/member/oauth/setup-username/")) { // 비밀번호 찾기/재설정 — 토큰 없이 접근
+
             return true;
         }
 
@@ -93,11 +96,10 @@ public class JWTCheckFilter extends OncePerRequestFilter {
                     .ifPresent(suspended -> {
                         throw new CustomJWTException("SUSPENDED_USER");
                     });
-            
-            List<String> roleNames = List.of("USER");
 
+            List<String> roleNames = List.of(user.getRole().name());
             // 사용자 정보를 MemberDTO에 저장
-            MemberDTO memberDTO = new MemberDTO(email, "", "temp_nickname", roleNames);
+            MemberDTO memberDTO = new MemberDTO(user.getEmail(), "", user.getNickname(), roleNames);
             
             // 인증 객체 생성 및 SecurityContext 등록
             UsernamePasswordAuthenticationToken authenticationToken =
