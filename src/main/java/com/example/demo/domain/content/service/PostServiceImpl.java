@@ -255,9 +255,13 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (!"feed".equals(post.getContentType()) || 
+        if (!"feed".equals(post.getContentType()) ||
             (!"active".equals(post.getStatus()) && !"frozen".equals(post.getStatus()))) {
             throw new IllegalArgumentException("Feed post not found or hidden");
+        }
+
+        if (post.getChannel() != null && !"active".equals(post.getChannel().getStatus())) {
+            throw new IllegalStateException("삭제된 채널입니다");
         }
 
         postRepository.increaseViewCount(postId); // 조회수 증가 — DB updated
