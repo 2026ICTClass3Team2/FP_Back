@@ -12,6 +12,7 @@ public class NotificationResponseDto {
     private String message;
     private String targetType;
     private Long targetId;
+    private Long postId; // For comments/mentions
     private boolean isRead;
     private LocalDateTime createdAt;
 
@@ -22,5 +23,10 @@ public class NotificationResponseDto {
         this.targetId = notification.getTargetId();
         this.isRead = notification.isRead();
         this.createdAt = notification.getCreatedAt();
+    }
+
+    public NotificationResponseDto(Notification notification, Long postId) {
+        this(notification);
+        this.postId = postId;
     }
 }

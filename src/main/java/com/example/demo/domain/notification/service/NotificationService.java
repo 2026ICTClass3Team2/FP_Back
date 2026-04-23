@@ -1,5 +1,7 @@
 package com.example.demo.domain.notification.service;
 
+import com.example.demo.domain.comment.repository.CommentRepository;
+import com.example.demo.domain.notification.dto.NotificationResponseDto;
 import com.example.demo.domain.notification.dto.NotificationSettingDto;
 import com.example.demo.domain.notification.entity.Notification;
 import com.example.demo.domain.notification.entity.NotificationSetting;
@@ -24,6 +26,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationSettingRepository notificationSettingRepository;
     private final UserRepository userRepository;
+    private final CommentRepository commentRepository;
 
     @Transactional
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
@@ -77,9 +80,24 @@ public class NotificationService {
         }
     }
 
-    public List<Notification> getRecentUnread(String email) {
+    public List<NotificationResponseDto> getRecentUnread(String email) {
         User user = userRepository.findByEmail(email).orElseThrow();
-        return notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 5));
+        List<Notification> notifications = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 5));
+        return convertToDto(notifications);
+    }
+
+    private List<NotificationResponseDto> convertToDto(List<Notification> notifications) {
+        return notifications.stream().map(n -> {
+            Long postId = null;
+            if (n.getTargetType() == NotificationTargetType.comment || n.getTargetType() == NotificationTargetType.mention) {
+                postId = commentRepository.findById(n.getTargetId())
+                        .map(c -> c.getPost() != null ? c.getPost().getId() : null)
+                        .orElse(null);
+            } else if (n.getTargetType() == NotificationTargetType.post) {
+                postId = n.getTargetId();
+            }
+            return new NotificationResponseDto(n, postId);
+        }).collect(java.util.stream.Collectors.toList());
     }
 
     @Transactional
@@ -102,16 +120,21 @@ public class NotificationService {
         }
     }
 
-    public List<Notification> getNotifications(String email, String filter) {
+    public List<NotificationResponseDto> getNotifications(String email, String filter) {
         User user = userRepository.findByEmail(email).orElseThrow();
+        List<Notification> notifications;
         switch (filter) {
             case "new":
-                return notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId());
+                notifications = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId());
+                break;
             case "read":
-                return notificationRepository.findByUserIdAndIsReadTrueOrderByCreatedAtDesc(user.getId());
+                notifications = notificationRepository.findByUserIdAndIsReadTrueOrderByCreatedAtDesc(user.getId());
+                break;
             default:
-                return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+                notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+                break;
         }
+        return convertToDto(notifications);
     }
 
     public NotificationSettingDto getSettings(String email) {
