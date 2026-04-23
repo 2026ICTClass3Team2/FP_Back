@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/notifications")
@@ -22,17 +21,13 @@ public class NotificationController {
 
     @GetMapping("/recent")
     public ResponseEntity<List<NotificationResponseDto>> getRecentUnread(@AuthenticationPrincipal MemberDTO memberDTO) {
-        List<NotificationResponseDto> list = notificationService.getRecentUnread(memberDTO.getEmail())
-                .stream().map(NotificationResponseDto::new).collect(Collectors.toList());
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(notificationService.getRecentUnread(memberDTO.getEmail()));
     }
-
+    
     @GetMapping
     public ResponseEntity<List<NotificationResponseDto>> getAll(@AuthenticationPrincipal MemberDTO memberDTO,
-                                                              @RequestParam(defaultValue = "all") String filter) {
-        List<NotificationResponseDto> list = notificationService.getNotifications(memberDTO.getEmail(), filter)
-                .stream().map(NotificationResponseDto::new).collect(Collectors.toList());
-        return ResponseEntity.ok(list);
+                                                               @RequestParam(defaultValue = "all") String filter) {
+        return ResponseEntity.ok(notificationService.getNotifications(memberDTO.getEmail(), filter));
     }
 
     @PostMapping("/read")
