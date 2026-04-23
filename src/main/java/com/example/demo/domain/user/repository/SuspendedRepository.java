@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface SuspendedRepository extends JpaRepository<Suspended, Long> {
     Optional<Suspended> findByUserIdAndReleasedAtIsNull(Long userId);
+    Optional<Suspended> findTopByUserIdOrderBySuspendedAtDesc(Long userId);
 }

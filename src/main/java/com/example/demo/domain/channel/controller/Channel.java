@@ -96,8 +96,17 @@ public class Channel {
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<List<ChannelSummaryDto>> getPopularChannels() {
-        return ResponseEntity.ok(channelService.getPopularChannels());
+    public ResponseEntity<List<ChannelSummaryDto>> getPopularChannels(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String username = userDetails != null ? userDetails.getUsername() : null;
+        return ResponseEntity.ok(channelService.getPopularChannels(username));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<ChannelSummaryDto>> searchChannels(
+            @RequestParam(required = false, defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(channelService.searchChannels(keyword, size));
     }
 
     @GetMapping("/{channelId}")
@@ -125,6 +134,21 @@ public class Channel {
             return ResponseEntity.ok(Map.of("message", "채널을 구독했습니다."));
         } catch (IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{channelId}/block")
+    public ResponseEntity<?> unblockChannel(
+            @PathVariable Long channelId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+        try {
+            channelService.unblockChannel(channelId, userDetails.getUsername());
+            return ResponseEntity.ok(Map.of("message", "채널 차단을 해제했습니다."));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }

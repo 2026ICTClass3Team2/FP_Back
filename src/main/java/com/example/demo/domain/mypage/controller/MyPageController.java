@@ -152,7 +152,30 @@ public class MyPageController {
     public ResponseEntity<MyPageProfileResponseDto> getUserProfile(
             @PathVariable Long userId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        MyPageProfileResponseDto profile = myPageService.getUserProfileById(userId);
+        String viewerEmail = userDetails != null ? userDetails.getUsername() : null;
+        MyPageProfileResponseDto profile = myPageService.getUserProfileById(userId, viewerEmail);
         return ResponseEntity.ok(profile);
+    }
+
+    @PostMapping("/users/{userId}/block")
+    public ResponseEntity<?> blockUser(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) return ResponseEntity.status(401).build();
+        try {
+            myPageService.blockUserDirectly(userDetails.getUsername(), userId);
+            return ResponseEntity.ok(Map.of("message", "차단되었습니다."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/users/{userId}/block")
+    public ResponseEntity<?> unblockUserByTarget(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) return ResponseEntity.status(401).build();
+        myPageService.unblockUserByTargetId(userDetails.getUsername(), userId);
+        return ResponseEntity.ok(Map.of("message", "차단이 해제되었습니다."));
     }
 }

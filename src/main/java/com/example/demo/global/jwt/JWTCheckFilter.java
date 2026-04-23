@@ -57,12 +57,12 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             return true;
         }
 
-        //  그 외 모든 /api/로 시작하는 경로는 토큰 검사를 수행
+        // 🔴 그 외 모든 /api/로 시작하는 경로는 토큰 검사를 수행합니다.
         if (path.startsWith("/api/")) {
             return false;
         }
 
-        // API가 아닌 정적 리소스 등은 필터를 거치지 x
+        // API가 아닌 정적 리소스 등은 필터를 거치지 않습니다.
         return true;
     }
 

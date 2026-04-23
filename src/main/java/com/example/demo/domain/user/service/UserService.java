@@ -6,13 +6,17 @@ import com.example.demo.domain.user.dto.UserJoinDTO;
 import com.example.demo.domain.user.entity.*;
 import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
+import com.example.demo.global.redis.RedisService;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -22,6 +26,11 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final TagRepository tagRepository;
     private final InterestRepository interestRepository;
+    private final RedisService redisService;
+    private final MailService mailService;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     @Transactional
     public void join(UserJoinDTO userJoinDTO) {
@@ -76,5 +85,67 @@ public class UserService {
     // 이메일 중복 체크 API용
     public boolean checkEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    // OAuth 신규 가입 후 username 설정
+    @Transactional
+    public void setupOAuthUsername(String email, String username) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        if (user.getProvider() == Provider.local) {
+            throw new IllegalArgumentException("소셜 로그인 사용자만 이용 가능합니다.");
+        }
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+        }
+        if (!username.matches("^[a-z0-9]{4,20}$")) {
+            throw new IllegalArgumentException("아이디는 영문 소문자와 숫자 4~20자리여야 합니다.");
+        }
+
+        user.setUsername(username);
+        userRepository.save(user);
+    }
+
+    // 비밀번호 찾기 — 재설정 메일 발송 (local 유저만)
+    @Transactional
+    public void sendPasswordResetEmail(String email) throws MessagingException {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다."));
+
+        if (user.getProvider() != Provider.local) {
+            throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호 찾기를 이용할 수 없습니다.");
+        }
+
+        String token = UUID.randomUUID().toString();
+        redisService.savePasswordResetToken(token, email);
+
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
+        mailService.sendPasswordResetEmail(email, resetLink);
+    }
+
+    // 비밀번호 재설정 토큰 유효성 검사
+    public boolean verifyPasswordResetToken(String token) {
+        return redisService.getPasswordResetEmail(token) != null;
+    }
+
+    // 비밀번호 재설정
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        String email = redisService.getPasswordResetEmail(token);
+        if (email == null) {
+            throw new IllegalArgumentException("비밀번호 재설정 링크가 만료되었거나 유효하지 않습니다.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        if (user.getProvider() != Provider.local) {
+            throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다.");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        redisService.deletePasswordResetToken(token); // 일회성 토큰 삭제
     }
 }

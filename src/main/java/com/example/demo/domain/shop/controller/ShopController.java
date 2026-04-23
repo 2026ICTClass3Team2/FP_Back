@@ -45,6 +45,15 @@ public class ShopController {
         return ResponseEntity.ok(shopService.uploadEmote(dto));
     }
 
+    /** 관리자 이모티콘 수정 */
+    @PutMapping("/emotes/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EmoteResponseDto> updateEmote(
+            @PathVariable Long id,
+            @RequestBody EmoteUploadRequestDto dto) {
+        return ResponseEntity.ok(shopService.updateEmote(id, dto));
+    }
+
     /** 이모티콘 구매 */
     @PostMapping("/emotes/{emoteId}/purchase")
     public ResponseEntity<Map<String, Object>> purchaseEmote(

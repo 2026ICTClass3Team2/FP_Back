@@ -14,6 +14,8 @@ public interface ShopService {
 
     EmoteResponseDto uploadEmote(EmoteUploadRequestDto dto);
 
+    EmoteResponseDto updateEmote(Long id, EmoteUploadRequestDto dto);
+
     Map<String, Object> purchaseEmote(Long emoteId, String email);
 
     Page<PurchaseHistoryDto> getPurchaseHistory(String email, int page, int size);

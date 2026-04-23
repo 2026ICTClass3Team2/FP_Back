@@ -12,6 +12,7 @@ import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
 import com.example.demo.domain.report.entity.Block;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.Interest;
+import com.example.demo.domain.user.entity.Provider;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
@@ -68,11 +69,12 @@ public class MyPageService {
                 .registeredAt(user.getRegisteredAt())
                 .currentPoint(user.getCurrentPoint())
                 .techStacks(techStacks)
+                .provider(user.getProvider().name())
                 .build();
     }
 
     @Transactional(readOnly = true)
-    public MyPageProfileResponseDto getUserProfileById(Long userId) {
+    public MyPageProfileResponseDto getUserProfileById(Long userId, String viewerEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -80,6 +82,21 @@ public class MyPageService {
                 .stream()
                 .map(interest -> interest.getTag().getName())
                 .collect(Collectors.toList());
+
+        boolean isMine = false;
+        Boolean isBlocked = null;
+
+        if (viewerEmail != null) {
+            userRepository.findByEmail(viewerEmail).ifPresent(viewer -> {});
+            java.util.Optional<User> viewerOpt = userRepository.findByEmail(viewerEmail);
+            if (viewerOpt.isPresent()) {
+                User viewer = viewerOpt.get();
+                isMine = viewer.getId().equals(user.getId());
+                if (!isMine) {
+                    isBlocked = blockRepository.existsByBlockerIdAndBlockedId(viewer.getId(), user.getId());
+                }
+            }
+        }
 
         return MyPageProfileResponseDto.builder()
                 .userId(user.getId())
@@ -90,7 +107,38 @@ public class MyPageService {
                 .registeredAt(user.getRegisteredAt())
                 .currentPoint(user.getCurrentPoint())
                 .techStacks(techStacks)
+                .provider(user.getProvider().name())
+                .isMine(isMine)
+                .isBlocked(isBlocked)
                 .build();
+    }
+
+    @Transactional
+    public void blockUserDirectly(String blockerEmail, Long targetUserId) {
+        User blocker = userRepository.findByEmail(blockerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User blocked = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new IllegalArgumentException("차단할 사용자를 찾을 수 없습니다."));
+
+        if (blocker.getId().equals(blocked.getId())) {
+            throw new IllegalArgumentException("자기 자신을 차단할 수 없습니다.");
+        }
+
+        if (!blockRepository.existsByBlockerIdAndBlockedId(blocker.getId(), blocked.getId())) {
+            Block block = Block.builder()
+                    .blocker(blocker)
+                    .blocked(blocked)
+                    .build();
+            blockRepository.save(block);
+        }
+    }
+
+    @Transactional
+    public void unblockUserByTargetId(String blockerEmail, Long targetUserId) {
+        User blocker = userRepository.findByEmail(blockerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        blockRepository.deleteByBlockerIdAndBlockedId(blocker.getId(), targetUserId);
     }
 
     @Transactional
@@ -137,6 +185,10 @@ public class MyPageService {
     public void updatePassword(String email, PasswordUpdateRequestDto requestDto) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        if (user.getProvider() != Provider.local) {
+            throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다.");
+        }
 
         if (!passwordEncoder.matches(requestDto.getCurrentPassword(), user.getPassword())) {
             throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");

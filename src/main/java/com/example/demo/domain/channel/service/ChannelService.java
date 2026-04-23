@@ -12,8 +12,10 @@ public interface ChannelService {
     void updateChannel(Long channelId, String channelName, String description, MultipartFile image, List<String> techStacks, String currentUsername);
     ChannelDetailDto getChannelDetail(Long channelId, String currentUsername);
     List<ChannelSummaryDto> getSubscribedChannels(String currentUsername);
-    List<ChannelSummaryDto> getPopularChannels();
+    List<ChannelSummaryDto> getPopularChannels(String currentUsername);
     void subscribeChannel(Long channelId, String currentUsername);
     void unsubscribeChannel(Long channelId, String currentUsername);
+    void unblockChannel(Long channelId, String currentUsername);
     List<SubscriberDto> getSubscribers(Long channelId);
+    List<ChannelSummaryDto> searchChannels(String keyword, int size);
 }
