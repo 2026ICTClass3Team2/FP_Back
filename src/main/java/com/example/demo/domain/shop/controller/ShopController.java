@@ -2,6 +2,7 @@ package com.example.demo.domain.shop.controller;
 
 import com.example.demo.domain.shop.dto.EmoteResponseDto;
 import com.example.demo.domain.shop.dto.EmoteUploadRequestDto;
+import com.example.demo.domain.shop.dto.PointHistoryDto;
 import com.example.demo.domain.shop.dto.PurchaseHistoryDto;
 import com.example.demo.domain.shop.service.ShopService;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -96,12 +96,9 @@ public class ShopController {
         return ResponseEntity.ok(Map.of("points", points));
     }
 
-    /**
-     * 포인트 내역 - 포인트 시스템 구현 후 PointService와 연결 예정
-     * 현재는 빈 페이지 반환
-     */
+    /** 포인트 내역 (이모티콘 구매 차감 내역) */
     @GetMapping("/point-history")
-    public ResponseEntity<Map<String, Object>> getPointHistory(
+    public ResponseEntity<Page<PointHistoryDto>> getPointHistory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -109,11 +106,6 @@ public class ShopController {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(Map.of(
-                "content", List.of(),
-                "totalPages", 0,
-                "totalElements", 0,
-                "number", page
-        ));
+        return ResponseEntity.ok(shopService.getPointHistory(userDetails.getUsername(), page, size));
     }
 }

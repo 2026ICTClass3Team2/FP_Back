@@ -2,6 +2,7 @@ package com.example.demo.domain.shop.service;
 
 import com.example.demo.domain.shop.dto.EmoteResponseDto;
 import com.example.demo.domain.shop.dto.EmoteUploadRequestDto;
+import com.example.demo.domain.shop.dto.PointHistoryDto;
 import com.example.demo.domain.shop.dto.PurchaseHistoryDto;
 import org.springframework.data.domain.Page;
 
@@ -19,6 +20,8 @@ public interface ShopService {
     Map<String, Object> purchaseEmote(Long emoteId, String email);
 
     Page<PurchaseHistoryDto> getPurchaseHistory(String email, int page, int size);
+
+    Page<PointHistoryDto> getPointHistory(String email, int page, int size);
 
     int getUserPoints(String email);
 }

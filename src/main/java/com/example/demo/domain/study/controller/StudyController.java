@@ -1,10 +1,6 @@
 package com.example.demo.domain.study.controller;
 
-import com.example.demo.domain.report.entity.Hidden;
-import com.example.demo.domain.report.enums.HiddenTargetType;
-import com.example.demo.domain.report.repository.HiddenRepository;
-import com.example.demo.domain.user.entity.User;
-import com.example.demo.domain.user.repository.UserRepository;
+import com.example.demo.domain.study.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,15 +11,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/study")
 @RequiredArgsConstructor
 public class StudyController {
 
-    private final HiddenRepository hiddenRepository;
-    private final UserRepository   userRepository;
+    private final ResourceRepository resourceRepository;
 
     /** 현재 사용자의 역할 반환 */
     @GetMapping("/my-role")
@@ -45,45 +39,37 @@ public class StudyController {
         return ResponseEntity.ok(Map.of("authorized", true));
     }
 
-    /** 숨긴 언어 resource_id 목록 반환 — 관리자/유저 모두 호출 */
+    /** is_hidden = true 인 resource_id 목록 반환 — 관리자/유저 모두 호출 */
     @GetMapping("/hidden-languages")
     public ResponseEntity<List<Long>> getHiddenLanguages() {
-        List<Long> ids = hiddenRepository.findTargetIdsByTargetType(HiddenTargetType.language);
-        return ResponseEntity.ok(ids);
+        return ResponseEntity.ok(resourceRepository.findHiddenResourceIds());
     }
 
-    /** 언어 숨기기 (삭제) — 관리자 전용 */
+    /** 언어 숨기기 (resource, original, translated 모두 is_hidden = true) — 관리자 전용 */
     @PostMapping("/hidden-languages")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> hideLanguage(
-            @RequestBody Map<String, Long> body,
-            @AuthenticationPrincipal UserDetails userDetails) {
-
+    @Transactional
+    public ResponseEntity<Void> hideLanguage(@RequestBody Map<String, Long> body) {
         Long resourceId = body.get("resourceId");
         if (resourceId == null) return ResponseEntity.badRequest().build();
 
-        if (!hiddenRepository.existsByTargetTypeAndTargetId(HiddenTargetType.language, resourceId)) {
-            User admin = userRepository.findByEmail(userDetails.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            hiddenRepository.save(Hidden.builder()
-                    .user(admin)
-                    .targetId(resourceId)
-                    .targetType(HiddenTargetType.language)
-                    .build());
-        }
+        resourceRepository.updateResourceIsHidden(resourceId, true);
+        resourceRepository.updateOriginalIsHidden(resourceId, true);
+        resourceRepository.updateTranslatedIsHidden(resourceId, true);
         return ResponseEntity.ok().build();
     }
 
-    /** 언어 복원 (숨김 해제) — 관리자 전용 */
+    /** 언어 복원 (resource, original, translated 모두 is_hidden = false) — 관리자 전용 */
     @DeleteMapping("/hidden-languages")
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public ResponseEntity<Void> restoreLanguage(@RequestBody Map<String, Long> body) {
         Long resourceId = body.get("resourceId");
-        if (resourceId != null) {
-            hiddenRepository.deleteByTargetTypeAndTargetId(HiddenTargetType.language, resourceId);
-        }
+        if (resourceId == null) return ResponseEntity.badRequest().build();
+
+        resourceRepository.updateResourceIsHidden(resourceId, false);
+        resourceRepository.updateOriginalIsHidden(resourceId, false);
+        resourceRepository.updateTranslatedIsHidden(resourceId, false);
         return ResponseEntity.ok().build();
     }
 }
