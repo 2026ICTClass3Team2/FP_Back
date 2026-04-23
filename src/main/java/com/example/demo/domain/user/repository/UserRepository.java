@@ -21,6 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
     
     boolean existsByNickname(String nickname);
+    
+    Optional<User> findByNickname(String nickname);
 
     // OAuth 로그인을 위한 조회 (provider + providerId 조합으로 찾거나 email로 찾음)
     Optional<User> findByProviderAndProviderId(Provider provider, String providerId);
@@ -37,4 +39,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> searchUsers(@Param("keyword") String keyword, @Param("status") UserStatus status, Pageable pageable);
 
     List<User> findByStatusAndUpdatedAtBefore(UserStatus status, LocalDateTime dateTime);
+
+    List<User> findTop5ByNicknameContainingOrUsernameContaining(String nickname, String username);
 }

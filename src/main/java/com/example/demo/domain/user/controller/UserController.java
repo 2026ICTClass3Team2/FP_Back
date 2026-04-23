@@ -4,6 +4,7 @@ import com.example.demo.domain.user.dto.EmailAuthRequestDTO;
 import com.example.demo.domain.user.dto.EmailVerifyRequestDTO;
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.domain.user.dto.UserJoinDTO;
+import com.example.demo.domain.user.dto.UserSummaryDTO;
 import com.example.demo.domain.user.service.MailService;
 import com.example.demo.domain.user.service.UserService;
 import com.example.demo.global.exception.CustomJWTException;
@@ -25,6 +26,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -177,6 +179,12 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    // 유저 검색 (멘션용)
+    @GetMapping("/search")
+    public ResponseEntity<List<UserSummaryDTO>> searchUsers(@RequestParam String query) {
+        return ResponseEntity.ok(userService.searchUsersForMention(query));
     }
 
     // Refresh Token으로 Access Token 재발급

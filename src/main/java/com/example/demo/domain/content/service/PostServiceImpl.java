@@ -14,8 +14,12 @@ import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.follow.entity.Follow;
+import com.example.demo.domain.follow.repository.FollowRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
+import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +49,8 @@ public class PostServiceImpl implements PostService {
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
+    private final FollowRepository followRepository;
+    private final NotificationService notificationService;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -95,6 +101,38 @@ public class PostServiceImpl implements PostService {
                 contentTagRepository.save(contentTag);
             }
         }
+
+        // --- Notification Logic ---
+        // 1. Channel Subscribers
+        List<Follow> channelFollowers = followRepository.findByTargetIdAndTargetType(channel.getId(), "channel");
+        for (Follow follow : channelFollowers) {
+            User follower = follow.getUser();
+            if (!follower.getId().equals(user.getId())) {
+                String message = "new post in " + channel.getName() + " channel";
+                notificationService.sendNotification(
+                    follower, 
+                    "new post", 
+                    NotificationTargetType.channel, 
+                    savedPost.getId(), 
+                    message
+                );
+            }
+        }
+
+        // 2. User Followers
+        List<Follow> userFollowers = followRepository.findByTargetIdAndTargetType(user.getId(), "user");
+        for (Follow follow : userFollowers) {
+            User follower = follow.getUser();
+            String message = "new post by " + user.getNickname();
+            notificationService.sendNotification(
+                follower, 
+                "new post", 
+                NotificationTargetType.user, 
+                savedPost.getId(), 
+                message
+            );
+        }
+        // ---------------------------
 
         return savedPost.getId();
     }
