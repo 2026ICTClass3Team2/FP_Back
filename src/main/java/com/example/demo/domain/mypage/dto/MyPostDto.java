@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MyPostDto {
     private Long id;
+    private Long qnaId;
     private String contentType;
     private String title;
     private Integer likeCount;
