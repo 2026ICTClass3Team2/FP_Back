@@ -16,6 +16,7 @@ public class PurchaseHistoryDto {
     private String emoteImageUrl;
     private int pricePaid;
     private LocalDateTime purchasedAt;
+    private Integer pointBalance; // 구매 후 잔여 포인트
 
     public static PurchaseHistoryDto from(Inventory inventory) {
         return new PurchaseHistoryDto(
@@ -24,7 +25,20 @@ public class PurchaseHistoryDto {
                 inventory.getEmote().getName(),
                 inventory.getEmote().getImageUrl(),
                 inventory.getEmote().getPrice(),
-                inventory.getPurchasedAt()
+                inventory.getPurchasedAt(),
+                null
+        );
+    }
+
+    public static PurchaseHistoryDto fromWithBalance(Inventory inventory, Integer pointBalance) {
+        return new PurchaseHistoryDto(
+                inventory.getId(),
+                inventory.getEmote().getId(),
+                inventory.getEmote().getName(),
+                inventory.getEmote().getImageUrl(),
+                inventory.getEmote().getPrice(),
+                inventory.getPurchasedAt(),
+                pointBalance
         );
     }
 }
