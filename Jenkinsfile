@@ -43,6 +43,7 @@ pipeline {
                           -e JWT_SECRET="${JWT_SECRET}" \
                           -e MAIL_USERNAME="${MAIL_USERNAME}" \
                           -e MAIL_PASSWORD="${MAIL_PASSWORD}" \
+                          -e SPRING_DATA_REDIS_HOST="10.0.1.145" \
                           --name backend-prod \
                           education-backend:latest
                     '''
