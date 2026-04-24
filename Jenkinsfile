@@ -22,6 +22,7 @@ pipeline {
                     string(credentialsId: 'JWT_SECRET', variable: 'JWT_SECRET'),
                     string(credentialsId: 'MAIL_USERNAME', variable: 'MAIL_USERNAME'),
                     string(credentialsId: 'MAIL_PASSWORD', variable: 'MAIL_PASSWORD'),
+                    string(credentialsId: 'REDIS_PASSWORD', variable: 'REDIS_PASSWORD'),
                 ]) {
                     sh '''
                         # Stop and remove the old container
@@ -44,7 +45,7 @@ pipeline {
                           -e MAIL_USERNAME="${MAIL_USERNAME}" \
                           -e MAIL_PASSWORD="${MAIL_PASSWORD}" \
                           -e SPRING_DATA_REDIS_HOST="10.0.1.145" \
-                          -e SPRING_REDIS_PASSWORD="password" \
+                          -e SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD}" \
                           --name backend-prod \
                           education-backend:latest
                     '''
