@@ -22,7 +22,7 @@ public class ReportAdminDto {
         this.targetType = report.getTargetType().name();
         this.category = report.getCategory().name();
         this.details = report.getDetails();
-        this.status = report.getStatus();
+        this.status = report.getStatus().name();
         this.createdAt = report.getCreatedAt();
         if (report.getReporter() != null) {
             this.reporterUsername = report.getReporter().getUsername();

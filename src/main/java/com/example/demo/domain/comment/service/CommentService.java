@@ -39,6 +39,7 @@ public class CommentService {
     private final InteractionRepository interactionRepository;
     private final BlockRepository blockRepository;
     private final HiddenRepository hiddenRepository;
+    private final com.example.demo.domain.notification.service.NotificationService notificationService;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -81,6 +82,58 @@ public class CommentService {
 
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+
+        // --- Notification Logic ---
+        if (parent != null) {
+            // It's a reply: notify the parent comment author
+            if (parent.getAuthor() != null && !parent.getAuthor().getId().equals(user.getId())) {
+                String message = "댓글에 새로운 답글이 달렸습니다: " + user.getNickname();
+                notificationService.sendNotification(
+                    parent.getAuthor(), 
+                    "new reply", 
+                    com.example.demo.domain.notification.entity.NotificationTargetType.comment, 
+                    savedComment.getId(), 
+                    message
+                );
+            }
+        } else {
+            // It's a root comment: notify the post author
+            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                String message = "게시글에 새로운 댓글이 달렸습니다: " + user.getNickname();
+                notificationService.sendNotification(
+                    post.getAuthor(), 
+                    "new comment", 
+                    com.example.demo.domain.notification.entity.NotificationTargetType.comment, 
+                    savedComment.getId(), 
+                    message
+                );
+            }
+        }
+
+        // Mention Detection
+        String plainContent = requestDto.getContent().replaceAll("<[^>]*>", "");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(plainContent);
+        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+        while (matcher.find()) {
+            mentionedNicknames.add(matcher.group(1));
+        }
+
+        for (String nickname : mentionedNicknames) {
+            userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
+                if (!mentionedUser.getId().equals(user.getId())) {
+                    String message = user.getNickname() + "님이 댓글에서 당신을 언급했습니다";
+                    notificationService.sendNotification(
+                        mentionedUser,
+                        "mention",
+                        com.example.demo.domain.notification.entity.NotificationTargetType.comment,
+                        savedComment.getId(),
+                        message
+                    );
+                }
+            });
+        }
+        // ---------------------------
 
         return new CommentResponseDto(savedComment);
     }

@@ -2,7 +2,10 @@ package com.example.demo.domain.user.service;
 
 import com.example.demo.domain.content.entity.Tag;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.notification.entity.NotificationSetting;
+import com.example.demo.domain.notification.repository.NotificationSettingRepository;
 import com.example.demo.domain.user.dto.UserJoinDTO;
+import com.example.demo.domain.user.dto.UserSummaryDTO;
 import com.example.demo.domain.user.entity.*;
 import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
@@ -28,6 +31,7 @@ public class UserService {
     private final InterestRepository interestRepository;
     private final RedisService redisService;
     private final MailService mailService;
+    private final NotificationSettingRepository notificationSettingRepository;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -59,6 +63,11 @@ public class UserService {
                 .build();
                 
         User savedUser = userRepository.save(user);
+
+        // 1.5. 알림 설정 초기화
+        notificationSettingRepository.save(NotificationSetting.builder()
+                .user(savedUser)
+                .build());
 
         // 2. 관심사 저장 (선택 입력)
         List<String> techStacks = userJoinDTO.getTechStacks();
@@ -147,5 +156,12 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         redisService.deletePasswordResetToken(token); // 일회성 토큰 삭제
+    }
+
+    public List<UserSummaryDTO> searchUsersForMention(String query) {
+        return userRepository.findTop5ByNicknameContainingOrUsernameContaining(query, query)
+                .stream()
+                .map(UserSummaryDTO::new)
+                .collect(java.util.stream.Collectors.toList());
     }
 }

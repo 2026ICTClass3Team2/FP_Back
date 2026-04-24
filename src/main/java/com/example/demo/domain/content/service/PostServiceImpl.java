@@ -14,8 +14,12 @@ import com.example.demo.domain.content.repository.BookmarkRepository;
 import com.example.demo.domain.content.repository.ContentTagRepository;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.follow.entity.Follow;
+import com.example.demo.domain.follow.repository.FollowRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
+import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +49,8 @@ public class PostServiceImpl implements PostService {
     private final TagRepository tagRepository;
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
+    private final FollowRepository followRepository;
+    private final NotificationService notificationService;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -96,7 +102,70 @@ public class PostServiceImpl implements PostService {
             }
         }
 
+        // --- Notification Logic ---
+        // 1. Channel Subscribers
+        List<Follow> channelFollowers = followRepository.findByTargetIdAndTargetType(channel.getId(), "channel");
+        for (Follow follow : channelFollowers) {
+            User follower = follow.getUser();
+            if (!follower.getId().equals(user.getId())) {
+                String message = channel.getName() + " 채널에 새로운 게시글이 올라왔습니다.";
+                notificationService.sendNotification(
+                    follower, 
+                    "new post", 
+                    NotificationTargetType.channel, 
+                    savedPost.getId(), 
+                    message
+                );
+            }
+        }
+
+        // 2. User Followers
+        List<Follow> userFollowers = followRepository.findByTargetIdAndTargetType(user.getId(), "user");
+        for (Follow follow : userFollowers) {
+            User follower = follow.getUser();
+            String message = "팔로우하신 " + user.getNickname() + "님이 새로운 게시글을 올렸습니다.";
+            notificationService.sendNotification(
+                follower, 
+                "new post", 
+                NotificationTargetType.user, 
+                savedPost.getId(), 
+                message
+            );
+        }
+
+        // 3. Mentions
+        processMentions(savedPost, user);
+
         return savedPost.getId();
+    }
+
+    private void processMentions(Post post, User author) {
+        if (post.getBody() == null) return;
+        
+        // Strip HTML tags for clean nickname extraction
+        String plainContent = post.getBody().replaceAll("<[^>]*>", "");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(plainContent);
+        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+        
+        while (matcher.find()) {
+            mentionedNicknames.add(matcher.group(1));
+        }
+
+        for (String nickname : mentionedNicknames) {
+            userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
+                if (!mentionedUser.getId().equals(author.getId())) {
+                    String message = author.getNickname() + "님이 게시글에서 당신을 언급했습니다";
+                    notificationService.sendNotification(
+                        mentionedUser,
+                        "mention",
+                        NotificationTargetType.post,
+                        post.getId(),
+                        message
+                    );
+                }
+            });
+        }
     }
 
     @Override
@@ -152,6 +221,9 @@ public class PostServiceImpl implements PostService {
         }
         
         log.info("Post updated. postId: {}, updatedBy: {}", postId, currentUsername);
+        
+        // Mentions on update
+        processMentions(post, post.getAuthor());
     }
 
     @Override
@@ -183,9 +255,13 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
 
-        if (!"feed".equals(post.getContentType()) || 
+        if (!"feed".equals(post.getContentType()) ||
             (!"active".equals(post.getStatus()) && !"frozen".equals(post.getStatus()))) {
             throw new IllegalArgumentException("Feed post not found or hidden");
+        }
+
+        if (post.getChannel() != null && !"active".equals(post.getChannel().getStatus())) {
+            throw new IllegalStateException("삭제된 채널입니다");
         }
 
         postRepository.increaseViewCount(postId); // 조회수 증가 — DB updated

@@ -1,6 +1,7 @@
 package com.example.demo.domain.report.entity;
 
 import com.example.demo.domain.report.enums.ReportReasonType;
+import com.example.demo.domain.report.enums.ReportStatus;
 import com.example.demo.domain.report.enums.ReportTargetType;
 import com.example.demo.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -42,9 +43,9 @@ public class Report {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String details;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @Builder.Default
-    private String status = "pending"; // TODO: 이것도 Enum으로 만들 수 있습니다.
+    private ReportStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

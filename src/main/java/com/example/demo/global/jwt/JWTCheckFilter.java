@@ -21,6 +21,7 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
+// 요청 당 한번만 동작되는 필터
 @Slf4j
 public class JWTCheckFilter extends OncePerRequestFilter {
     private final JWTUtil jwtUtil;
@@ -35,62 +36,92 @@ public class JWTCheckFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        // OPTIONS 요청은 CORS를 위해 무조건 통과
-        if (request.getMethod().equalsIgnoreCase("OPTIONS")) return true;
-
+        if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
+            return true;
+        }
+        // 필터링을 생략할 경로 설정
         String path = request.getRequestURI();
+        
+        // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
+        // 회원가입 관련 경로 모두 허용 (이메일 인증 등)
+        if(path.equals("/api/login") ||
+           path.equals("/api/logout") || 
+           path.equals("/api/member/refresh") ||
+           path.startsWith("/api/admin/notice/") ||
+           path.startsWith("/api/member/signup") ||
+           path.startsWith("/api/member/check-") ||
+           path.startsWith("/api/member/email/") ||
+           path.startsWith("/api/member/password/") ||
+           path.startsWith("/api/member/oauth/setup-username/")) { // 비밀번호 찾기/재설정 — 토큰 없이 접근
 
-        // 🟢 [필터 제외 명단] 이 경로들은 토큰(AccessToken) 검사를 하지 않습니다.
-        if (
-                path.equals("/api/login") ||
-                        path.equals("/api/logout") ||
-                        path.equals("/api/member/refresh") ||
-                        path.startsWith("/api/member/signup") ||
-                        path.startsWith("/api/member/check-") ||
-                        path.startsWith("/api/member/email/") ||
-                        path.startsWith("/oauth2/") ||
-                        path.startsWith("/api/oauth2/") ||
-                        path.startsWith("/login/oauth2/code/") ||
-                        path.startsWith("/api/admin/notice") ||
-                        path.contains("/view")
-        ) {
             return true;
         }
 
-        // 🔴 그 외 모든 /api/로 시작하는 경로는 토큰 검사를 수행합니다.
-        if (path.startsWith("/api/")) {
+        // 인증이 필요한 경로만 필터 적용 (필요에 따라 변경)
+        if(path.startsWith("/api/")) {
             return false;
         }
-
-        // API가 아닌 정적 리소스 등은 필터를 거치지 않습니다.
+        
         return true;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         try {
+            // 헤더에서 Access Token 추출
             String authorizationStr = request.getHeader("Authorization");
             if (authorizationStr == null || !authorizationStr.startsWith("Bearer ")) {
+                log.error("No valid Authorization header found for URI: {}", request.getRequestURI());
+                request.getHeaderNames().asIterator().forEachRemaining(headerName ->
+                        log.error("Header: {} = {}", headerName, request.getHeader(headerName))
+                );
                 throw new CustomJWTException("NO_AUTH_HEADER");
             }
+            
+            // "Bearer " 문자열을 제외한 순수 JWT 추출
             String accessToken = authorizationStr.substring(7);
+            
+            log.info("Access Token Validation: {}", accessToken);
+            
+            // Token 검증 및 Claims 추출
             Claims claims = jwtUtil.validateToken(accessToken);
             String email = claims.get("email", String.class);
 
-            User user = userRepository.findByEmail(email).orElseThrow(() -> new CustomJWTException("INVALID_USER"));
-            suspendedRepository.findByUserIdAndReleasedAtIsNull(user.getId()).ifPresent(s -> { throw new CustomJWTException("SUSPENDED_USER"); });
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new CustomJWTException("INVALID_USER"));
 
-            // 권한 설정 (추후 DB 권한 연동 필요)
-            MemberDTO memberDTO = new MemberDTO(email, "", "temp_nickname", List.of("ROLE_USER"));
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(memberDTO, "", memberDTO.getAuthorities());
+            // 정지된 유저인지 확인
+            suspendedRepository.findByUserIdAndReleasedAtIsNull(user.getId())
+                    .ifPresent(suspended -> {
+                        throw new CustomJWTException("SUSPENDED_USER");
+                    });
+
+            List<String> roleNames = List.of(user.getRole().name());
+            // 사용자 정보를 MemberDTO에 저장
+            MemberDTO memberDTO = new MemberDTO(user.getEmail(), "", user.getNickname(), roleNames);
+            
+            // 인증 객체 생성 및 SecurityContext 등록
+            UsernamePasswordAuthenticationToken authenticationToken =
+                    new UsernamePasswordAuthenticationToken(
+                            memberDTO, 
+                            "", 
+                            memberDTO.getAuthorities());
+            
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-
             filterChain.doFilter(request, response);
+            
         } catch (CustomJWTException e) {
+            // JWT 관련 커스텀 예외 처리
+            log.error("JWT Exception: {}", e.getMessage());
             handleException(response, "ERROR_ACCESS_TOKEN", e.getMessage());
         } catch (Exception e) {
-            log.error("JWT Filter Error: {}", e.getMessage());
-            handleException(response, "ERROR_ACCESS_TOKEN", "INTERNAL_SERVER_ERROR");
+            // 그 외 일반 예외 처리
+            log.error("Internal Server Error: {}", e.getMessage(), e);
+            //다음에 프로젝트 끝날때 활성화 -> 에러를 401으로 변환
+//            handleException(response, "ERROR_SERVER", "Internal Server Error");
+            throw new ServletException(e); //500error 내용 볼수 있게
         }
     }
 

@@ -16,7 +16,11 @@
       "Bash(./mvnw compile *)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(./gradlew compileJava -q)",
-      "Bash(cmd /c \"gradlew.bat compileJava 2>&1\")"
+      "Bash(cmd /c \"gradlew.bat compileJava 2>&1\")",
+      "Bash(mysql *)",
+      "Bash(xargs cat *)",
+      "Bash(mvn compile *)",
+      "Bash(npx --yes typescript tsc --noEmit)"
     ]
   }
 }
