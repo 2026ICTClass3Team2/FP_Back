@@ -92,7 +92,11 @@ public class SecurityConfig {
         // 6. 경로별 접근 권한 설정
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*",
-                        "/api/member/password/**").permitAll()
+                        "/api/member/password/**",
+                        // WebSocket 핸드셰이크 엔드포인트는 여기서 허용합니다.
+                        // 실제 인증은 JwtHandshakeInterceptor에서 토큰을 검증해 처리합니다.
+                        // 이 항목이 없으면 JWTCheckFilter가 HTTP 업그레이드 요청을 401로 차단합니다.
+                        "/ws/**").permitAll()
                 .requestMatchers("/api/mypage/**").authenticated()
                 .anyRequest().permitAll()
         );

@@ -45,13 +45,26 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         // Postman 등의 테스트를 위해 인증 없이 접근해야 하는 경로는 필터 적용 제외
         // 회원가입 관련 경로 모두 허용 (이메일 인증 등)
         if(path.equals("/api/login") ||
-           path.equals("/api/logout") || 
+           path.equals("/api/logout") ||
            path.equals("/api/member/refresh") ||
            path.startsWith("/api/member/signup") ||
            path.startsWith("/api/member/check-") ||
            path.startsWith("/api/member/email/") ||
            path.startsWith("/api/member/password/") ||
-           path.startsWith("/api/member/oauth/setup-username/")) { // 비밀번호 찾기/재설정 — 토큰 없이 접근
+           path.startsWith("/api/member/oauth/setup-username/") ||
+
+           // OAuth2 소셜 로그인 흐름 — 브라우저 리다이렉트이므로 JWT 헤더가 없습니다.
+           // Spring Security의 permitAll() 보다 이 필터가 먼저 실행되기 때문에
+           // 여기서 명시적으로 제외하지 않으면 401 오류가 발생합니다.
+           // getRequestURI()는 context-path(/api)를 포함한 전체 URI를 반환합니다.
+           // 아래 기존 항목들(/api/login, /api/member/ 등)도 모두 /api/ 포함 —
+           // 동일한 이유로 OAuth2와 WS 경로에도 /api/ 접두사가 필요합니다.
+           path.startsWith("/api/oauth2/") ||
+           path.startsWith("/api/login/oauth2/") ||
+
+           // WebSocket 핸드셰이크 — 브라우저는 WS 연결 시 커스텀 헤더를 설정할 수 없습니다.
+           // JWT 검증은 JwtHandshakeInterceptor에서 쿼리 파라미터로 별도 처리합니다.
+           path.startsWith("/api/ws/")) {
 
             return true;
         }
