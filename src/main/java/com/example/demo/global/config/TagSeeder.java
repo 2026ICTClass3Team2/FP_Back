@@ -20,10 +20,11 @@ public class TagSeeder implements CommandLineRunner {
     public void run(String... args) {
         // Your curated, perfect list of starting tags
         List<String> coreTags = List.of(
-                "Java", "Spring Boot", "React", "Docker", "AWS",
-                "Python", "Node.js", "MySQL", "JavaScript", "TypeScript",
-                "Git", "Jenkins", "Kubernetes", "Linux", "HTML", "CSS", "Oracle",
-                "Rust", "R", "Swift", "Vue.js"
+                "AWS", "Azure", "C#", "C++", "CSS", "Django", "Docker", "Figma", "Flask",
+                "GCP", "Git", "Go", "GraphQL", "HTML", "Java", "JavaScript", "Jenkins", "Kotlin",
+                "Kubernetes", "Linux", "MongoDB", "MySQL", "NestJS", "Next.js", "Nginx", "Node.js",
+                "Oracle", "PHP", "PostgreSQL", "Python", "R", "React", "Redis", "Ruby", "Rust",
+                "Spring Boot", "Svelte", "Swift", "Tailwind CSS", "TypeScript", "Vue.js", "Zustand"
         );
 
         int addedCount = 0;
