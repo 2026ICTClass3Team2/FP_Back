@@ -13,6 +13,7 @@ import com.example.demo.domain.qna.entity.Qna;
 import com.example.demo.domain.qna.repository.QnaRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.domain.user.entity.User;
+import com.example.demo.global.websocket.NotificationWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +32,11 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
     private final QnaRepository qnaRepository;
+
+    // WebSocket 핸들러 — 알림 저장 직후 실시간 푸시를 담당합니다.
+    // @Lazy를 사용하는 이유: NotificationService와 WebSocketHandler 사이의
+    // 순환 의존성 가능성을 방지하고 컨텍스트 초기화 순서 문제를 피하기 위함입니다.
+    private final NotificationWebSocketHandler notificationWebSocketHandler;
 
     @Transactional
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
@@ -73,14 +79,30 @@ public class NotificationService {
         }
 
         if (shouldSend) {
+            // DB에 알림을 저장합니다. 이 레코드가 NotificationTab에서 조회됩니다.
             Notification notification = Notification.builder()
                     .user(receiver)
-                    .notificationType(message) // The user said "show a notification to the user 'new comment by 'nickname'"
+                    .notificationType(message)
                     .targetType(targetType)
                     .targetId(targetId)
                     .isRead(false)
                     .build();
             notificationRepository.save(notification);
+
+            // DB 저장 성공 후 WebSocket으로 실시간 푸시 신호를 전송합니다.
+            // 클라이언트는 이 신호를 받으면 /notifications/recent를 재조회합니다.
+            // 페이로드는 최소한의 JSON으로 유지합니다 — 실제 데이터는 REST API로 가져옵니다.
+            try {
+                notificationWebSocketHandler.pushToUser(
+                    receiver.getId(),
+                    "{\"type\":\"NEW_NOTIFICATION\"}"
+                );
+            } catch (Exception e) {
+                // WebSocket 푸시 실패는 치명적 오류가 아닙니다.
+                // 알림은 이미 DB에 저장되었으므로 사용자는 다음 조회 시 확인할 수 있습니다.
+                log.warn("[WS] 알림 푸시 실패 (DB 저장은 성공): userId={}, 오류={}",
+                    receiver.getId(), e.getMessage());
+            }
         }
     }
 
@@ -117,21 +139,13 @@ public class NotificationService {
     @Transactional
     public void markAsRead(List<Long> notificationIds, String email) {
         User user = userRepository.findByEmail(email).orElseThrow();
-        List<Notification> notifications = notificationRepository.findAllById(notificationIds);
-        for (Notification n : notifications) {
-            if (n.getUser().getId().equals(user.getId())) {
-                n.setRead(true);
-            }
-        }
+        notificationRepository.markAsRead(notificationIds, user.getId());
     }
 
     @Transactional
     public void markAllAsRead(String email) {
         User user = userRepository.findByEmail(email).orElseThrow();
-        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 1000));
-        for (Notification n : unread) {
-            n.setRead(true);
-        }
+        notificationRepository.markAllAsRead(user.getId());
     }
 
     public List<NotificationResponseDto> getNotifications(String email, String filter) {

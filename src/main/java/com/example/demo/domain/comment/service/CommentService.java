@@ -93,7 +93,7 @@ public class CommentService {
         if (parent != null) {
             // It's a reply: notify the parent comment author
             if (parent.getAuthor() != null && !parent.getAuthor().getId().equals(user.getId())) {
-                String message = "new reply on your comment by " + user.getNickname();
+                String message = "댓글에 새로운 답글이 달렸습니다: " + user.getNickname();
                 notificationService.sendNotification(
                     parent.getAuthor(), 
                     "new reply", 
@@ -105,7 +105,7 @@ public class CommentService {
         } else {
             // It's a root comment: notify the post author
             if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
-                String message = "new comment by " + user.getNickname();
+                String message = "게시글에 새로운 댓글이 달렸습니다: " + user.getNickname();
                 notificationService.sendNotification(
                     post.getAuthor(), 
                     "new comment", 
@@ -128,7 +128,7 @@ public class CommentService {
         for (String nickname : mentionedNicknames) {
             userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
                 if (!mentionedUser.getId().equals(user.getId())) {
-                    String message = user.getNickname() + " mentioned you in a comment";
+                    String message = user.getNickname() + "님이 댓글에서 당신을 언급했습니다";
                     notificationService.sendNotification(
                         mentionedUser,
                         "mention",

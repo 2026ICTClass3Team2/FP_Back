@@ -26,7 +26,7 @@ public class Notification {
     @Column(name = "notification_id")
     private Long id;
 
-    @Column(name = "notification_type", length = 50)
+    @Column(name = "notification_type", length = 255)
     private String notificationType;
 
     @Enumerated(EnumType.STRING)
