@@ -87,7 +87,7 @@ public class QnaServiceImpl implements QnaService {
             pointTransactionRepository.save(transaction);
             
             // --- Notification Logic ---
-            notificationService.sendNotification(user, "point", NotificationTargetType.system, savedQna.getId(), "points deducted for QnA reward: -" + rewardPoints);
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, savedQna.getId(), "QnA 보상 설정으로 포인트가 차감되었습니다: -" + rewardPoints);
             // ---------------------------
         }
 
@@ -112,7 +112,7 @@ public class QnaServiceImpl implements QnaService {
         for (String nickname : mentionedNicknames) {
             userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
                 if (!mentionedUser.getId().equals(author.getId())) {
-                    String message = author.getNickname() + " mentioned you in a QnA";
+                    String message = author.getNickname() + "님이 QnA에서 당신을 언급했습니다";
                     notificationService.sendNotification(
                         mentionedUser,
                         "mention",
@@ -165,7 +165,7 @@ public class QnaServiceImpl implements QnaService {
             pointTransactionRepository.save(transaction);
 
             // --- Notification Logic ---
-            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "points deducted for QnA reward update: -" + pointDifference);
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "QnA 보상 수정으로 포인트가 차감되었습니다: -" + pointDifference);
             // ---------------------------
         } else if (pointDifference < 0) {
             // If they reduced the points, refund the difference
@@ -183,8 +183,7 @@ public class QnaServiceImpl implements QnaService {
             pointTransactionRepository.save(transaction);
 
             // --- Notification Logic ---
-            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "points refunded for QnA reward update: +" + refund);
-            // ---------------------------
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "QnA 보상 수정으로 포인트가 환불되었습니다: +" + refund);
         }
 
         post.setTitle(qnaCreateRequestDto.getTitle());
@@ -237,6 +236,18 @@ public class QnaServiceImpl implements QnaService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
 
+        // 채택할 댓글이 해당 QnA 게시글에 속하는지 확인합니다.
+        // 이 검사가 없으면 다른 게시글의 댓글 ID를 전달해 잘못된 포인트 지급이나
+        // 엉뚱한 알림 전송이 발생할 수 있습니다.
+        if (!comment.getPost().getId().equals(qna.getPost().getId())) {
+            throw new IllegalArgumentException("해당 QnA에 속하지 않는 댓글은 채택할 수 없습니다.");
+        }
+
+        // 루트 댓글(최상위 댓글)만 채택할 수 있습니다. 대댓글은 채택 대상이 아닙니다.
+        if (comment.getParent() != null) {
+            throw new IllegalArgumentException("대댓글은 답변으로 채택할 수 없습니다.");
+        }
+
         if (comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("자신의 답변은 채택할 수 없습니다.");
         }
@@ -268,10 +279,13 @@ public class QnaServiceImpl implements QnaService {
                     .build();
             pointTransactionRepository.save(transaction);
 
-            // --- Notification Logic ---
-            notificationService.sendNotification(commentAuthor, "point", NotificationTargetType.system, comment.getId(), "points received for accepted answer: +" + qna.getRewardPoints());
-            notificationService.sendNotification(commentAuthor, "qna selected", NotificationTargetType.comment, comment.getId(), "your comment was selected as the answer!");
-            // ---------------------------
+            // Notify about points
+            notificationService.sendNotification(commentAuthor, "point", NotificationTargetType.system, comment.getId(), "답변 채택으로 포인트가 적립되었습니다: +" + qna.getRewardPoints());
+        }
+
+        // 3. Notify about selection (Always)
+        if (comment.getAuthor() != null) {
+            notificationService.sendNotification(comment.getAuthor(), "qna selected", NotificationTargetType.comment, comment.getId(), "작성하신 댓글이 답변으로 채택되었습니다!");
         }
     }
 
