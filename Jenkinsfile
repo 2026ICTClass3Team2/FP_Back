@@ -44,6 +44,7 @@ pipeline {
                           -e MAIL_USERNAME="${MAIL_USERNAME}" \
                           -e MAIL_PASSWORD="${MAIL_PASSWORD}" \
                           -e SPRING_DATA_REDIS_HOST="10.0.1.145" \
+                          -e SPRING_REDIS_PASSWORD="password" \
                           --name backend-prod \
                           education-backend:latest
                     '''
