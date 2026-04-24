@@ -20,7 +20,8 @@
       "Bash(mysql *)",
       "Bash(xargs cat *)",
       "Bash(mvn compile *)",
-      "Bash(npx --yes typescript tsc --noEmit)"
+      "Bash(npx --yes typescript tsc --noEmit)",
+      "Bash(./gradlew bootRun)"
     ]
   }
 }

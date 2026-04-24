@@ -1,5 +1,7 @@
 package com.example.demo.domain.content.service;
 
+import com.example.demo.domain.algorithm.enums.FeedTab;
+import com.example.demo.domain.algorithm.service.UserInterestService;
 import com.example.demo.domain.channel.entity.Channel;
 import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
@@ -20,27 +22,40 @@ import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
+import com.example.demo.domain.report.entity.Hidden;
+import com.example.demo.domain.report.enums.HiddenReasonType;
+import com.example.demo.domain.report.enums.HiddenTargetType;
+import com.example.demo.domain.report.repository.HiddenRepository;
+import com.example.demo.domain.user.entity.Interest;
 import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+
+    private static final int ALGORITHM_CANDIDATE_LIMIT = 300;
+    private static final int ALGORITHM_CANDIDATE_DAYS = 30;
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
@@ -50,7 +65,10 @@ public class PostServiceImpl implements PostService {
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
     private final FollowRepository followRepository;
+    private final InterestRepository interestRepository;
+    private final HiddenRepository hiddenRepository;
     private final NotificationService notificationService;
+    private final UserInterestService userInterestService;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -135,6 +153,16 @@ public class PostServiceImpl implements PostService {
 
         // 3. Mentions
         processMentions(savedPost, user);
+
+        // 4. 관심도 반영 — 트랜잭션 커밋 후 비동기 실행 (커밋 전 조회 시 ContentTag 없음 방지)
+        Long userId = user.getId();
+        Long postId = savedPost.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                userInterestService.onPostWrite(userId, postId);
+            }
+        });
 
         return savedPost.getId();
     }
@@ -226,6 +254,165 @@ public class PostServiceImpl implements PostService {
         processMentions(post, post.getAuthor());
     }
 
+    // ─── 탭별 피드 ────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional(readOnly = true)
+    public Object getFeedByTab(FeedTab tab, Long lastPostId, int page, int size, String currentUsername) {
+        User currentUser = resolveUser(currentUsername);
+
+        return switch (tab) {
+            case LATEST -> getPostsFeed(lastPostId, size, currentUsername);
+            case POPULAR -> getPopularFeed(page, size, currentUser);
+            case ALGORITHM -> getAlgorithmFeed(page, size, currentUser);
+            case SUBSCRIBED -> getSubscribedFeed(page, size, currentUser);
+        };
+    }
+
+    private Page<PostFeedResponseDto> getPopularFeed(int page, int size, User currentUser) {
+        PageRequest pageRequest = PageRequest.of(page, size);
+        Long userId = currentUser != null ? currentUser.getId() : null;
+
+        Page<Post> posts = (userId != null)
+                ? postRepository.findPopularPosts(userId, pageRequest)
+                : postRepository.findPopularPostsAnonymous(pageRequest);
+
+        return posts.map(p -> convertToDto(p, currentUser));
+    }
+
+    private Page<PostFeedResponseDto> getAlgorithmFeed(int page, int size, User currentUser) {
+        if (currentUser == null) {
+            // 비로그인: 인기 피드로 대체
+            return getPopularFeed(page, size, null);
+        }
+
+        List<Post> candidates = fetchAlgorithmCandidates(currentUser.getId(), null);
+        Map<Long, Double> interestMap = buildInterestMap(currentUser.getId());
+        List<PostFeedResponseDto> scored = scoreAndSort(candidates, interestMap, currentUser);
+        return paginate(scored, page, size);
+    }
+
+    private Page<PostFeedResponseDto> getSubscribedFeed(int page, int size, User currentUser) {
+        if (currentUser == null) {
+            return Page.empty();
+        }
+
+        List<Long> channelIds = followRepository
+                .findByUser_IdAndTargetType(currentUser.getId(), "channel")
+                .stream().map(Follow::getTargetId).collect(Collectors.toList());
+
+        if (channelIds.isEmpty()) {
+            return Page.empty();
+        }
+
+        List<Post> candidates = fetchAlgorithmCandidates(currentUser.getId(), channelIds);
+        Map<Long, Double> interestMap = buildInterestMap(currentUser.getId());
+        List<PostFeedResponseDto> scored = scoreAndSort(candidates, interestMap, currentUser);
+        return paginate(scored, page, size);
+    }
+
+    private List<Post> fetchAlgorithmCandidates(Long userId, List<Long> channelIds) {
+        PageRequest limit = PageRequest.of(0, ALGORITHM_CANDIDATE_LIMIT);
+        LocalDateTime since = LocalDateTime.now().minusDays(ALGORITHM_CANDIDATE_DAYS);
+        return (channelIds == null)
+                ? postRepository.findCandidatesForAlgorithm(userId, since, limit)
+                : postRepository.findCandidatesForSubscribed(userId, channelIds, since, limit);
+    }
+
+    private Map<Long, Double> buildInterestMap(Long userId) {
+        List<Interest> interests = interestRepository.findByUser_Id(userId);
+        Map<Long, Double> map = new HashMap<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (Interest i : interests) {
+            long days = ChronoUnit.DAYS.between(i.getLastInteractionAt(), now);
+            double decayed = i.getWeightScore() * Math.pow(0.99, days);
+            map.put(i.getTag().getId(), decayed);
+        }
+        return map;
+    }
+
+    private List<PostFeedResponseDto> scoreAndSort(List<Post> posts, Map<Long, Double> interestMap, User user) {
+        // 태그 일괄 로드 (N+1 방지)
+        List<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toList());
+        Map<Long, List<ContentTag>> tagsByPost = contentTagRepository.findByPost_IdIn(postIds)
+                .stream().collect(Collectors.groupingBy(ct -> ct.getPost().getId()));
+
+        return posts.stream()
+                .map(p -> {
+                    double score = calcAlgorithmScore(p, tagsByPost.getOrDefault(p.getId(), List.of()), interestMap);
+                    PostFeedResponseDto dto = convertToDto(p, user);
+                    dto.setAlgorithmScore(score);
+                    return dto;
+                })
+                .sorted(Comparator.comparingDouble(PostFeedResponseDto::getAlgorithmScore).reversed())
+                .collect(Collectors.toList());
+    }
+
+    private double calcAlgorithmScore(Post post, List<ContentTag> tags, Map<Long, Double> interestMap) {
+        // 관심도 점수: 게시글 태그들의 평균 가중치
+        double interestScore = 0.0;
+        if (!tags.isEmpty()) {
+            double tagSum = tags.stream()
+                    .mapToDouble(ct -> interestMap.getOrDefault(ct.getTag().getId(), 0.0))
+                    .sum();
+            interestScore = tagSum / tags.size();
+        }
+
+        // 인기도 점수 (100으로 정규화)
+        double rawPop = post.getLikeCount() * 2.0 + post.getCommentCount() * 3.0
+                + post.getBookmarkCount() * 4.0 + post.getViewCount() * 0.1;
+        double popularityScore = Math.min(rawPop / 100.0, 10.0);
+
+        // 최신성 점수: 경과 시간이 길수록 감소
+        double ageHours = ChronoUnit.HOURS.between(post.getCreatedAt(), LocalDateTime.now());
+        double recencyScore = 1.0 / (1.0 + ageHours / 24.0);
+
+        return interestScore * 0.4 + popularityScore * 0.3 + recencyScore * 0.3;
+    }
+
+    private Page<PostFeedResponseDto> paginate(List<PostFeedResponseDto> list, int page, int size) {
+        int total = list.size();
+        int from = Math.min(page * size, total);
+        int to = Math.min(from + size, total);
+        return new PageImpl<>(list.subList(from, to), PageRequest.of(page, size), total);
+    }
+
+    // ─── 관심없음 ────────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void notInterested(Long postId, String currentUsername) {
+        User user = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        if (hiddenRepository.existsByUserIdAndTargetId(user.getId(), postId)) {
+            return; // 이미 숨김 처리
+        }
+
+        hiddenRepository.save(Hidden.builder()
+                .user(user)
+                .targetId(postId)
+                .targetType(HiddenTargetType.feed)
+                .reason(HiddenReasonType.not_interested)
+                .build());
+
+        userInterestService.onNotInterested(user.getId(), postId);
+    }
+
+    // ─── 공유 추적 ───────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void trackShare(Long postId, String currentUsername) {
+        if (currentUsername == null) return;
+        User user = userRepository.findByEmail(currentUsername)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        userInterestService.onShare(user.getId(), postId);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
@@ -264,15 +451,18 @@ public class PostServiceImpl implements PostService {
             throw new IllegalStateException("삭제된 채널입니다");
         }
 
-        postRepository.increaseViewCount(postId); // 조회수 증가 — DB updated
-        
-        // re-fetch to get updated view count
-        post = postRepository.findById(postId).get(); 
-
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
+
+        postRepository.increaseViewCount(postId);
+        if (currentUser != null) {
+            userInterestService.onView(currentUser.getId(), postId);
+        }
+
+        // re-fetch to get updated view count
+        post = postRepository.findById(postId).get();
 
         return convertToDetailDto(post, currentUser);
     }
@@ -312,28 +502,39 @@ public class PostServiceImpl implements PostService {
         }
 
         Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), post.getContentType(), post.getId());
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
             if (interaction.getActionType().equals(actionType)) {
                 interactionRepository.delete(interaction);
                 updatePostInteractionCount(post, actionType, -1);
+                // 취소 → 역방향 관심도 조정
+                if ("like".equals(actionType)) userInterestService.onUnlike(user.getId(), postId);
+                else if ("dislike".equals(actionType)) userInterestService.onUndislike(user.getId(), postId);
             } else {
                 String previousActionType = interaction.getActionType();
                 interaction.setActionType(actionType);
                 updatePostInteractionCount(post, previousActionType, -1);
                 updatePostInteractionCount(post, actionType, 1);
+                // 전환: 단일 호출로 합산 delta 적용 (race condition 방지)
+                if ("like".equals(previousActionType) && "dislike".equals(actionType)) {
+                    userInterestService.onSwitchLikeToDislike(user.getId(), postId);
+                } else if ("dislike".equals(previousActionType) && "like".equals(actionType)) {
+                    userInterestService.onSwitchDislikeToLike(user.getId(), postId);
+                }
             }
         } else {
             Interaction newInteraction = Interaction.builder()
                     .user(user)
                     .targetId(post.getId())
-                    .targetType(post.getContentType())
+                    .targetType("post")
                     .actionType(actionType)
                     .build();
             interactionRepository.save(newInteraction);
             updatePostInteractionCount(post, actionType, 1);
+            if ("like".equals(actionType)) userInterestService.onLike(user.getId(), postId);
+            else if ("dislike".equals(actionType)) userInterestService.onDislike(user.getId(), postId);
         }
     }
 
@@ -362,6 +563,8 @@ public class PostServiceImpl implements PostService {
 
         if (existingBookmark.isPresent()) {
             bookmarkRepository.delete(existingBookmark.get());
+            postRepository.updateBookmarkCount(postId, -1);
+            userInterestService.onUnbookmark(user.getId(), postId);
             return false;
         } else {
             Bookmark bookmark = Bookmark.builder()
@@ -370,6 +573,8 @@ public class PostServiceImpl implements PostService {
                     .targetType(post.getContentType())
                     .build();
             bookmarkRepository.save(bookmark);
+            postRepository.updateBookmarkCount(postId, 1);
+            userInterestService.onBookmark(user.getId(), postId);
             return true;
         }
     }
@@ -382,7 +587,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), post.getContentType(), post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "post", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -417,6 +622,7 @@ public class PostServiceImpl implements PostService {
                 .dislikeCount(post.getDislikeCount())
                 .viewCount(post.getViewCount())
                 .commentCount(post.getCommentCount())
+                .bookmarkCount(post.getBookmarkCount())
                 .shareCount(0)
                 .isLiked(isLiked)
                 .isDisliked(isDisliked)
@@ -433,7 +639,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), post.getContentType(), post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "post", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -520,12 +726,18 @@ public class PostServiceImpl implements PostService {
         return posts.map(post -> convertToDto(post, finalUser));
     }
 
-    //질문 게시판 조회수
     @Override
     @Transactional
     public void increaseViewCount(Long postId, Long userId) {
-        // TODO: Implement view count logic, e.g., using a separate ViewHistory table to avoid incrementing on every refresh
         postRepository.increaseViewCount(postId);
+        if (userId != null) {
+            userInterestService.onView(userId, postId);
+        }
+    }
+
+    private User resolveUser(String email) {
+        if (email == null) return null;
+        return userRepository.findByEmail(email).orElse(null);
     }
 
     private void deleteS3Object(String url) {
