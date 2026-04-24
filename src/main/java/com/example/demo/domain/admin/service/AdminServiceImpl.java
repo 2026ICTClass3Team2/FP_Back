@@ -100,7 +100,7 @@ public class AdminServiceImpl implements AdminService {
             Suspended suspended = Suspended.builder()
                     .user(user)
                     .admin(admin)
-                    .reason("Auto suspension due to 3 warnings")
+                    .reason("경고 3회 누적으로 인한 자동 정지")
                     .releasedAt(LocalDateTime.now().plusDays(1))
                     .build();
             suspendedRepository.save(suspended);
