@@ -122,7 +122,7 @@ public class ShopServiceImpl implements ShopService {
                 .build();
         pointTransactionRepository.save(transaction);
 
-        notificationService.sendNotification(user, "point", NotificationTargetType.system, emote.getId(), "points deducted for emote purchase: -" + emote.getPrice());
+        notificationService.sendNotification(user, "point", NotificationTargetType.system, emote.getId(), "이모티콘 구매로 포인트가 차감되었습니다: -" + emote.getPrice());
         // -----------------------------------------------
 
         return Map.of(

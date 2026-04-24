@@ -108,7 +108,7 @@ public class PostServiceImpl implements PostService {
         for (Follow follow : channelFollowers) {
             User follower = follow.getUser();
             if (!follower.getId().equals(user.getId())) {
-                String message = "new post in " + channel.getName() + " channel";
+                String message = channel.getName() + " 채널에 새로운 게시글이 올라왔습니다.";
                 notificationService.sendNotification(
                     follower, 
                     "new post", 
@@ -123,7 +123,7 @@ public class PostServiceImpl implements PostService {
         List<Follow> userFollowers = followRepository.findByTargetIdAndTargetType(user.getId(), "user");
         for (Follow follow : userFollowers) {
             User follower = follow.getUser();
-            String message = "new post by " + user.getNickname();
+            String message = "팔로우하신 " + user.getNickname() + "님이 새로운 게시글을 올렸습니다.";
             notificationService.sendNotification(
                 follower, 
                 "new post", 
@@ -155,7 +155,7 @@ public class PostServiceImpl implements PostService {
         for (String nickname : mentionedNicknames) {
             userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
                 if (!mentionedUser.getId().equals(author.getId())) {
-                    String message = author.getNickname() + " mentioned you in a post";
+                    String message = author.getNickname() + "님이 게시글에서 당신을 언급했습니다";
                     notificationService.sendNotification(
                         mentionedUser,
                         "mention",
