@@ -11,6 +11,7 @@ public class PointHistoryDto {
 
     private final String description;
     private final int pointChange;
+    private final Integer pointBalance;
     private final LocalDateTime createdAt;
 
     private static final Map<String, String> TYPE_LABEL = Map.of(
@@ -24,9 +25,10 @@ public class PointHistoryDto {
     );
 
     private PointHistoryDto(PointTransaction tx) {
-        this.description = TYPE_LABEL.getOrDefault(tx.getTargetType(), "포인트 변동");
-        this.pointChange = tx.getPointChange();
-        this.createdAt   = tx.getCreatedAt();
+        this.description  = TYPE_LABEL.getOrDefault(tx.getTargetType(), "포인트 변동");
+        this.pointChange  = tx.getPointChange();
+        this.pointBalance = tx.getPointBalance();
+        this.createdAt    = tx.getCreatedAt();
     }
 
     public static PointHistoryDto from(PointTransaction tx) {
