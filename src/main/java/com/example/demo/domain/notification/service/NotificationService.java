@@ -117,21 +117,13 @@ public class NotificationService {
     @Transactional
     public void markAsRead(List<Long> notificationIds, String email) {
         User user = userRepository.findByEmail(email).orElseThrow();
-        List<Notification> notifications = notificationRepository.findAllById(notificationIds);
-        for (Notification n : notifications) {
-            if (n.getUser().getId().equals(user.getId())) {
-                n.setRead(true);
-            }
-        }
+        notificationRepository.markAsRead(notificationIds, user.getId());
     }
 
     @Transactional
     public void markAllAsRead(String email) {
         User user = userRepository.findByEmail(email).orElseThrow();
-        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 1000));
-        for (Notification n : unread) {
-            n.setRead(true);
-        }
+        notificationRepository.markAllAsRead(user.getId());
     }
 
     public List<NotificationResponseDto> getNotifications(String email, String filter) {

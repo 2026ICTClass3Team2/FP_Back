@@ -1,6 +1,8 @@
 package com.example.demo.domain.notification.dto;
 
 import com.example.demo.domain.notification.entity.Notification;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -13,7 +15,8 @@ public class NotificationResponseDto {
     private Long targetId;
     private Long postId; // For comments/mentions
     private Long qnaId;
-    private boolean isRead;
+    @JsonProperty("isRead")
+    private Boolean isRead;
     private LocalDateTime createdAt;
 
     public NotificationResponseDto(Notification notification) {
