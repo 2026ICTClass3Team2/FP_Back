@@ -31,6 +31,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         List<String> roleNames = List.of(user.getRole().name());
 
         return new MemberDTO(
+                user.getId(),
                 user.getEmail(),
                 user.getPassword(),
                 user.getNickname(),
