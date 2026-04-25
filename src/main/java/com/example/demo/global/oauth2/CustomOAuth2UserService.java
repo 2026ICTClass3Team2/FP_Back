@@ -120,6 +120,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         List<String> roleNames = List.of(user.getRole().name());
 
         return new MemberDTO(
+                user.getId(),
                 user.getEmail(),
                 user.getPassword(),
                 user.getNickname(),
