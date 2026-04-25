@@ -4,44 +4,68 @@ import com.example.demo.domain.admin.dto.AdminPostDto;
 import com.example.demo.domain.admin.service.AdminPostService;
 import com.example.demo.domain.content.entity.Post;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/notice")
+@RequestMapping("/admin/notice") //  리액트와 주소를 통일
 @RequiredArgsConstructor
+
 public class AdminPostController {
 
     private final AdminPostService adminPostService;
 
-    // 등록
-    @PostMapping
-    public String create(@RequestBody AdminPostDto dto) {
-        adminPostService.save(dto);
-        return "등록 완료";
-    }
-
-    // 목록 조회
     @GetMapping("/list")
     public List<Post> list() {
         return adminPostService.findAll();
     }
 
-    // 수정
-    @PutMapping("/{id}")
-    public String update(
-            @PathVariable Long id,
-            @RequestBody AdminPostDto dto
-    ) {
-        adminPostService.update(id, dto);
-        return "수정 완료";
+    @PostMapping("/write")
+    public String create(@RequestBody AdminPostDto dto) {
+        adminPostService.save(dto);
+        return "SUCCESS";
     }
 
-    // 삭제
+    // 🔴 404 해결: /api/admin/notice/{id}
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable(value = "id") Long id, @RequestBody AdminPostDto dto) {
+        try {
+            adminPostService.update(id, dto);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+
+    @PatchMapping("/{id}/view")
+    public ResponseEntity<?> updateViewCount(@PathVariable(value = "id") Long id) {
+        try {
+            return ResponseEntity.ok(adminPostService.incrementView(id).getViewCount());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+
+    // 🔴 ERR_FAILED 해결: 토글 주소 명확화
+    @PatchMapping("/{id}/toggle-status")
+    public ResponseEntity<?> toggleStatus(@PathVariable(value = "id") Long id) {
+        try {
+            adminPostService.toggleNoticeStatus(id);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+
+    // 🔴 404 해결: 삭제 주소
     @DeleteMapping("/{id}")
-    public String delete(@PathVariable Long id) {
-        adminPostService.delete(id);
-        return "삭제 완료";
+    public ResponseEntity<?> delete(@PathVariable(value = "id") Long id) {
+        try {
+            adminPostService.delete(id);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
     }
 }

@@ -180,7 +180,6 @@ public class NotificationService {
         User user = userRepository.findByEmail(email).orElseThrow();
         NotificationSetting setting = notificationSettingRepository.findById(user.getId())
                 .orElseGet(() -> NotificationSetting.builder().user(user).build());
-        
         setting.setAdmin(newSettings.isAdmin());
         setting.setFollowedChannel(newSettings.isFollowedChannel());
         setting.setFollowedUser(newSettings.isFollowedUser());
