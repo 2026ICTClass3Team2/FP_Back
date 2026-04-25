@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface ShopRepository extends JpaRepository<Emote, Long> {
 
+    boolean existsByName(String name);
+    
     @Query("SELECT e FROM Emote e WHERE e.id NOT IN " +
            "(SELECT i.emote.id FROM Inventory i WHERE i.user.id = :userId)")
     Page<Emote> findUnpurchasedByUser(@Param("userId") Long userId, Pageable pageable);

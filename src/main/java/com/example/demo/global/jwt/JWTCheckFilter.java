@@ -52,7 +52,16 @@ public class JWTCheckFilter extends OncePerRequestFilter {
            path.startsWith("/api/member/email/") ||
            path.startsWith("/api/member/password/") ||
            path.startsWith("/api/member/oauth/setup-username/") || // 비밀번호 찾기/재설정 — 토큰 없이 접근
-           path.startsWith("/api/tags/")) { // 태그 검색 — 공개 엔드포인트
+           path.startsWith("/api/tags/") || // 태그 검색 — 공개 엔드포인트
+
+           // OAuth2 소셜 로그인 흐름 — 브라우저 리다이렉트이므로 JWT 헤더가 없습니다.
+           // getRequestURI()는 context-path(/api)를 포함한 전체 URI를 반환합니다.
+           path.startsWith("/api/oauth2/") ||
+           path.startsWith("/api/login/oauth2/") ||
+
+           // WebSocket 핸드셰이크 — 브라우저는 WS 연결 시 커스텀 헤더를 설정할 수 없습니다.
+           // JWT 검증은 JwtHandshakeInterceptor에서 쿼리 파라미터로 별도 처리합니다.
+           path.startsWith("/api/ws/")) {
 
             return true;
         }
@@ -100,7 +109,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
 
             List<String> roleNames = List.of(user.getRole().name());
             // 사용자 정보를 MemberDTO에 저장
-            MemberDTO memberDTO = new MemberDTO(user.getEmail(), "", user.getNickname(), roleNames);
+            MemberDTO memberDTO = new MemberDTO(user.getId(), user.getEmail(), "", user.getNickname(), roleNames);
             
             // 인증 객체 생성 및 SecurityContext 등록
             UsernamePasswordAuthenticationToken authenticationToken =
