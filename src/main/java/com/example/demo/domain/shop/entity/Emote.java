@@ -14,7 +14,7 @@ public class Emote {
     @Column(name = "emote_id")
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, unique = true)
     private String name;  // 이모티콘 이름
 
     @Column(name = "price", nullable = false)
