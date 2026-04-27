@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-
-    environment {
-        AWS_PRIVATE_IP = "10.0.1.145"
-    }
-
     stages {
         stage('Build Docker Image') {
             steps {
@@ -16,6 +11,8 @@ pipeline {
         stage('Deploy Backend') {
             steps {
                 withCredentials([
+                    string(credentialsId: 'AWS_PRIVATE_IP', variable: 'AWS_PRIVATE_IP'),
+
                     // AWS
                     string(credentialsId: 'AWS_ACCESS_KEY', variable: 'AWS_ACCESS_KEY'),
                     string(credentialsId: 'AWS_SECRET_KEY', variable: 'AWS_SECRET_KEY'),
