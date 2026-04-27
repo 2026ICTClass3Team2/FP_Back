@@ -13,10 +13,15 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class GlobalSearchResponse {
-    private List<PostSearchDoc> posts;
-    private List<UserSearchDoc> users;
-    private List<ChannelSearchDoc> channels;
+    @Builder.Default
+    private List<PostSearchDoc> posts = List.of();
+    @Builder.Default
+    private List<UserSearchDoc> users = List.of();
+    @Builder.Default
+    private List<ChannelSearchDoc> channels = List.of();
 }
+
 

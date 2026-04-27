@@ -30,12 +30,17 @@ public class UserSearchDoc {
     @Field(type = FieldType.Integer)
     private Integer warningCount;
 
+    @Field(type = FieldType.Keyword)
+    private String profilePicUrl;
+
     public UserSearchDoc(User user) {
         this.id = user.getId().toString();
         this.nickname = user.getNickname();
         this.username = user.getUsername();
         this.warningCount = user.getWarningCount();
+        this.profilePicUrl = user.getProfilePicUrl();
     }
 }
+
 
 
