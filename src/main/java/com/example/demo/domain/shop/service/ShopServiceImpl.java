@@ -67,6 +67,9 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional
     public EmoteResponseDto uploadEmote(EmoteUploadRequestDto dto) {
+        if (shopRepository.existsByName(dto.getName())) {
+            throw new IllegalArgumentException("이미 존재하는 이모티콘 이름입니다.");
+        }
         Emote emote = new Emote();
         emote.setName(dto.getName());
         emote.setPrice(dto.getPrice());
@@ -80,6 +83,9 @@ public class ShopServiceImpl implements ShopService {
     public EmoteResponseDto updateEmote(Long id, EmoteUploadRequestDto dto) {
         Emote emote = shopRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("이모티콘을 찾을 수 없습니다."));
+        if (!emote.getName().equals(dto.getName()) && shopRepository.existsByName(dto.getName())) {
+            throw new IllegalArgumentException("이미 존재하는 이모티콘 이름입니다.");
+        }
 
         emote.setName(dto.getName());
         emote.setPrice(dto.getPrice());

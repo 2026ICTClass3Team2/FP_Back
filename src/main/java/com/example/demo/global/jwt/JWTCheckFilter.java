@@ -109,7 +109,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
 
             List<String> roleNames = List.of(user.getRole().name());
             // 사용자 정보를 MemberDTO에 저장
-            MemberDTO memberDTO = new MemberDTO(user.getEmail(), "", user.getNickname(), roleNames);
+            MemberDTO memberDTO = new MemberDTO(user.getId(), user.getEmail(), "", user.getNickname(), roleNames);
             
             // 인증 객체 생성 및 SecurityContext 등록
             UsernamePasswordAuthenticationToken authenticationToken =

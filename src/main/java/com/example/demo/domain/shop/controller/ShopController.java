@@ -22,7 +22,9 @@ public class ShopController {
 
     private final ShopService shopService;
 
-    /** 이모티콘 목록 조회 (정렬 / 필터 지원) */
+    /**
+     * 이모티콘 목록 조회 (정렬 / 필터 지원)
+     */
     @GetMapping("/emotes")
     public ResponseEntity<Page<EmoteResponseDto>> getEmotes(
             @RequestParam(defaultValue = "latest") String sort,
@@ -37,7 +39,9 @@ public class ShopController {
         return ResponseEntity.ok(result);
     }
 
-    /** 관리자 이모티콘 등록 */
+    /**
+     * 관리자 이모티콘 등록
+     */
     @PostMapping("/emotes")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmoteResponseDto> uploadEmote(
@@ -45,7 +49,9 @@ public class ShopController {
         return ResponseEntity.ok(shopService.uploadEmote(dto));
     }
 
-    /** 관리자 이모티콘 수정 */
+    /**
+     * 관리자 이모티콘 수정
+     */
     @PutMapping("/emotes/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmoteResponseDto> updateEmote(
@@ -54,7 +60,9 @@ public class ShopController {
         return ResponseEntity.ok(shopService.updateEmote(id, dto));
     }
 
-    /** 이모티콘 구매 */
+    /**
+     * 이모티콘 구매
+     */
     @PostMapping("/emotes/{emoteId}/purchase")
     public ResponseEntity<Map<String, Object>> purchaseEmote(
             @PathVariable Long emoteId,
@@ -71,7 +79,9 @@ public class ShopController {
         }
     }
 
-    /** 내 구매 내역 */
+    /**
+     * 내 구매 내역
+     */
     @GetMapping("/purchase-history")
     public ResponseEntity<Page<PurchaseHistoryDto>> getPurchaseHistory(
             @RequestParam(defaultValue = "0") int page,
@@ -84,7 +94,9 @@ public class ShopController {
         return ResponseEntity.ok(shopService.getPurchaseHistory(userDetails.getUsername(), page, size));
     }
 
-    /** 내 현재 포인트 조회 */
+    /**
+     * 내 현재 포인트 조회
+     */
     @GetMapping("/my-points")
     public ResponseEntity<Map<String, Object>> getMyPoints(
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -96,7 +108,9 @@ public class ShopController {
         return ResponseEntity.ok(Map.of("points", points));
     }
 
-    /** 포인트 내역 (이모티콘 구매 차감 내역) */
+    /**
+     * 포인트 내역 (이모티콘 구매 차감 내역)
+     */
     @GetMapping("/point-history")
     public ResponseEntity<Page<PointHistoryDto>> getPointHistory(
             @RequestParam(defaultValue = "0") int page,
@@ -108,4 +122,11 @@ public class ShopController {
         }
         return ResponseEntity.ok(shopService.getPointHistory(userDetails.getUsername(), page, size));
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException e) {
+        // 프론트엔드의 err?.response?.data?.message에 매핑되도록 "message" 키 사용
+        return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+    }
+
 }

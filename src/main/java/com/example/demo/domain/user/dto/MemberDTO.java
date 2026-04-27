@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 @ToString
 public class MemberDTO extends User implements OAuth2User { // OAuth2User 인터페이스 구현
 
+    private Long id;
     private String email;
     private String password;
     private String nickname;
@@ -24,10 +25,11 @@ public class MemberDTO extends User implements OAuth2User { // OAuth2User 인터
     private boolean isNewOAuthUser; // 신규 OAuth 가입 여부
 
     // 일반 로그인용 생성자
-    public MemberDTO(String email, String password, String nickname, List<String> roleNames) {
+    public MemberDTO(Long id, String email, String password, String nickname, List<String> roleNames) {
         super(email, password != null ? password : "", roleNames != null && !roleNames.isEmpty() ?
                 roleNames.stream().map(str -> new SimpleGrantedAuthority("ROLE_" + str.toUpperCase())).collect(Collectors.toList()) :
                 List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        this.id = id;
         this.email = email;
         this.password = password != null ? password : "";
         this.nickname = nickname;
@@ -35,14 +37,14 @@ public class MemberDTO extends User implements OAuth2User { // OAuth2User 인터
     }
 
     // OAuth2 로그인용 생성자
-    public MemberDTO(String email, String password, String nickname, List<String> roleNames, Map<String, Object> attributes) {
-        this(email, password, nickname, roleNames);
+    public MemberDTO(Long id, String email, String password, String nickname, List<String> roleNames, Map<String, Object> attributes) {
+        this(id, email, password, nickname, roleNames);
         this.attributes = attributes;
     }
 
     // OAuth2 신규 가입 여부 포함 생성자
-    public MemberDTO(String email, String password, String nickname, List<String> roleNames, Map<String, Object> attributes, boolean isNewOAuthUser) {
-        this(email, password, nickname, roleNames, attributes);
+    public MemberDTO(Long id, String email, String password, String nickname, List<String> roleNames, Map<String, Object> attributes, boolean isNewOAuthUser) {
+        this(id, email, password, nickname, roleNames, attributes);
         this.isNewOAuthUser = isNewOAuthUser;
     }
 
