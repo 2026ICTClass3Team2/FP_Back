@@ -73,12 +73,15 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+  elasticsearch:
+    uris: http://${ELASTICSEARCH_HOST}:9200
+
 jwt:
   secret: ${JWT_SECRET}
 
 app:
   frontend:
-    url: http://deadbug.site
+    url: https://deadbug.site
 
 server:
   port: 8090
