@@ -74,6 +74,9 @@ dependencies {
 
     // WebClient (LLM 서비스 호출용)
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    //Elastic Search용
+    implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
 }
 
 clean {

@@ -1,6 +1,12 @@
 pipeline {
     agent any
     stages {
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t education-backend:latest .'
+            }
+        }
+
         stage('Deploy Backend') {
             steps {
                 withCredentials([
@@ -44,8 +50,9 @@ pipeline {
                           -e JWT_SECRET="${JWT_SECRET}" \
                           -e MAIL_USERNAME="${MAIL_USERNAME}" \
                           -e MAIL_PASSWORD="${MAIL_PASSWORD}" \
-                          -e SPRING_DATA_REDIS_HOST="10.0.1.145" \
+                          -e SPRING_DATA_REDIS_HOST="${AWS_PRIVATE_IP}" \
                           -e SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD}" \
+                          -e ELASTICSEARCH_HOST="${AWS_PRIVATE_IP}" \
                           --name backend-prod \
                           education-backend:latest
                     '''
