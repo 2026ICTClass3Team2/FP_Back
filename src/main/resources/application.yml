@@ -4,9 +4,9 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://database-1.c5ou2suc8q6g.ap-northeast-2.rds.amazonaws.com:3306/finaldb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: admin
-    password: password
+    url: jdbc:mysql://localhost:3306/finaldb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
+    password: 1234
 
   jpa:
     hibernate:
@@ -74,14 +74,14 @@ spring:
           writetimeout: 5000
 
   elasticsearch:
-    uris: http://${AWS_PRIVATE_IP}:9200
+    uris: http://${AWS_PRIVATE_IP:localhost}:9200
 
 jwt:
   secret: ${JWT_SECRET}
 
 app:
   frontend:
-    url: https://deadbug.site
+    url: http://localhost:5173
 
 server:
   port: 8090
