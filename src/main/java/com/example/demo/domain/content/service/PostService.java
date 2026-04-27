@@ -8,7 +8,7 @@ import org.springframework.data.domain.Slice;
 
 public interface PostService {
     
-    Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername);
+    Slice<PostFeedResponseDto> getPostsFeed(String tab, Long lastPostId, Integer page, int size, String currentUsername);
 
     PostDetailResponseDto getPostDetail(Long postId, String currentUsername);
 
