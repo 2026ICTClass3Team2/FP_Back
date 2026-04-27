@@ -47,6 +47,9 @@ public class PostSearchDoc {
     @Field(type = FieldType.Integer)
     private Integer likeCount;
 
+    @Field(type = FieldType.Keyword)
+    private String thumbnailUrl;
+
     // Constructor to easily map from your JPA Entity to this ES Document
     public PostSearchDoc(Post post, List<String> tagNames) {
         this.id = post.getId().toString();
@@ -58,5 +61,7 @@ public class PostSearchDoc {
         this.tags = tagNames; // Pass in the flattened strings
         this.createdAt = post.getCreatedAt();
         this.likeCount = post.getLikeCount();
+        this.thumbnailUrl = post.getThumbnailUrl();
     }
-}
+}
+
