@@ -26,13 +26,15 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<Slice<PostFeedResponseDto>> getPostsFeed(
+            @RequestParam(defaultValue = "LATEST") String tab,
             @RequestParam(required = false) Long lastPostId,
+            @RequestParam(required = false) Integer page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         String currentUsername = (userDetails != null) ? userDetails.getUsername() : null;
 
-        Slice<PostFeedResponseDto> posts = postService.getPostsFeed(lastPostId, size, currentUsername);
+        Slice<PostFeedResponseDto> posts = postService.getPostsFeed(tab, lastPostId, page, size, currentUsername);
         return ResponseEntity.ok(posts);
     }
 

@@ -21,6 +21,7 @@ import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.InterestRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,7 @@ public class PostServiceImpl implements PostService {
     private final ContentTagRepository contentTagRepository;
     private final InteractionRepository interactionRepository;
     private final FollowRepository followRepository;
+    private final InterestRepository interestRepository;
     private final NotificationService notificationService;
     private final S3Client s3Client;
 
@@ -228,23 +230,68 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
-        PageRequest pageRequest = PageRequest.of(0, size);
-
+    public Slice<PostFeedResponseDto> getPostsFeed(String tab, Long lastPostId, Integer page, int size, String currentUsername) {
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
         Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+        final User finalUser = currentUser;
 
+        if ("POPULAR".equalsIgnoreCase(tab)) {
+            PageRequest pageRequest = PageRequest.of(page != null ? page : 0, size);
+            return postRepository.findPopularPosts(currentUserId, pageRequest)
+                    .map(post -> convertToDto(post, finalUser));
+        }
+
+        if ("ALGORITHM".equalsIgnoreCase(tab)) {
+            PageRequest pageRequest = PageRequest.of(page != null ? page : 0, size);
+            List<Long> tagIds = java.util.Collections.emptyList();
+            if (currentUser != null) {
+                tagIds = interestRepository.findByUserId(currentUser.getId())
+                        .stream()
+                        .map(i -> i.getTag().getId())
+                        .collect(Collectors.toList());
+            }
+            // tagIds가 비어있으면 매칭 수가 0으로 동일 → likeCount, createdAt 기준 정렬 (사실상 popular)
+            // tagIds가 있으면 관심사 많이 매칭되는 게시물 우선
+            if (tagIds.isEmpty()) {
+                return postRepository.findPopularPosts(currentUserId, pageRequest)
+                        .map(post -> convertToDto(post, finalUser));
+            }
+            return postRepository.findAlgorithmPosts(tagIds, currentUserId, pageRequest)
+                    .map(post -> convertToDto(post, finalUser));
+        }
+
+        if ("SUBSCRIBED".equalsIgnoreCase(tab)) {
+            if (currentUser == null) {
+                return org.springframework.data.domain.Page.empty();
+            }
+            List<Long> channelIds = followRepository.findByUser_IdAndTargetType(currentUser.getId(), "channel")
+                    .stream()
+                    .map(f -> f.getTargetId())
+                    .collect(Collectors.toList());
+            if (channelIds.isEmpty()) {
+                return org.springframework.data.domain.Page.empty();
+            }
+            PageRequest pageRequest = PageRequest.of(0, size);
+            Slice<Post> posts;
+            if (lastPostId == null) {
+                posts = postRepository.findSubscribedPostsFirstPage(channelIds, currentUserId, pageRequest);
+            } else {
+                posts = postRepository.findSubscribedPostsCursor(channelIds, lastPostId, currentUserId, pageRequest);
+            }
+            return posts.map(post -> convertToDto(post, finalUser));
+        }
+
+        // LATEST (default)
+        PageRequest pageRequest = PageRequest.of(0, size);
         Slice<Post> posts;
         if (lastPostId == null) {
             posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
         } else {
             posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
         }
-
-        final User finalUser = currentUser;
         return posts.map(post -> convertToDto(post, finalUser));
     }
 

@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface InterestRepository extends JpaRepository<Interest, Long> {
     Optional<Interest> findByUserAndTag(User user, Tag tag);
+    List<Interest> findByUserId(Long userId);
     List<Interest> findByUserIdAndIsProfileTagTrue(Long userId);
     void deleteByUserIdAndIsProfileTagTrue(Long userId);
 }
