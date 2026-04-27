@@ -67,7 +67,7 @@ pipeline {
                        for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
 
                            # Clean, readable bash syntax!
-                           STATUS=$(curl -s http://localhost:8090/actuator/health | grep -o '"status":"UP"' || true)
+                           STATUS=$(curl -s http://localhost:8090/api/actuator/health | grep -o '"status":"UP"' || true)
 
                            if [ "$STATUS" = '"status":"UP"' ]; then
                                echo "✅ Spring Boot is UP and healthy!"
