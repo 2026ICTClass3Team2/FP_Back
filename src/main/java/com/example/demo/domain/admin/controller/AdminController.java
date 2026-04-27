@@ -6,7 +6,13 @@ import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.admin.service.AdminService;
+import com.example.demo.domain.content.entity.ContentTag;
+import com.example.demo.domain.content.entity.Post;
+import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
+import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.global.elasticsearch.document.PostSearchDoc;
+import com.example.demo.global.elasticsearch.repository.PostSearchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,10 +20,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
@@ -26,6 +33,29 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final PostRepository postRepository;
+    private final PostSearchRepository postSearchRepository;
+
+    @PostMapping("/sync-elasticsearch")
+    public ResponseEntity<String> syncData() {
+        // 1. Fetch all existing data from MySQL
+        List<Post> allPosts = postRepository.findAll();
+
+        // 2. Convert them to Search Documents
+        List<PostSearchDoc> postDocs = allPosts.stream()
+                .map(post -> {
+                    List<String> tags = post.getContentTags().stream()
+                            .map(ContentTag::getTagName)
+                            .collect(Collectors.toList());
+                    return new PostSearchDoc(post, tags);
+                })
+                .collect(Collectors.toList());
+
+        // 3. Save them all to Elasticsearch at once
+        postSearchRepository.saveAll(postDocs);
+
+        return ResponseEntity.ok("Sync Complete!");
+    }
 
     @GetMapping("/stats")
     public ResponseEntity<AdminDashboardStatsDto> getDashboardStats() {
@@ -43,31 +73,28 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/warn")
-    public ResponseEntity<?> warnUser(@PathVariable Long userId, @AuthenticationPrincipal UserDetails userDetails) {
-        // Assume userDetails has some way to get admin ID. For now we fetch by email/username in service or just pass placeholder.
-        // Actually we need the admin's ID. Let's assume we can get it or we just use 1L as a fallback.
-        // In a real app we'd fetch the admin User entity. We'll leave the adminId retrieval abstraction here.
-        adminService.warnUser(userId, 1L); // TODO: Replace 1L with actual admin ID
+    public ResponseEntity<?> warnUser(@PathVariable Long userId, @AuthenticationPrincipal MemberDTO memberDTO) {
+        adminService.warnUser(userId, memberDTO.getId());
         return ResponseEntity.ok(Map.of("message", "User warned successfully"));
     }
 
     @PostMapping("/users/{userId}/suspend")
-    public ResponseEntity<?> suspendUser(@PathVariable Long userId, @RequestBody SuspendRequestDto requestDto) {
-        adminService.suspendUser(userId, 1L, requestDto); // TODO: Replace 1L with actual admin ID
+    public ResponseEntity<?> suspendUser(@PathVariable Long userId, @RequestBody SuspendRequestDto requestDto, @AuthenticationPrincipal MemberDTO memberDTO) {
+        adminService.suspendUser(userId, memberDTO.getId(), requestDto);
         return ResponseEntity.ok(Map.of("message", "User suspended successfully"));
     }
 
     @PostMapping("/users/{userId}/revert-warn")
-    public ResponseEntity<?> revertWarnUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<?> revertWarnUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body, @AuthenticationPrincipal MemberDTO memberDTO) {
         String reason = (body != null && body.containsKey("reason")) ? body.get("reason") : "I made a mistake";
-        adminService.revertWarnUser(userId, 1L, reason);
+        adminService.revertWarnUser(userId, memberDTO.getId(), reason);
         return ResponseEntity.ok(Map.of("message", "Warning reverted successfully"));
     }
 
     @PostMapping("/users/{userId}/revert-suspend")
-    public ResponseEntity<?> revertSuspendUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<?> revertSuspendUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body, @AuthenticationPrincipal MemberDTO memberDTO) {
         String reason = (body != null && body.containsKey("reason")) ? body.get("reason") : "I made a mistake";
-        adminService.revertSuspendUser(userId, 1L, reason);
+        adminService.revertSuspendUser(userId, memberDTO.getId(), reason);
         return ResponseEntity.ok(Map.of("message", "Suspension reverted successfully"));
     }
 
