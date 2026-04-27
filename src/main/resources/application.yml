@@ -78,7 +78,7 @@ jwt:
 
 app:
   frontend:
-    url: http://3.34.146.24/
+    url: http://3.34.146.24
 
 server:
   port: 8090
