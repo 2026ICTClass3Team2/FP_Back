@@ -22,6 +22,8 @@
       "Bash(mvn compile *)",
       "Bash(npx --yes typescript tsc --noEmit)",
       "Bash(grep -v \"^C:\\\\\\\\\\\\\\\\finalProject\\\\\\\\\\\\\\\\fp_backend\\\\\\\\\\\\\\\\src\\\\\\\\\\\\\\\\main\\\\\\\\\\\\\\\\java\\\\\\\\\\\\\\\\com\\\\\\\\\\\\\\\\example\\\\\\\\\\\\\\\\demo\\\\\\\\\\\\\\\\domain\\\\\\\\\\\\\\\\\\(admin|channel|mypage|qna|notice\\)\")"
+      "Bash(npx --yes typescript tsc --noEmit)",
+      "Bash(./gradlew bootRun)"
     ]
   }
 }

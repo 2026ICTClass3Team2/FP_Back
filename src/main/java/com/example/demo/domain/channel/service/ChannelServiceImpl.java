@@ -14,6 +14,7 @@ import com.example.demo.domain.follow.entity.Follow;
 import com.example.demo.domain.follow.repository.FollowRepository;
 import com.example.demo.domain.report.enums.HiddenTargetType;
 import com.example.demo.domain.report.repository.HiddenRepository;
+import com.example.demo.domain.algorithm.service.UserInterestService;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class ChannelServiceImpl implements ChannelService {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
     private final HiddenRepository hiddenRepository;
+    private final UserInterestService userInterestService;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -197,6 +199,7 @@ public class ChannelServiceImpl implements ChannelService {
                 .build());
 
         channelRepository.updateFollowerCount(channelId, 1);
+        userInterestService.onChannelSubscribe(user.getId(), channelId);
         log.info("Channel subscribed. channelId: {}, user: {}", channelId, currentUsername);
     }
 
@@ -211,6 +214,7 @@ public class ChannelServiceImpl implements ChannelService {
 
         followRepository.delete(follow);
         channelRepository.updateFollowerCount(channelId, -1);
+        userInterestService.onChannelUnsubscribe(user.getId(), channelId);
         log.info("Channel unsubscribed. channelId: {}, user: {}", channelId, currentUsername);
     }
 

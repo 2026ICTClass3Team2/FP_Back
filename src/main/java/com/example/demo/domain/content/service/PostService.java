@@ -1,14 +1,21 @@
 package com.example.demo.domain.content.service;
 
+import com.example.demo.domain.algorithm.enums.FeedTab;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
 import com.example.demo.domain.content.dto.PostUpdateRequestDto;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Slice;
 
 public interface PostService {
     
     Slice<PostFeedResponseDto> getPostsFeed(String tab, Long lastPostId, Integer page, int size, String currentUsername);
+
+    // 탭별 피드 (알고리즘/인기/구독 → offset, 최신 → cursor)
+    Object getFeedByTab(FeedTab tab, Long lastPostId, int page, int size, String currentUsername);
+
+    Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername);
 
     PostDetailResponseDto getPostDetail(Long postId, String currentUsername);
 

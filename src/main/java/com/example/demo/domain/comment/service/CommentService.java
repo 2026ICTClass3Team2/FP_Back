@@ -40,6 +40,7 @@ public class CommentService {
     private final BlockRepository blockRepository;
     private final HiddenRepository hiddenRepository;
     private final com.example.demo.domain.notification.service.NotificationService notificationService;
+    private final com.example.demo.domain.algorithm.service.UserInterestService userInterestService;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -82,6 +83,11 @@ public class CommentService {
 
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+
+        // 관심도 반영 (피드 게시글 댓글만)
+        if ("feed".equals(post.getContentType())) {
+            userInterestService.onComment(user.getId(), postId);
+        }
 
         // --- Notification Logic ---
         if (parent != null) {

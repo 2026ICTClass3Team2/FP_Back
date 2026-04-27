@@ -303,11 +303,11 @@ public class QnaServiceImpl implements QnaService {
                     // Populate tech stacks for the list view
                     Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
                     if(qna != null) {
+                        dto.setPostId(qna.getPost().getId());
                         List<String> techStacks = qna.getPost().getContentTags().stream()
                                 .map(contentTag -> contentTag.getTag().getName())
                                 .collect(Collectors.toList());
                         dto.setTechStacks(techStacks);
-                    }
 
                     dto.setAuthor(qna != null && qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
                     dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, dto.getQnaId(), "qna"));
@@ -317,6 +317,15 @@ public class QnaServiceImpl implements QnaService {
                         String actionType = interaction.get().getActionType();
                         dto.setLiked("like".equals(actionType));
                         dto.setDisliked("dislike".equals(actionType));
+                        dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
+                        dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qna.getPost().getId(), "qna"));
+
+                        Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qna.getPost().getId());
+                        if (interaction.isPresent()) {
+                            String actionType = interaction.get().getActionType();
+                            dto.setLiked("like".equals(actionType));
+                            dto.setDisliked("dislike".equals(actionType));
+                        }
                     }
                 });
             }
@@ -410,8 +419,9 @@ public class QnaServiceImpl implements QnaService {
         }
 
         if (userId != null) {
-            dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qnaId, "qna"));
+            dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, post.getId(), "qna"));
             
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", post.getId());
             Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qnaId);
             if (interaction.isPresent()) {
                 String actionType = interaction.get().getActionType();
@@ -457,6 +467,7 @@ public class QnaServiceImpl implements QnaService {
         }
 
         Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -477,6 +488,8 @@ public class QnaServiceImpl implements QnaService {
                     .user(user)
                     .targetType("post")
                     .targetId(qnaId)
+                    .targetType("post")
+                    .targetId(post.getId())
                     .actionType("like")
                     .build();
             interactionRepository.save(interaction);
@@ -497,6 +510,7 @@ public class QnaServiceImpl implements QnaService {
             throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
         }
 
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
         Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
 
         if (existingInteraction.isPresent()) {
@@ -517,6 +531,8 @@ public class QnaServiceImpl implements QnaService {
             Interaction interaction = Interaction.builder()
                     .user(user)
                     .targetType("post")
+                    .targetId(post.getId())
+                    .targetType("post")
                     .targetId(qnaId)
                     .actionType("dislike")
                     .build();
@@ -535,23 +551,26 @@ public class QnaServiceImpl implements QnaService {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
 
-        if (!"active".equals(qna.getPost().getStatus())) {
+        Post post = qna.getPost();
+        if (!"active".equals(post.getStatus())) {
             throw new IllegalArgumentException("동결되거나 삭제된 질문은 북마크할 수 없습니다.");
         }
 
-        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), qnaId, "qna");
+        Optional<Bookmark> existingBookmark = bookmarkRepository.findByUserIdAndTargetIdAndTargetType(user.getId(), post.getId(), "qna");
 
         if (existingBookmark.isPresent()) {
             // Unbookmark
             bookmarkRepository.delete(existingBookmark.get());
+            postRepository.updateBookmarkCount(post.getId(), -1);
         } else {
             // Bookmark
             Bookmark bookmark = Bookmark.builder()
                     .user(user)
-                    .targetId(qnaId)
+                    .targetId(post.getId())
                     .targetType("qna")
                     .build();
             bookmarkRepository.save(bookmark);
+            postRepository.updateBookmarkCount(post.getId(), 1);
         }
     }
 
