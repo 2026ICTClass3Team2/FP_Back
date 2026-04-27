@@ -312,7 +312,7 @@ public class QnaServiceImpl implements QnaService {
                     dto.setAuthor(qna != null && qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
                     dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, dto.getQnaId(), "qna"));
                     
-                    Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "qna", dto.getQnaId());
+                    Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", dto.getQnaId());
                     if (interaction.isPresent()) {
                         String actionType = interaction.get().getActionType();
                         dto.setLiked("like".equals(actionType));
@@ -412,7 +412,7 @@ public class QnaServiceImpl implements QnaService {
         if (userId != null) {
             dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qnaId, "qna"));
             
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "qna", qnaId);
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qnaId);
             if (interaction.isPresent()) {
                 String actionType = interaction.get().getActionType();
                 dto.setLiked("like".equals(actionType));
@@ -456,7 +456,7 @@ public class QnaServiceImpl implements QnaService {
             throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
         }
 
-        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "qna", qnaId);
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -475,7 +475,7 @@ public class QnaServiceImpl implements QnaService {
             // New like
             Interaction interaction = Interaction.builder()
                     .user(user)
-                    .targetType("qna")
+                    .targetType("post")
                     .targetId(qnaId)
                     .actionType("like")
                     .build();
@@ -497,7 +497,7 @@ public class QnaServiceImpl implements QnaService {
             throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
         }
 
-        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "qna", qnaId);
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -516,7 +516,7 @@ public class QnaServiceImpl implements QnaService {
             // New dislike
             Interaction interaction = Interaction.builder()
                     .user(user)
-                    .targetType("qna")
+                    .targetType("post")
                     .targetId(qnaId)
                     .actionType("dislike")
                     .build();
