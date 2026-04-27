@@ -1,6 +1,12 @@
 pipeline {
     agent any
     stages {
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t education-backend:latest .'
+            }
+        }
+
         stage('Deploy Backend') {
             steps {
                 withCredentials([
