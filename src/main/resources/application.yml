@@ -4,9 +4,9 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/finaldb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: root
-    password: 1234
+    url: jdbc:mysql://database-1.c5ou2suc8q6g.ap-northeast-2.rds.amazonaws.com:3306/finaldb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: admin
+    password: password
 
   jpa:
     hibernate:
@@ -78,7 +78,7 @@ jwt:
 
 app:
   frontend:
-    url: http://localhost:5173
+    url: http://3.34.146.24
 
 server:
   port: 8090
