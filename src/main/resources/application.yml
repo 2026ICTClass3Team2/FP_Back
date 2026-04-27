@@ -74,7 +74,7 @@ spring:
           writetimeout: 5000
 
   elasticsearch:
-    uris: http://${AWS_PRIVATE_IP:localhost}:9200
+    uris: http://${AWS_PRIVATE_IP}:9200
 
 jwt:
   secret: ${JWT_SECRET}
