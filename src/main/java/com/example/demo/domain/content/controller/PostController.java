@@ -1,5 +1,6 @@
 package com.example.demo.domain.content.controller;
 
+import com.example.demo.domain.algorithm.enums.FeedTab;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
@@ -8,7 +9,6 @@ import com.example.demo.domain.content.service.PostService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,12 +25,9 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
-    public ResponseEntity<Slice<PostFeedResponseDto>> getPostsFeed(
-            @RequestParam(defaultValue = "LATEST") String tab,
     public ResponseEntity<?> getPostsFeed(
             @RequestParam(defaultValue = "LATEST") FeedTab tab,
             @RequestParam(required = false) Long lastPostId,
-            @RequestParam(required = false) Integer page,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -45,8 +42,6 @@ public class PostController {
             @PathVariable Long postId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        Slice<PostFeedResponseDto> posts = postService.getPostsFeed(tab, lastPostId, page, size, currentUsername);
-        return ResponseEntity.ok(posts);
         if (userDetails == null) {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }

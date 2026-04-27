@@ -309,24 +309,16 @@ public class QnaServiceImpl implements QnaService {
                                 .collect(Collectors.toList());
                         dto.setTechStacks(techStacks);
 
-                    dto.setAuthor(qna != null && qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
-                    dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, dto.getQnaId(), "qna"));
-                    
-                    Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", dto.getQnaId());
+                    dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
+                    dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qna.getPost().getId(), "qna"));
+
+                    Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qna.getPost().getId());
                     if (interaction.isPresent()) {
                         String actionType = interaction.get().getActionType();
                         dto.setLiked("like".equals(actionType));
                         dto.setDisliked("dislike".equals(actionType));
-                        dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
-                        dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qna.getPost().getId(), "qna"));
-
-                        Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qna.getPost().getId());
-                        if (interaction.isPresent()) {
-                            String actionType = interaction.get().getActionType();
-                            dto.setLiked("like".equals(actionType));
-                            dto.setDisliked("dislike".equals(actionType));
-                        }
                     }
+                }
                 });
             }
         } else {
@@ -422,7 +414,6 @@ public class QnaServiceImpl implements QnaService {
             dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, post.getId(), "qna"));
             
             Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", post.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qnaId);
             if (interaction.isPresent()) {
                 String actionType = interaction.get().getActionType();
                 dto.setLiked("like".equals(actionType));
@@ -466,7 +457,6 @@ public class QnaServiceImpl implements QnaService {
             throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
         }
 
-        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
         Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
 
         if (existingInteraction.isPresent()) {
@@ -486,8 +476,6 @@ public class QnaServiceImpl implements QnaService {
             // New like
             Interaction interaction = Interaction.builder()
                     .user(user)
-                    .targetType("post")
-                    .targetId(qnaId)
                     .targetType("post")
                     .targetId(post.getId())
                     .actionType("like")
@@ -511,7 +499,6 @@ public class QnaServiceImpl implements QnaService {
         }
 
         Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
-        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -532,8 +519,6 @@ public class QnaServiceImpl implements QnaService {
                     .user(user)
                     .targetType("post")
                     .targetId(post.getId())
-                    .targetType("post")
-                    .targetId(qnaId)
                     .actionType("dislike")
                     .build();
             interactionRepository.save(interaction);
