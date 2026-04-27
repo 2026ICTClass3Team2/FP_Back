@@ -95,9 +95,8 @@ public class SecurityConfig {
                         "/api/member/password/**",
                         // WebSocket 핸드셰이크 엔드포인트는 여기서 허용합니다.
                         // 실제 인증은 JwtHandshakeInterceptor에서 토큰을 검증해 처리합니다.
-                        // 이 항목이 없으면 JWTCheckFilter가 HTTP 업그레이드 요청을 401로 차단합니다.
                         "/ws/**").permitAll()
-                .requestMatchers("/api/mypage/**").authenticated()
+                .requestMatchers("/api/mypage/**", "/api/suggestions").authenticated()
                 .anyRequest().permitAll()
         );
 

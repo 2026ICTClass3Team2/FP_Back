@@ -53,7 +53,6 @@ public class JWTCheckFilter extends OncePerRequestFilter {
            path.startsWith("/api/member/password/") ||
            path.startsWith("/api/member/oauth/setup-username/") || // 비밀번호 찾기/재설정 — 토큰 없이 접근
            path.startsWith("/api/tags/") || // 태그 검색 — 공개 엔드포인트
-           path.startsWith("/api/member/oauth/setup-username/") ||
 
            // OAuth2 소셜 로그인 흐름 — 브라우저 리다이렉트이므로 JWT 헤더가 없습니다.
            // getRequestURI()는 context-path(/api)를 포함한 전체 URI를 반환합니다.
@@ -110,7 +109,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
 
             List<String> roleNames = List.of(user.getRole().name());
             // 사용자 정보를 MemberDTO에 저장
-            MemberDTO memberDTO = new MemberDTO(user.getEmail(), "", user.getNickname(), roleNames);
+            MemberDTO memberDTO = new MemberDTO(user.getId(), user.getEmail(), "", user.getNickname(), roleNames);
             
             // 인증 객체 생성 및 SecurityContext 등록
             UsernamePasswordAuthenticationToken authenticationToken =

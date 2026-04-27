@@ -15,6 +15,7 @@ import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.report.entity.Report;
+import com.example.demo.domain.report.enums.ReportStatus;
 import com.example.demo.domain.report.repository.ReportRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
 import com.example.demo.domain.suggestion.repository.SuggestionRepository;
@@ -55,7 +56,7 @@ public class AdminServiceImpl implements AdminService {
     public AdminDashboardStatsDto getDashboardStats() {
         return AdminDashboardStatsDto.builder()
                 .totalUsers(userRepository.count())
-                .pendingReports(reportRepository.countByStatus("pending"))
+                .pendingReports(reportRepository.countByStatus(ReportStatus.pending))
                 .unseenSuggestions(suggestionRepository.countByIsSeenFalse())
                 .totalChannels(channelRepository.count())
                 .totalFeedPosts(postRepository.countByContentType("feed"))
@@ -192,12 +193,17 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ReportAdminDto> getReports(String status, Pageable pageable) {
+    public Page<ReportAdminDto> getReports(String statusStr, Pageable pageable) {
+        ReportStatus status = null;
+        if (statusStr != null && !statusStr.isEmpty() && !statusStr.equalsIgnoreCase("all")) {
+            status = ReportStatus.valueOf(statusStr.toLowerCase());
+        }
+
         List<Report> reports;
-        if (status != null && !status.isEmpty() && !status.equalsIgnoreCase("all")) {
-            reports = reportRepository.findByStatusOrderByCreatedAtDesc(status);
-        } else {
+        if (status == null) {
             reports = reportRepository.findAllByOrderByCreatedAtDesc();
+        } else {
+            reports = reportRepository.findByStatusOrderByCreatedAtDesc(status);
         }
         // Applying pagination in memory for simplicity due to custom query return types
         int start = (int) pageable.getOffset();
@@ -210,7 +216,8 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void updateReportStatus(Long reportId, String status) {
+    public void updateReportStatus(Long reportId, String statusStr) {
+        ReportStatus status = ReportStatus.valueOf(statusStr.toLowerCase());
         reportRepository.updateStatus(reportId, status);
     }
 
