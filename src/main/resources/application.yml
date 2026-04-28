@@ -2,6 +2,13 @@ spring:
   application:
     name: final_spring
 
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB      # 개별 파일 최대 용량
+      max-request-size: 10MB   # 전체 요청(파일+텍스트) 최대 용량
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/finaldb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
@@ -10,7 +17,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:

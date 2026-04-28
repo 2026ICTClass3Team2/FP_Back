@@ -39,6 +39,8 @@ public class AdminPostService {
                 .sourceType("internal")
                 .status(dto.isVisible() ? "active" : "hidden")
                 .viewCount(0)
+                .fileName(dto.getFile() != null ? dto.getFile().getOriginalFilename() : null)
+                .fileUrl(dto.getFileUrl())
                 .build();
         adminPostRepository.save(post);
     }
@@ -50,6 +52,10 @@ public class AdminPostService {
         post.setBody(dto.getBody());
         post.setTag(dto.getTag());
         post.setStatus(dto.isVisible() ? "active" : "hidden");
+        if (dto.getFile() != null) {
+            post.setFileName(dto.getFile().getOriginalFilename());
+        }
+        post.setFileUrl(dto.getFileUrl());
     }
 
     @Transactional

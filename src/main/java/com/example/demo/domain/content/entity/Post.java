@@ -49,7 +49,7 @@ public class Post {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String body;
 
-    @Column(length = 50) // 엔티티 객체 1개 추가요소
+    @Column(length = 50) // 추가 칼럼 1
     private String tag;
 
     @Column(name = "content_type", nullable = false)
@@ -63,6 +63,12 @@ public class Post {
     @Column(nullable = false)
     @Builder.Default
     private String status = "active"; // active, hidden, frozen
+
+    @Column(name = "file_name", length = 255)   // 추가 칼럼 2
+    private String fileName;
+
+    @Column(name = "file_url", columnDefinition = "TEXT") // 추가 칼럼 3
+    private String fileUrl;
 
     @Column(name = "external_id", unique = true, length = 100)
     private String externalId;
