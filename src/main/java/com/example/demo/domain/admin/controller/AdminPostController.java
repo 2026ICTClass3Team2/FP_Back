@@ -46,7 +46,7 @@ public class AdminPostController {
         }
     }
 
-    // 🔴 ERR_FAILED 해결: 토글 주소 명확화
+    // ERR_FAILED 해결: 토글 주소 명확화
     @PatchMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleStatus(@PathVariable(value = "id") Long id) {
         try {
