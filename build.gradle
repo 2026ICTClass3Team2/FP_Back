@@ -77,6 +77,8 @@ dependencies {
 
     //Elastic Search용
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 clean {
