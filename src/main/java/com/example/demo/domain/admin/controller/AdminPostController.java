@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/notice") //  리액트와 주소를 통일
+@RequestMapping("/admin/notice") //  리액트와 주소 같게 하기
 @RequiredArgsConstructor
 
 public class AdminPostController {
@@ -27,7 +27,6 @@ public class AdminPostController {
         return "SUCCESS";
     }
 
-    // 🔴 404 해결: /api/admin/notice/{id}
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable(value = "id") Long id, @RequestBody AdminPostDto dto) {
         try {
@@ -58,7 +57,6 @@ public class AdminPostController {
         }
     }
 
-    // 🔴 404 해결: 삭제 주소
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable(value = "id") Long id) {
         try {

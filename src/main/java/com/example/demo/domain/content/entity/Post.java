@@ -49,7 +49,7 @@ public class Post {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String body;
 
-    @Column(length = 50)
+    @Column(length = 50) // 엔티티 객체 1개 추가!!!
     private String tag;
 
     @Column(name = "content_type", nullable = false)

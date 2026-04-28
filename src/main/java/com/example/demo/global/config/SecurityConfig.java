@@ -98,7 +98,8 @@ public class SecurityConfig {
                         "/ws/**").permitAll()
                 .requestMatchers("/admin/notice/list").permitAll()
                 // 관리자 전용 기능은 보호 (hasRole 사용)
-                .requestMatchers("/admin/notice/write", "/admin/notice/toggle-status").hasRole("ADMIN")
+                .requestMatchers("/api/admin/notice/write", "/api/admin/notice/toggle-status").hasRole("ADMIN")
+                .requestMatchers("/api/admin/notice/**").hasRole("ADMIN")
                 .requestMatchers("/mypage/**", "/suggestions").authenticated()
                 .anyRequest().permitAll()
         );
