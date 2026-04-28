@@ -6,13 +6,21 @@ import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.admin.service.AdminService;
+import com.example.demo.domain.channel.entity.Channel;
+import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.content.entity.ContentTag;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
 import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.UserRepository;
+import com.example.demo.global.elasticsearch.document.ChannelSearchDoc;
 import com.example.demo.global.elasticsearch.document.PostSearchDoc;
+import com.example.demo.global.elasticsearch.document.UserSearchDoc;
+import com.example.demo.global.elasticsearch.repository.ChannelSearchRepository;
 import com.example.demo.global.elasticsearch.repository.PostSearchRepository;
+import com.example.demo.global.elasticsearch.repository.UserSearchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,13 +43,15 @@ public class AdminController {
     private final AdminService adminService;
     private final PostRepository postRepository;
     private final PostSearchRepository postSearchRepository;
+    private final UserRepository userRepository;
+    private final ChannelRepository channelRepository;
+    private final UserSearchRepository userSearchRepository;
+    private final ChannelSearchRepository channelSearchRepository;
 
     @PostMapping("/sync-elasticsearch")
     public ResponseEntity<String> syncData() {
-        // 1. Fetch all existing data from MySQL
+        // 1. Sync Posts
         List<Post> allPosts = postRepository.findAll();
-
-        // 2. Convert them to Search Documents
         List<PostSearchDoc> postDocs = allPosts.stream()
                 .map(post -> {
                     List<String> tags = post.getContentTags().stream()
@@ -50,11 +60,23 @@ public class AdminController {
                     return new PostSearchDoc(post, tags);
                 })
                 .collect(Collectors.toList());
-
-        // 3. Save them all to Elasticsearch at once
         postSearchRepository.saveAll(postDocs);
 
-        return ResponseEntity.ok("Sync Complete!");
+        // 2. Sync Users
+        List<User> allUsers = userRepository.findAll();
+        List<UserSearchDoc> userDocs = allUsers.stream()
+                .map(UserSearchDoc::new)
+                .collect(Collectors.toList());
+        userSearchRepository.saveAll(userDocs);
+
+        // 3. Sync Channels
+        List<Channel> allChannels = channelRepository.findAll();
+        List<ChannelSearchDoc> channelDocs = allChannels.stream()
+                .map(ChannelSearchDoc::new)
+                .collect(Collectors.toList());
+        channelSearchRepository.saveAll(channelDocs);
+
+        return ResponseEntity.ok("Sync Complete for Posts, Users, and Channels!");
     }
 
     @GetMapping("/stats")
