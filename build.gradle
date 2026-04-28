@@ -78,8 +78,10 @@ dependencies {
 
     //Elastic Search용
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
-
+    //health check(Jenkins)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    //prometheus(monitor)
+    implementation 'io.micrometer:micrometer-registry-prometheus'
 }
 
 clean {

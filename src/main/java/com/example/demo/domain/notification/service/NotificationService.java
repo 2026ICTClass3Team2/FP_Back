@@ -16,6 +16,8 @@ import com.example.demo.domain.user.entity.User;
 import com.example.demo.global.websocket.NotificationWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +38,7 @@ public class NotificationService {
     // WebSocket 핸들러 — 알림 저장 직후 실시간 푸시를 담당합니다.
     // @Lazy를 사용하는 이유: NotificationService와 WebSocketHandler 사이의
     // 순환 의존성 가능성을 방지하고 컨텍스트 초기화 순서 문제를 피하기 위함입니다.
-    private final NotificationWebSocketHandler notificationWebSocketHandler;
+    private final @Lazy NotificationWebSocketHandler notificationWebSocketHandler;
 
     @Transactional
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
