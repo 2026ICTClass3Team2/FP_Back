@@ -63,7 +63,7 @@ pipeline {
                        echo "3. Waiting for Spring Boot to fully start..."
 
                        # We wait up to 120 seconds (24 * 5) just in case
-                       for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
+                       for i in $(seq 1 60); do
 
                            # Use 127.0.0.1 to avoid any DNS or variable masking confusion
                            if curl -s http://127.0.0.1:8090/api/actuator/health | grep -q "UP"; then
