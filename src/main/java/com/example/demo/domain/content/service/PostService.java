@@ -1,13 +1,18 @@
 package com.example.demo.domain.content.service;
 
+import com.example.demo.domain.algorithm.enums.FeedTab;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
 import com.example.demo.domain.content.dto.PostUpdateRequestDto;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Slice;
 
 public interface PostService {
-    
+
+    // 탭별 피드 (알고리즘/인기/구독 → offset, 최신 → cursor)
+    Object getFeedByTab(FeedTab tab, Long lastPostId, int page, int size, String currentUsername);
+
     Slice<PostFeedResponseDto> getPostsFeed(String tab, Long lastPostId, Integer page, int size, String currentUsername);
 
     PostDetailResponseDto getPostDetail(Long postId, String currentUsername);
@@ -27,4 +32,8 @@ public interface PostService {
     void increaseViewCount(Long postId, Long userId);
 
     Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int size, String currentUsername);
+
+    void notInterested(Long postId, String currentUsername);
+
+    void trackShare(Long postId, String currentUsername);
 }

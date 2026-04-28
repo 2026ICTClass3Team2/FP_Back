@@ -1,5 +1,6 @@
 package com.example.demo.domain.content.controller;
 
+import com.example.demo.domain.algorithm.enums.FeedTab;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
@@ -25,17 +26,38 @@ public class PostController {
     private final PostService postService;
 
     @GetMapping
-    public ResponseEntity<Slice<PostFeedResponseDto>> getPostsFeed(
-            @RequestParam(defaultValue = "LATEST") String tab,
+    public ResponseEntity<?> getPostsFeed(
+            @RequestParam(defaultValue = "LATEST") FeedTab tab,
             @RequestParam(required = false) Long lastPostId,
-            @RequestParam(required = false) Integer page,
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         String currentUsername = (userDetails != null) ? userDetails.getUsername() : null;
+        Object result = postService.getFeedByTab(tab, lastPostId, page, size, currentUsername);
+        return ResponseEntity.ok(result);
+    }
 
-        Slice<PostFeedResponseDto> posts = postService.getPostsFeed(tab, lastPostId, page, size, currentUsername);
-        return ResponseEntity.ok(posts);
+    @PostMapping("/{postId}/not-interested")
+    public ResponseEntity<?> notInterested(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
+        postService.notInterested(postId, userDetails.getUsername());
+        return ResponseEntity.ok(Map.of("message", "해당 게시글을 더 이상 추천하지 않습니다."));
+    }
+
+    @PostMapping("/{postId}/share")
+    public ResponseEntity<?> trackShare(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String currentUsername = (userDetails != null) ? userDetails.getUsername() : null;
+        postService.trackShare(postId, currentUsername);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{postId}")
