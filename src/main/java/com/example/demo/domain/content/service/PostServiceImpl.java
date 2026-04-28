@@ -69,6 +69,7 @@ public class PostServiceImpl implements PostService {
     private final HiddenRepository hiddenRepository;
     private final NotificationService notificationService;
     private final UserInterestService userInterestService;
+    private final LlmTagService llmTagService;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -107,11 +108,13 @@ public class PostServiceImpl implements PostService {
         Post savedPost = postRepository.save(post);
         channelRepository.updatePostCount(channel.getId(), 1);
 
+        List<String> userTagNames = java.util.Collections.emptyList();
         if (requestDto.getTags() != null && !requestDto.getTags().isEmpty()) {
-            for (String tagName : requestDto.getTags()) {
+            userTagNames = requestDto.getTags();
+            for (String tagName : userTagNames) {
                 Tag tag = tagRepository.findByName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
-                
+
                 ContentTag contentTag = ContentTag.builder()
                         .post(savedPost)
                         .tag(tag)
@@ -119,6 +122,9 @@ public class PostServiceImpl implements PostService {
                 contentTagRepository.save(contentTag);
             }
         }
+
+        // 항상 LLM 태그 자동 추가 (작성자가 이미 붙인 태그 제외, 비동기)
+        llmTagService.assignTagsToPost(savedPost.getId(), savedPost.getTitle(), savedPost.getBody(), userTagNames);
 
         // --- Notification Logic ---
         // 1. Channel Subscribers
@@ -234,12 +240,14 @@ public class PostServiceImpl implements PostService {
         }
 
         contentTagRepository.deleteAllByPost(post);
-        
+
+        List<String> userTagNames = java.util.Collections.emptyList();
         if (requestDto.getTags() != null && !requestDto.getTags().isEmpty()) {
-            for (String tagName : requestDto.getTags()) {
+            userTagNames = requestDto.getTags();
+            for (String tagName : userTagNames) {
                 Tag tag = tagRepository.findByName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
-                
+
                 ContentTag contentTag = ContentTag.builder()
                         .post(post)
                         .tag(tag)
@@ -247,7 +255,10 @@ public class PostServiceImpl implements PostService {
                 contentTagRepository.save(contentTag);
             }
         }
-        
+
+        // 수정 시에도 LLM 태그 자동 추가 (작성자 태그 제외, 비동기)
+        llmTagService.assignTagsToPost(post.getId(), post.getTitle(), post.getBody(), userTagNames);
+
         log.info("Post updated. postId: {}, updatedBy: {}", postId, currentUsername);
         
         // Mentions on update
@@ -262,7 +273,7 @@ public class PostServiceImpl implements PostService {
         User currentUser = resolveUser(currentUsername);
 
         return switch (tab) {
-            case LATEST -> getPostsFeed(lastPostId, size, currentUsername);
+            case LATEST -> getPostsFeed("LATEST", lastPostId, null, size, currentUsername);
             case POPULAR -> getPopularFeed(page, size, currentUser);
             case ALGORITHM -> getAlgorithmFeed(page, size, currentUser);
             case SUBSCRIBED -> getSubscribedFeed(page, size, currentUser);
@@ -415,23 +426,68 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername) {
-        PageRequest pageRequest = PageRequest.of(0, size);
-
+    public Slice<PostFeedResponseDto> getPostsFeed(String tab, Long lastPostId, Integer page, int size, String currentUsername) {
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
         Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+        final User finalUser = currentUser;
 
+        if ("POPULAR".equalsIgnoreCase(tab)) {
+            PageRequest pageRequest = PageRequest.of(page != null ? page : 0, size);
+            return postRepository.findPopularPosts(currentUserId, pageRequest)
+                    .map(post -> convertToDto(post, finalUser));
+        }
+
+        if ("ALGORITHM".equalsIgnoreCase(tab)) {
+            PageRequest pageRequest = PageRequest.of(page != null ? page : 0, size);
+            List<Long> tagIds = java.util.Collections.emptyList();
+            if (currentUser != null) {
+                tagIds = interestRepository.findByUserId(currentUser.getId())
+                        .stream()
+                        .map(i -> i.getTag().getId())
+                        .collect(Collectors.toList());
+            }
+            // tagIds가 비어있으면 매칭 수가 0으로 동일 → likeCount, createdAt 기준 정렬 (사실상 popular)
+            // tagIds가 있으면 관심사 많이 매칭되는 게시물 우선
+            if (tagIds.isEmpty()) {
+                return postRepository.findPopularPosts(currentUserId, pageRequest)
+                        .map(post -> convertToDto(post, finalUser));
+            }
+            return postRepository.findAlgorithmPosts(tagIds, currentUserId, pageRequest)
+                    .map(post -> convertToDto(post, finalUser));
+        }
+
+        if ("SUBSCRIBED".equalsIgnoreCase(tab)) {
+            if (currentUser == null) {
+                return org.springframework.data.domain.Page.empty();
+            }
+            List<Long> channelIds = followRepository.findByUser_IdAndTargetType(currentUser.getId(), "channel")
+                    .stream()
+                    .map(f -> f.getTargetId())
+                    .collect(Collectors.toList());
+            if (channelIds.isEmpty()) {
+                return org.springframework.data.domain.Page.empty();
+            }
+            PageRequest pageRequest = PageRequest.of(0, size);
+            Slice<Post> posts;
+            if (lastPostId == null) {
+                posts = postRepository.findSubscribedPostsFirstPage(channelIds, currentUserId, pageRequest);
+            } else {
+                posts = postRepository.findSubscribedPostsCursor(channelIds, lastPostId, currentUserId, pageRequest);
+            }
+            return posts.map(post -> convertToDto(post, finalUser));
+        }
+
+        // LATEST (default)
+        PageRequest pageRequest = PageRequest.of(0, size);
         Slice<Post> posts;
         if (lastPostId == null) {
             posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
         } else {
             posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
         }
-
-        final User finalUser = currentUser;
         return posts.map(post -> convertToDto(post, finalUser));
     }
 

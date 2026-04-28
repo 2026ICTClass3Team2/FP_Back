@@ -23,4 +23,9 @@ public class ContentTag {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tag_id", nullable = false)
     private Tag tag;
+
+    public String getTagName() {
+        return tag != null ? tag.getName() : null;
+    }
 }
+

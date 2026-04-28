@@ -73,6 +73,9 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+  elasticsearch:
+    uris: http://${ELASTICSEARCH_HOST:localhost}:9200
+
 jwt:
   secret: ${JWT_SECRET}
 
@@ -85,6 +88,9 @@ server:
   servlet:
     context-path: "/api"
   forward-headers-strategy: native
+
+llm:
+  service-url: http://localhost:8001
 
 aws:
   s3:

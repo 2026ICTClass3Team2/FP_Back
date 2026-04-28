@@ -311,7 +311,7 @@ public class QnaServiceImpl implements QnaService {
 
                         dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
                         dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qna.getPost().getId(), "qna"));
-                        
+
                         Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(userId, "post", qna.getPost().getId());
                         if (interaction.isPresent()) {
                             String actionType = interaction.get().getActionType();

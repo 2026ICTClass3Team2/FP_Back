@@ -13,7 +13,7 @@ public interface PostService {
     // 탭별 피드 (알고리즘/인기/구독 → offset, 최신 → cursor)
     Object getFeedByTab(FeedTab tab, Long lastPostId, int page, int size, String currentUsername);
 
-    Slice<PostFeedResponseDto> getPostsFeed(Long lastPostId, int size, String currentUsername);
+    Slice<PostFeedResponseDto> getPostsFeed(String tab, Long lastPostId, Integer page, int size, String currentUsername);
 
     PostDetailResponseDto getPostDetail(Long postId, String currentUsername);
 
