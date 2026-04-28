@@ -64,7 +64,7 @@ pipeline {
 
                        # We wait up to 120 seconds (24 * 5) just in case
                        for i in $(seq 1 60); do
-                           RESPONSE = $(curl -s -w "\\n%{http_code}" http://127.0.0.1:8090/api/actuator/health || echo "ERROR 000")
+                           RESPONSE=$(curl -s http://127.0.0.1:8090/api/actuator/health || echo "DOWN")
 
                            if echo "$RESPONSE" | grep -q "UP"; then
                                echo "✅ Spring Boot is UP and healthy!"
@@ -72,8 +72,7 @@ pipeline {
                            fi
 
                            if [ $((i%20)) -eq 0 ]; then
-                               echo "Diagnostic Check (Attempt $i):"
-                               echo "Full Response: $RESPONSE"
+                               echo "Diagnostic Check (Attempt $i): $RESPONSE"
                            fi
 
                            echo "⏳ Attempt $i: Still booting..."
