@@ -34,7 +34,9 @@ public class UserSearchDoc {
     @Field(type = FieldType.Keyword)
     private String profilePicUrl;
 
-    @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd'T'HH:mm:ss.SSS||uuuu-MM-dd'T'HH:mm:ss||uuuu-MM-dd")
+    @Field(type = FieldType.Date,
+            format = {DateFormat.date_hour_minute_second, DateFormat.date},
+            pattern = "uuuu-MM-dd'T'HH:mm:ss||uuuu-MM-dd")
     private LocalDateTime createdAt;
 
     public UserSearchDoc(User user) {
