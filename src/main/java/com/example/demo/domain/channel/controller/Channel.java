@@ -180,10 +180,12 @@ public class Channel {
     public ResponseEntity<Slice<PostFeedResponseDto>> getChannelPosts(
             @PathVariable Long channelId,
             @RequestParam(required = false) Long lastPostId,
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "LATEST") String sort,
             @AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails != null ? userDetails.getUsername() : null;
-        Slice<PostFeedResponseDto> posts = postService.getChannelPosts(channelId, lastPostId, size, username);
+        Slice<PostFeedResponseDto> posts = postService.getChannelPosts(channelId, lastPostId, page, size, sort, username);
         return ResponseEntity.ok(posts);
     }
 }

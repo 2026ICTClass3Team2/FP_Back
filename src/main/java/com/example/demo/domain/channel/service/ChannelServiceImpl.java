@@ -19,7 +19,11 @@ import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +45,11 @@ import java.util.stream.Collectors;
 public class ChannelServiceImpl implements ChannelService {
 
     private static final String TARGET_TYPE_CHANNEL = "channel";
+
+    // @Cacheable 이 동일 클래스 내부 호출에서는 proxy를 타지 않으므로 self-inject
+    @Lazy
+    @Autowired
+    private ChannelService self;
 
     private final ChannelRepository channelRepository;
     private final ChannelTagRepository channelTagRepository;
@@ -153,20 +162,27 @@ public class ChannelServiceImpl implements ChannelService {
     @Override
     @Transactional(readOnly = true)
     public List<ChannelSummaryDto> getPopularChannels(String currentUsername) {
-        List<Long> blockedChannelIds = List.of();
-        if (currentUsername != null) {
-            userRepository.findByEmail(currentUsername).ifPresent(user -> {
-                // no-op: side-effect handled below
-            });
-            blockedChannelIds = userRepository.findByEmail(currentUsername)
-                    .map(user -> hiddenRepository.findTargetIdsByUserIdAndTargetType(user.getId(), HiddenTargetType.channel))
-                    .orElse(List.of());
-        }
+        // 캐시된 raw top5를 받아온 뒤 유저별 차단 채널만 필터링
+        List<ChannelSummaryDto> raw = self.getPopularChannelsRaw();
 
-        final List<Long> finalBlockedIds = blockedChannelIds;
+        List<Long> blockedIds = currentUsername == null ? List.of()
+                : userRepository.findByEmail(currentUsername)
+                        .map(user -> hiddenRepository.findTargetIdsByUserIdAndTargetType(user.getId(), HiddenTargetType.channel))
+                        .orElse(List.of());
+
+        if (blockedIds.isEmpty()) return raw;
+
+        return raw.stream()
+                .filter(ch -> !blockedIds.contains(ch.getChannelId()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "popularChannels", key = "'top5'")
+    public List<ChannelSummaryDto> getPopularChannelsRaw() {
         return channelRepository.findTop5ByStatusOrderByFollowerCountDesc("active")
                 .stream()
-                .filter(ch -> !finalBlockedIds.contains(ch.getId()))
                 .map(this::toSummaryDto)
                 .collect(Collectors.toList());
     }
@@ -181,6 +197,7 @@ public class ChannelServiceImpl implements ChannelService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "popularChannels", allEntries = true)
     public void subscribeChannel(Long channelId, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -205,6 +222,7 @@ public class ChannelServiceImpl implements ChannelService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "popularChannels", allEntries = true)
     public void unsubscribeChannel(Long channelId, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
