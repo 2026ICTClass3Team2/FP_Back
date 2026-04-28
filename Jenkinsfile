@@ -63,15 +63,15 @@ pipeline {
                        echo "3. Waiting for Spring Boot to fully start..."
 
                        # We wait up to 120 seconds (24 * 5) just in case
-                       for i in $(seq 1 60); do
-                           RESPONSE=$(curl -s http://127.0.0.1:8090/api/actuator/health/liveness || echo "OFFLINE")
+                       for i in $(seq 1 20); do
+                           RESPONSE=$(curl -s http://172.17.0.1:8090/api/actuator/health/liveness || echo "OFFLINE")
 
                            if echo "$RESPONSE" | grep -q "UP"; then
                                echo "✅ Spring Boot is UP and healthy!"
                                exit 0
                            fi
 
-                           if [ $((i%20)) -eq 0 ]; then
+                           if [ $((i%10)) -eq 0 ]; then
                                echo "Diagnostic Check (Attempt $i): $RESPONSE"
                            fi
 
@@ -80,7 +80,7 @@ pipeline {
                        done
 
                        echo "❌ ERROR: Spring Boot failed to start!"
-                       docker logs backend-prod --tail 50
+                       docker logs backend-prod --tail 100
                        exit 1
                     '''
                 }
