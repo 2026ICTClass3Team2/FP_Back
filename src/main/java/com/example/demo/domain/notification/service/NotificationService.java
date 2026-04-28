@@ -148,6 +148,16 @@ public class NotificationService {
         notificationRepository.markAllAsRead(user.getId());
     }
 
+    @Transactional
+    public void markTargetAsRead(User user, NotificationTargetType targetType, Long targetId) {
+        notificationRepository.markTargetNotificationsAsRead(user.getId(), targetType, targetId);
+    }
+
+    @Transactional
+    public void markAllTargetTypeAsRead(User user, NotificationTargetType targetType) {
+        notificationRepository.markAllTargetTypeNotificationsAsRead(user.getId(), targetType);
+    }
+
     public List<NotificationResponseDto> getNotifications(String email, String filter) {
         User user = userRepository.findByEmail(email).orElseThrow();
         List<Notification> notifications;
