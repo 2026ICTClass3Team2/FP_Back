@@ -750,24 +750,28 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int size, String currentUsername) {
-        PageRequest pageRequest = PageRequest.of(0, size);
-
+    public Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int page, int size, String sort, String currentUsername) {
         User currentUser = null;
         if (currentUsername != null) {
             currentUser = userRepository.findByEmail(currentUsername).orElse(null);
         }
-
         Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
+        final User finalUser = currentUser;
 
+        if ("POPULAR".equalsIgnoreCase(sort)) {
+            PageRequest pageRequest = PageRequest.of(page, size);
+            Page<Post> posts = postRepository.findByChannelIdPopular(channelId, currentUserId, pageRequest);
+            return posts.map(post -> convertToDto(post, finalUser));
+        }
+
+        // LATEST (default): cursor-based
+        PageRequest pageRequest = PageRequest.of(0, size);
         Slice<Post> posts;
         if (lastPostId == null) {
             posts = postRepository.findByChannelIdFirstPage(channelId, currentUserId, pageRequest);
         } else {
             posts = postRepository.findByChannelIdCursor(channelId, lastPostId, currentUserId, pageRequest);
         }
-
-        final User finalUser = currentUser;
         return posts.map(post -> convertToDto(post, finalUser));
     }
 
