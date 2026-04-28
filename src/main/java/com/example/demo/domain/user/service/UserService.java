@@ -80,6 +80,8 @@ public class UserService {
                         .user(savedUser)
                         .tag(tag)
                         .isProfileTag(true)
+                        .weightScore(5.0)
+                        .lastInteractionAt(java.time.LocalDateTime.now())
                         .build();
                 interestRepository.save(interest);
             }

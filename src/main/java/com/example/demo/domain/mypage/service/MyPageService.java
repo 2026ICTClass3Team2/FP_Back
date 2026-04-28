@@ -177,7 +177,8 @@ public class MyPageService {
                         .user(user)
                         .tag(tag)
                         .isProfileTag(true)
-                        .weightScore(5.0) // 프로필 지정 스택은 가중치를 높게 줌
+                        .weightScore(5.0)
+                        .lastInteractionAt(java.time.LocalDateTime.now())
                         .build();
                 interestRepository.save(interest);
             }

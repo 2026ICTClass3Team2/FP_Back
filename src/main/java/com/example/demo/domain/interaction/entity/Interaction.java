@@ -30,7 +30,7 @@ public class Interaction {
     private Long targetId;
 
     @Column(name = "target_type", nullable = false, length = 50)
-    private String targetType; // 'qna', 'feed', 'comments'
+    private String targetType; // 'post', 'comment', 'channel'
 
     @Column(name = "action_type", nullable = false, length = 20)
     private String actionType; // 'like', 'dislike'
