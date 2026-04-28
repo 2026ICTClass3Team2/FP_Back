@@ -1,6 +1,7 @@
 package com.example.demo.domain.content.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -52,6 +53,6 @@ public class PostFeedResponseDto {
     private boolean isAuthor;
 
     // 6. 내부 정렬용 (응답에는 포함되나 프론트에서 무시 가능)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @JsonIgnore
     private double algorithmScore;
 }
