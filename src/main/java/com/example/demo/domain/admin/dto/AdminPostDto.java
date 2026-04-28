@@ -8,4 +8,6 @@ import lombok.Setter;
 public class AdminPostDto {
     private String title;
     private String body;
+    private String tag;
+    private boolean visible;
 }

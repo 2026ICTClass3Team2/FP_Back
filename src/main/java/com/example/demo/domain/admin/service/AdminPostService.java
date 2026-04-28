@@ -33,10 +33,11 @@ public class AdminPostService {
         Post post = Post.builder()
                 .title(dto.getTitle())
                 .body(dto.getBody())
+                .tag(dto.getTag())
                 .authorName("관리자")
                 .contentType("notice")
                 .sourceType("internal")
-                .status("hidden") // 처음엔 비공개(HIDDEN) 저장 (이미 5개 공개상태에서 공개할려면 6개가 되니까 선택지도 줄 이유가 x)
+                .status(dto.isVisible() ? "active" : "hidden")
                 .viewCount(0)
                 .build();
         adminPostRepository.save(post);
@@ -47,6 +48,8 @@ public class AdminPostService {
         Post post = adminPostRepository.findById(id).orElseThrow();
         post.setTitle(dto.getTitle());
         post.setBody(dto.getBody());
+        post.setTag(dto.getTag());
+        post.setStatus(dto.isVisible() ? "active" : "hidden");
     }
 
     @Transactional

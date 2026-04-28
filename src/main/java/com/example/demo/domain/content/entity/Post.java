@@ -49,6 +49,9 @@ public class Post {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String body;
 
+    @Column(length = 50)
+    private String tag;
+
     @Column(name = "content_type", nullable = false)
     @Builder.Default
     private String contentType = "feed"; // feed, qna

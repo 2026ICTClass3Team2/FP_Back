@@ -91,12 +91,15 @@ public class SecurityConfig {
         
         // 6. 경로별 접근 권한 설정
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/api/user/signup", "/oauth2/**", "/login/oauth2/code/*",
+                .requestMatchers("/login", "/user/signup", "/oauth2/**", "/login/oauth2/code/*",
                         "/api/member/password/**",
                         // WebSocket 핸드셰이크 엔드포인트는 여기서 허용합니다.
                         // 실제 인증은 JwtHandshakeInterceptor에서 토큰을 검증해 처리합니다.
                         "/ws/**").permitAll()
-                .requestMatchers("/api/mypage/**", "/api/suggestions").authenticated()
+                .requestMatchers("/admin/notice/list").permitAll()
+                // 관리자 전용 기능은 보호 (hasRole 사용)
+                .requestMatchers("/admin/notice/write", "/admin/notice/toggle-status").hasRole("ADMIN")
+                .requestMatchers("/mypage/**", "/suggestions").authenticated()
                 .anyRequest().permitAll()
         );
 
