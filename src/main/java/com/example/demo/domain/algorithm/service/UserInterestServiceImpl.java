@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class UserInterestServiceImpl implements UserInterestService {
 
-    private static final double DAILY_DECAY = 0.99;
+    private static final double DAILY_DECAY = 0.9;
 
     private static final double DELTA_VIEW = 0.3;
     private static final double DELTA_LIKE = 3.0;
