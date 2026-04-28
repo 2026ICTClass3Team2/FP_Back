@@ -55,6 +55,8 @@ public class JWTCheckFilter extends OncePerRequestFilter {
            path.startsWith("/api/tags/") || // 태그 검색 — 공개 엔드포인트
            path.startsWith("/api/search") || // 글/유저/채널 검색 — 공개 엔드포인트
 
+           path.startsWith("/api/actuator/") ||
+
            // OAuth2 소셜 로그인 흐름 — 브라우저 리다이렉트이므로 JWT 헤더가 없습니다.
            // getRequestURI()는 context-path(/api)를 포함한 전체 URI를 반환합니다.
            path.startsWith("/api/oauth2/") ||
