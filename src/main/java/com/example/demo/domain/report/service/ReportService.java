@@ -12,6 +12,7 @@ import com.example.demo.domain.report.entity.Hidden;
 import com.example.demo.domain.report.entity.Report;
 import com.example.demo.domain.report.enums.HiddenReasonType;
 import com.example.demo.domain.report.enums.HiddenTargetType;
+import com.example.demo.domain.report.enums.ReportStatus;
 import com.example.demo.domain.report.enums.ReportTargetType;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
@@ -49,6 +50,7 @@ public class ReportService {
                 .targetType(requestDto.getTargetType())
                 .category(requestDto.getReasonType())
                 .details(requestDto.getReasonDetail())
+                .status(ReportStatus.pending)
                 .build();
         reportRepository.save(report);
 
