@@ -183,4 +183,28 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Post p SET p.bookmarkCount = p.bookmarkCount + :delta WHERE p.id = :postId")
     void updateBookmarkCount(@Param("postId") Long postId, @Param("delta") int delta);
+
+    // 즐겨찾기 피드: 특정 유저들이 작성한 게시글 커서 기반 조회
+    @Query("SELECT p FROM Post p " +
+           "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
+           "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
+           "WHERE p.author.id IN :authorIds AND h.id IS NULL AND b.id IS NULL " +
+           "AND p.contentType = 'feed' AND p.status = 'active' " +
+           "AND (p.channel IS NULL OR p.channel.status = 'active') " +
+           "ORDER BY p.id DESC")
+    Slice<Post> findFavoritesFeedFirstPage(@Param("authorIds") List<Long> authorIds,
+                                           @Param("currentUserId") Long currentUserId,
+                                           Pageable pageable);
+
+    @Query("SELECT p FROM Post p " +
+           "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
+           "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
+           "WHERE p.author.id IN :authorIds AND p.id < :lastPostId AND h.id IS NULL AND b.id IS NULL " +
+           "AND p.contentType = 'feed' AND p.status = 'active' " +
+           "AND (p.channel IS NULL OR p.channel.status = 'active') " +
+           "ORDER BY p.id DESC")
+    Slice<Post> findFavoritesFeedCursor(@Param("authorIds") List<Long> authorIds,
+                                        @Param("lastPostId") Long lastPostId,
+                                        @Param("currentUserId") Long currentUserId,
+                                        Pageable pageable);
 }
