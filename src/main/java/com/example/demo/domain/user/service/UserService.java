@@ -110,8 +110,8 @@ public class UserService {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         }
-        if (!username.matches("^[a-z0-9]{4,20}$")) {
-            throw new IllegalArgumentException("아이디는 영문 소문자와 숫자 4~20자리여야 합니다.");
+        if (!username.matches("^\\S{4,}$")) {
+            throw new IllegalArgumentException("아이디는 공백 없이 4자 이상이어야 합니다.");
         }
 
         user.setUsername(username);
