@@ -5,15 +5,23 @@ import com.example.demo.domain.admin.service.AdminPostService;
 import com.example.demo.domain.content.entity.Post;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriUtils;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/notice") //  리액트와 주소 같게 하기
+@RequestMapping("/admin/notice")
 @RequiredArgsConstructor
 @Slf4j
-
 public class AdminPostController {
 
     private final AdminPostService adminPostService;
@@ -25,25 +33,45 @@ public class AdminPostController {
 
     @PostMapping("/write")
     public ResponseEntity<?> writeNotice(@ModelAttribute AdminPostDto adminPostDto) {
-        // 이제 adminPostDto.getFile()을 통해 업로드된 파일에 접근할 수 있습니다.
-        log.info("파일 업로드 확인: {}", adminPostDto.getFile() != null);
-
-        // 서비스 로직 실행...
-        return ResponseEntity.ok("등록 성공");
+        try {
+            adminPostService.save(adminPostDto);
+            return ResponseEntity.ok("SUCCESS");
+        } catch (Exception e) {
+            log.error("등록 에러", e);
+            return ResponseEntity.internalServerError().body("FAIL");
+        }
     }
 
-    // ✅ @RequestBody를 @ModelAttribute로 변경
-    @PutMapping("/{id}")
-    public ResponseEntity<?> update(
-            @PathVariable(value = "id") Long id,
-            @ModelAttribute AdminPostDto dto  // 🔴 수정됨
-    ) {
+    @GetMapping("/download/{fileName}")
+    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
         try {
-            log.info("수정 요청 - ID: {}, 파일 존재 여부: {}", id, dto.getFile() != null);
+            Path filePath = Paths.get("./upload-dir").resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists()) {
+                String encodedFileName = UriUtils.encode(fileName, StandardCharsets.UTF_8);
+
+                // 🔴 핵심: attachment 설정으로 브라우저의 '열기' 동작 방지 및 즉시 저장 유도
+                return ResponseEntity.ok()
+                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"; filename*=UTF-8''" + encodedFileName)
+                        .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            log.error("Download Error", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable(value = "id") Long id, @ModelAttribute AdminPostDto dto) {
+        try {
             adminPostService.update(id, dto);
             return ResponseEntity.ok("SUCCESS");
         } catch (Exception e) {
-            log.error("수정 중 오류 발생: ", e);
             return ResponseEntity.internalServerError().body("ERROR");
         }
     }
@@ -57,7 +85,6 @@ public class AdminPostController {
         }
     }
 
-    // ERR_FAILED 해결: 토글 주소 명확화
     @PatchMapping("/{id}/toggle-status")
     public ResponseEntity<?> toggleStatus(@PathVariable(value = "id") Long id) {
         try {

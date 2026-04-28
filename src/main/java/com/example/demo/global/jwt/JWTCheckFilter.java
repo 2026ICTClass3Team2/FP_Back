@@ -48,6 +48,7 @@ public class JWTCheckFilter extends OncePerRequestFilter {
            path.equals("/api/logout") ||
            path.equals("/api/member/refresh") ||
            path.equals("/api/admin/notice/list") ||
+           path.contains("/api/admin/notice/download/") || // 추가사항
            path.startsWith("/api/member/signup") ||
            path.startsWith("/api/member/check-") ||
            path.startsWith("/api/member/email/") ||
