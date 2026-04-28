@@ -96,3 +96,8 @@ aws:
   credentials:
     access-key: ${AWS_ACCESS_KEY}
     secret-key: ${AWS_SECRET_KEY}
+
+management:
+  endpoint:
+    health:
+      show-details: always
