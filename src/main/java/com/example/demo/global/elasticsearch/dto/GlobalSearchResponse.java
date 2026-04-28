@@ -1,8 +1,8 @@
 package com.example.demo.global.elasticsearch.dto;
 
-import com.example.demo.global.elasticsearch.document.ChannelSearchDoc;
-import com.example.demo.global.elasticsearch.document.PostSearchDoc;
-import com.example.demo.global.elasticsearch.document.UserSearchDoc;
+import com.example.demo.global.elasticsearch.entity.ChannelSearchDoc;
+import com.example.demo.global.elasticsearch.entity.PostSearchDoc;
+import com.example.demo.global.elasticsearch.entity.UserSearchDoc;
 import lombok.*;
 
 import java.util.List;
