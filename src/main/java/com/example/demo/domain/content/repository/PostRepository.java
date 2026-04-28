@@ -63,16 +63,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
            "AND p.contentType = 'feed' AND p.status = 'active' ORDER BY p.id DESC")
     Slice<Post> findByChannelIdCursor(@Param("channelId") Long channelId, @Param("lastPostId") Long lastPostId, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
-    // POPULAR 탭: likeCount DESC 오프셋 페이지네이션
-    @Query("SELECT p FROM Post p " +
-           "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
-           "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
-           "WHERE h.id IS NULL AND b.id IS NULL AND " +
-           "p.contentType = 'feed' AND p.status = 'active' AND " +
-           "(p.channel IS NULL OR p.channel.status = 'active') " +
-           "ORDER BY p.likeCount DESC, p.viewCount DESC, p.id DESC")
-    Page<Post> findPopularPosts(@Param("currentUserId") Long currentUserId, Pageable pageable);
-
     // ALGORITHM 탭: 모든 게시물을 관심 태그 매칭 수 기준으로 정렬 (매칭 많은 것 먼저)
     @Query(value = "SELECT p FROM Post p " +
            "LEFT JOIN p.contentTags ct ON ct.tag.id IN :tagIds " +

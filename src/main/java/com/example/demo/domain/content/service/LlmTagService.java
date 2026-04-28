@@ -1,5 +1,6 @@
 package com.example.demo.domain.content.service;
 
+import com.example.demo.domain.algorithm.service.UserInterestService;
 import com.example.demo.domain.content.entity.ContentTag;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.entity.Tag;
@@ -27,12 +28,13 @@ public class LlmTagService {
     private final ContentTagRepository contentTagRepository;
     private final PostRepository postRepository;
     private final WebClient webClient;
+    private final UserInterestService userInterestService;
 
     @Value("${llm.service-url}")
     private String llmServiceUrl;
 
     @Async("llmTaskExecutor")
-    public void assignTagsToPost(Long postId, String title, String body, List<String> existingTagNames) {
+    public void assignTagsToPost(Long postId, String title, String body, List<String> existingTagNames, Long userId) {
         log.info("[LLM 태그] 시작. postId={}", postId);
         try {
             List<String> allTagNames = tagRepository.findAll()
@@ -91,6 +93,11 @@ public class LlmTagService {
             );
 
             log.info("[LLM 태그] 완료. postId={}, 저장된 태그={}", postId, tagsToSave);
+
+            // LLM 태그까지 모두 저장된 후 관심도 반영 (사용자 태그 + LLM 태그 전체 대상)
+            if (userId != null) {
+                userInterestService.onPostWrite(userId, postId);
+            }
 
         } catch (WebClientRequestException e) {
             log.warn("[LLM 태그] FastAPI 연결 실패 (서버 미실행 또는 네트워크 오류). postId={}, 원인={}", postId, e.getMessage());

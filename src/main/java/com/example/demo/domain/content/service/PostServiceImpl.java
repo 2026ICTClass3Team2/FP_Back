@@ -39,8 +39,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
@@ -124,7 +122,8 @@ public class PostServiceImpl implements PostService {
         }
 
         // 항상 LLM 태그 자동 추가 (작성자가 이미 붙인 태그 제외, 비동기)
-        llmTagService.assignTagsToPost(savedPost.getId(), savedPost.getTitle(), savedPost.getBody(), userTagNames);
+        // onPostWrite는 LlmTagService 내부에서 LLM 태그 저장 완료 후 호출됨 (user+LLM 전체 태그 반영)
+        llmTagService.assignTagsToPost(savedPost.getId(), savedPost.getTitle(), savedPost.getBody(), userTagNames, user.getId());
 
         // --- Notification Logic ---
         // 1. Channel Subscribers
@@ -159,16 +158,6 @@ public class PostServiceImpl implements PostService {
 
         // 3. Mentions
         processMentions(savedPost, user);
-
-        // 4. 관심도 반영 — 트랜잭션 커밋 후 비동기 실행 (커밋 전 조회 시 ContentTag 없음 방지)
-        Long userId = user.getId();
-        Long postId = savedPost.getId();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                userInterestService.onPostWrite(userId, postId);
-            }
-        });
 
         return savedPost.getId();
     }
@@ -256,8 +245,8 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        // 수정 시에도 LLM 태그 자동 추가 (작성자 태그 제외, 비동기)
-        llmTagService.assignTagsToPost(post.getId(), post.getTitle(), post.getBody(), userTagNames);
+        // 수정 시에도 LLM 태그 자동 추가 (작성자 태그 제외, 비동기) — userId null: 관심도 미반영
+        llmTagService.assignTagsToPost(post.getId(), post.getTitle(), post.getBody(), userTagNames, null);
 
         log.info("Post updated. postId: {}, updatedBy: {}", postId, currentUsername);
         
