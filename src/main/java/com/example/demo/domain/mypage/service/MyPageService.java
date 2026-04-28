@@ -11,6 +11,7 @@ import com.example.demo.domain.mypage.dto.PasswordUpdateRequestDto;
 import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
 import com.example.demo.domain.qna.entity.Qna;
 import com.example.demo.domain.qna.repository.QnaRepository;
+import com.example.demo.domain.favorite.service.FavoriteService;
 import com.example.demo.domain.report.entity.Block;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.Interest;
@@ -49,6 +50,7 @@ public class MyPageService {
     private final MailService mailService;
     private final S3Client s3Client;
     private final QnaRepository qnaRepository;
+    private final FavoriteService favoriteService;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
@@ -88,15 +90,16 @@ public class MyPageService {
 
         boolean isMine = false;
         Boolean isBlocked = null;
+        Boolean isFavorited = null;
 
         if (viewerEmail != null) {
-            userRepository.findByEmail(viewerEmail).ifPresent(viewer -> {});
             java.util.Optional<User> viewerOpt = userRepository.findByEmail(viewerEmail);
             if (viewerOpt.isPresent()) {
                 User viewer = viewerOpt.get();
                 isMine = viewer.getId().equals(user.getId());
                 if (!isMine) {
                     isBlocked = blockRepository.existsByBlockerIdAndBlockedId(viewer.getId(), user.getId());
+                    isFavorited = favoriteService.isFavorited(viewer.getId(), user.getId());
                 }
             }
         }
@@ -113,6 +116,7 @@ public class MyPageService {
                 .provider(user.getProvider().name())
                 .isMine(isMine)
                 .isBlocked(isBlocked)
+                .isFavorited(isFavorited)
                 .build();
     }
 

@@ -27,7 +27,9 @@
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT p.post_id, p.content_type, p.status, q.qna_id, p.user_id FROM post p LEFT JOIN qna q ON q.post_id = p.post_id WHERE p.content_type = 'qna' LIMIT 10;\" 2>&1)",
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT p.post_id, p.content_type, p.status, q.qna_id, p.user_id, p.channel_id FROM post p LEFT JOIN qna q ON q.post_id = p.post_id WHERE p.content_type = 'qna';\" 2>&1 | Select-String -NotMatch \"Warning\")",
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT b.bookmark_id, b.target_id, b.target_type, b.user_id FROM bookmark b WHERE b.target_type = 'qna' LIMIT 10;\" 2>&1 | Select-String -NotMatch \"Warning\")",
-      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"DESCRIBE hidden;\" 2>&1 | Select-String -NotMatch \"Warning\")"
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"DESCRIBE hidden;\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "Bash(node -e ' *)",
+      "Bash(./gradlew clean *)"
     ]
   }
 }
