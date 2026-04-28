@@ -31,7 +31,7 @@ public interface PostService {
 
     void increaseViewCount(Long postId, Long userId);
 
-    Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int size, String currentUsername);
+    Slice<PostFeedResponseDto> getChannelPosts(Long channelId, Long lastPostId, int page, int size, String sort, String currentUsername);
 
     void notInterested(Long postId, String currentUsername);
 
