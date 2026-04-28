@@ -113,3 +113,13 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+    web:
+      server:
+        request:
+          autotime:
+            enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.95,0.99
