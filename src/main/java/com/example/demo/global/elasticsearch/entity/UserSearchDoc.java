@@ -1,4 +1,4 @@
-package com.example.demo.global.elasticsearch.document;
+package com.example.demo.global.elasticsearch.entity;
 
 import com.example.demo.domain.user.entity.User;
 import lombok.AllArgsConstructor;
@@ -9,6 +9,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
+
+import java.time.LocalDateTime;
 
 @Document(indexName = "users")
 @Data
@@ -32,6 +34,9 @@ public class UserSearchDoc {
 
     @Field(type = FieldType.Keyword)
     private String profilePicUrl;
+
+    @Field(type = FieldType.Date, pattern = "uuuu-MM-dd'T'HH:mm:ss.SSS||uuuu-MM-dd'T'HH:mm:ss||uuuu-MM-dd")
+    private LocalDateTime createdAt;
 
     public UserSearchDoc(User user) {
         this.id = user.getId().toString();

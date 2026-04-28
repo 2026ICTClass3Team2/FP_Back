@@ -1,6 +1,6 @@
 package com.example.demo.global.elasticsearch.repository;
 
-import com.example.demo.global.elasticsearch.document.PostSearchDoc;
+import com.example.demo.global.elasticsearch.entity.PostSearchDoc;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
