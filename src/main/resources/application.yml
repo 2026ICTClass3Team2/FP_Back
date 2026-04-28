@@ -110,3 +110,6 @@ management:
       show-details: always
     prometheus:
       enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
