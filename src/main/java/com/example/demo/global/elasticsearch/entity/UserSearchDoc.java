@@ -6,10 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.Setting;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.LocalDateTime;
 
@@ -18,7 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Setting(replicas = 0)
+@Setting(replicas = 0, settingPath = "elasticsearch/settings.json")
 public class UserSearchDoc {
 
     @Id
@@ -37,7 +34,7 @@ public class UserSearchDoc {
     @Field(type = FieldType.Keyword)
     private String profilePicUrl;
 
-    @Field(type = FieldType.Date, pattern = "uuuu-MM-dd'T'HH:mm:ss.SSS||uuuu-MM-dd'T'HH:mm:ss||uuuu-MM-dd")
+    @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd'T'HH:mm:ss.SSS||uuuu-MM-dd'T'HH:mm:ss||uuuu-MM-dd")
     private LocalDateTime createdAt;
 
     public UserSearchDoc(User user) {

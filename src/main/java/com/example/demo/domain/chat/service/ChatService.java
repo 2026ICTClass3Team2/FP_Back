@@ -103,6 +103,12 @@ public class ChatService {
     public void markAsRead(Long myId, Long otherUserId) {
         Long conversationId = getConversationId(myId, otherUserId);
         chatRepository.markAsRead(conversationId, myId);
+        
+        User me = userRepository.findById(myId).orElse(null);
+        if (me != null) {
+            notificationService.markTargetAsRead(me, NotificationTargetType.chat, otherUserId);
+        }
+        
         log.debug("[Chat] Marked as read. convId={}, userId={}", conversationId, myId);
     }
 
