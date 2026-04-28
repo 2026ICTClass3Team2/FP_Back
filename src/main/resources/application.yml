@@ -81,7 +81,7 @@ jwt:
 
 app:
   frontend:
-    url: https://deadbug.site
+    url: http://localhost:5173
 
 server:
   port: 8090
