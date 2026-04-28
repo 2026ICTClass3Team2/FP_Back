@@ -41,7 +41,7 @@ pipeline {
 
                        echo "2. Booting new container..."
                        docker run -d \\
-                         -p 8090:8090 \\
+                         --network host \\
                          -e AWS_ACCESS_KEY="${AWS_ACCESS_KEY}" \\
                          -e AWS_SECRET_KEY="${AWS_SECRET_KEY}" \\
                          -e AWS_REGION="${AWS_REGION}" \\
