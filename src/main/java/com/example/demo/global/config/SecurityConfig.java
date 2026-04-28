@@ -95,7 +95,7 @@ public class SecurityConfig {
                         "/api/member/password/**",
                         // WebSocket 핸드셰이크 엔드포인트는 여기서 허용합니다.
                         // 실제 인증은 JwtHandshakeInterceptor에서 토큰을 검증해 처리합니다.
-                        "/ws/**").permitAll()
+                        "/ws/**", "/api/actuator/**").permitAll()
                 .requestMatchers("/api/mypage/**", "/api/suggestions").authenticated()
                 .anyRequest().permitAll()
         );
