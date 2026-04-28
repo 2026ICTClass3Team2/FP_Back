@@ -1,8 +1,8 @@
 package com.example.demo.global.elasticsearch.service;
 
-import com.example.demo.global.elasticsearch.document.ChannelSearchDoc;
-import com.example.demo.global.elasticsearch.document.PostSearchDoc;
-import com.example.demo.global.elasticsearch.document.UserSearchDoc;
+import com.example.demo.global.elasticsearch.entity.ChannelSearchDoc;
+import com.example.demo.global.elasticsearch.entity.PostSearchDoc;
+import com.example.demo.global.elasticsearch.entity.UserSearchDoc;
 import com.example.demo.global.elasticsearch.dto.GlobalSearchResponse;
 import com.example.demo.global.elasticsearch.repository.ChannelSearchRepository;
 import com.example.demo.global.elasticsearch.repository.PostSearchRepository;
