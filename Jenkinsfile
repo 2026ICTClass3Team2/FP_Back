@@ -34,7 +34,7 @@ pipeline {
                     string(credentialsId: 'MAIL_PASSWORD', variable: 'MAIL_PASSWORD'),
                     string(credentialsId: 'REDIS_PASSWORD', variable: 'REDIS_PASSWORD'),
                 ]) {
-                    // Notice the triple-SINGLE-quotes here!
+
                     sh '''
                        echo "1. Stopping old container..."
                        docker rm -f backend-prod || true
