@@ -42,6 +42,7 @@ public class PostFeedResponseDto {
     private int dislikeCount;
     private int viewCount;
     private int commentCount;
+    private int bookmarkCount;
     private int shareCount;
 
     // 5. 사용자 상태 정보
@@ -49,4 +50,8 @@ public class PostFeedResponseDto {
     private boolean isDisliked;
     private boolean isBookmarked;
     private boolean isAuthor;
+
+    // 6. 내부 정렬용 (응답에는 포함되나 프론트에서 무시 가능)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private double algorithmScore;
 }
