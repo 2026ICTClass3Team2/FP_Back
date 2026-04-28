@@ -15,6 +15,7 @@ spec:
       containers:
         - name: backend-prod
           image: education-backend:latest  # Ensure this is in your local Docker registry
+          imagePullPolicy: Never
           ports:
             - containerPort: 8090
           env:
