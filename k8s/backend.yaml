@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend-prod
+          image: education-backend:latest  # Ensure this is in your local Docker registry
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8090
+          env:
+            # DB connection stays the same
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://your-rds-endpoint:3306/db_name"
+            # Redis is ON the EC2, so we use the Private IP
+            - name: SPRING_DATA_REDIS_HOST
+              value: "10.0.1.145"
+            - name: ELASTICSEARCH_HOST
+              value: "10.0.1.145"
+            # Secrets
+            - name: JWT_SECRET
+              value: "your_secret"
+
+          # PROBES: The logic we just built!
+          livenessProbe:
+            httpGet:
+              path: /api/actuator/health/liveness
+              port: 8090
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health/readiness
+              port: 8090
+            initialDelaySeconds: 90
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: NodePort # This allows external traffic to hit the EC2 port
+  selector:
+    app: backend
+  ports:
+    - port: 8090
+      targetPort: 8090
+      nodePort: 30090 # You can hit your EC2_IP:30090 to reach the app
