@@ -275,7 +275,7 @@ public class CommentService {
         }
 
         Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comments", comment.getId());
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comment", comment.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -292,7 +292,7 @@ public class CommentService {
             Interaction newInteraction = Interaction.builder()
                     .user(user)
                     .targetId(comment.getId())
-                    .targetType("comments")
+                    .targetType("comment")
                     .actionType(actionType)
                     .build();
             interactionRepository.save(newInteraction);

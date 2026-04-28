@@ -53,6 +53,7 @@ public class PostServiceImpl implements PostService {
     private final FollowRepository followRepository;
     private final InterestRepository interestRepository;
     private final NotificationService notificationService;
+    private final LlmTagService llmTagService;
     private final S3Client s3Client;
 
     @Value("${aws.s3.bucket}")
@@ -91,11 +92,13 @@ public class PostServiceImpl implements PostService {
         Post savedPost = postRepository.save(post);
         channelRepository.updatePostCount(channel.getId(), 1);
 
+        List<String> userTagNames = java.util.Collections.emptyList();
         if (requestDto.getTags() != null && !requestDto.getTags().isEmpty()) {
-            for (String tagName : requestDto.getTags()) {
+            userTagNames = requestDto.getTags();
+            for (String tagName : userTagNames) {
                 Tag tag = tagRepository.findByName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
-                
+
                 ContentTag contentTag = ContentTag.builder()
                         .post(savedPost)
                         .tag(tag)
@@ -103,6 +106,9 @@ public class PostServiceImpl implements PostService {
                 contentTagRepository.save(contentTag);
             }
         }
+
+        // 항상 LLM 태그 자동 추가 (작성자가 이미 붙인 태그 제외, 비동기)
+        llmTagService.assignTagsToPost(savedPost.getId(), savedPost.getTitle(), savedPost.getBody(), userTagNames);
 
         // --- Notification Logic ---
         // 1. Channel Subscribers
@@ -208,12 +214,14 @@ public class PostServiceImpl implements PostService {
         }
 
         contentTagRepository.deleteAllByPost(post);
-        
+
+        List<String> userTagNames = java.util.Collections.emptyList();
         if (requestDto.getTags() != null && !requestDto.getTags().isEmpty()) {
-            for (String tagName : requestDto.getTags()) {
+            userTagNames = requestDto.getTags();
+            for (String tagName : userTagNames) {
                 Tag tag = tagRepository.findByName(tagName)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
-                
+
                 ContentTag contentTag = ContentTag.builder()
                         .post(post)
                         .tag(tag)
@@ -221,7 +229,10 @@ public class PostServiceImpl implements PostService {
                 contentTagRepository.save(contentTag);
             }
         }
-        
+
+        // 수정 시에도 LLM 태그 자동 추가 (작성자 태그 제외, 비동기)
+        llmTagService.assignTagsToPost(post.getId(), post.getTitle(), post.getBody(), userTagNames);
+
         log.info("Post updated. postId: {}, updatedBy: {}", postId, currentUsername);
         
         // Mentions on update
@@ -359,7 +370,7 @@ public class PostServiceImpl implements PostService {
         }
 
         Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), post.getContentType(), post.getId());
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -376,7 +387,7 @@ public class PostServiceImpl implements PostService {
             Interaction newInteraction = Interaction.builder()
                     .user(user)
                     .targetId(post.getId())
-                    .targetType(post.getContentType())
+                    .targetType("post")
                     .actionType(actionType)
                     .build();
             interactionRepository.save(newInteraction);
@@ -429,7 +440,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), post.getContentType(), post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "post", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
@@ -480,7 +491,7 @@ public class PostServiceImpl implements PostService {
 
         if (currentUser != null) {
             isAuthor = post.getAuthor() != null && post.getAuthor().getId().equals(currentUser.getId());
-            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), post.getContentType(), post.getId());
+            Optional<Interaction> interaction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(currentUser.getId(), "post", post.getId());
             if (interaction.isPresent()) {
                 if ("like".equals(interaction.get().getActionType())) isLiked = true;
                 if ("dislike".equals(interaction.get().getActionType())) isDisliked = true;
