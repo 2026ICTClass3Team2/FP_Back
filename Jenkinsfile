@@ -34,7 +34,6 @@ pipeline {
                     string(credentialsId: 'MAIL_PASSWORD', variable: 'MAIL_PASSWORD'),
                     string(credentialsId: 'REDIS_PASSWORD', variable: 'REDIS_PASSWORD'),
                 ]) {
-
                     sh '''
                        echo "1. Stopping old container..."
                        docker rm -f backend-prod || true
@@ -55,27 +54,28 @@ pipeline {
                          -e JWT_SECRET="${JWT_SECRET}" \\
                          -e MAIL_USERNAME="${MAIL_USERNAME}" \\
                          -e MAIL_PASSWORD="${MAIL_PASSWORD}" \\
-                         -e SPRING_DATA_REDIS_HOST="${AWS_PRIVATE_IP}" \\
+                         -e SPRING_DATA_REDIS_HOST="localhost" \\
                          -e SPRING_DATA_REDIS_PASSWORD="${REDIS_PASSWORD}" \\
-                         -e ELASTICSEARCH_HOST="${AWS_PRIVATE_IP}" \\
+                         -e ELASTICSEARCH_HOST="localhost" \\
                          --name backend-prod \\
                          education-backend:latest
 
                        echo "3. Waiting for Spring Boot to fully start..."
 
-                       # Replaced {1..12} with explicit numbers for Jenkins /bin/sh compatibility
+                       # We wait up to 120 seconds (24 * 5) just in case
                        for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
 
-                           if curl -s http://localhost:8090/api/actuator/health | grep -q "UP"; then
+                           # Use 127.0.0.1 to avoid any DNS or variable masking confusion
+                           if curl -s http://127.0.0.1:8090/api/actuator/health | grep -q "UP"; then
                                echo "✅ Spring Boot is UP and healthy!"
                                exit 0
                            fi
 
-                           echo "⏳ Attempt $i: Still booting... waiting 5 seconds."
+                           echo "⏳ Attempt $i: Still booting..."
                            sleep 5
                        done
 
-                       echo "❌ ERROR: Spring Boot failed to start within 60 seconds!"
+                       echo "❌ ERROR: Spring Boot failed to start!"
                        docker logs backend-prod --tail 50
                        exit 1
                     '''
