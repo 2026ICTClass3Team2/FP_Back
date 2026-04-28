@@ -87,7 +87,7 @@ public class ChatService {
         notificationService.sendNotification(
                 receiver,
                 "chat",
-                NotificationTargetType.user,
+                NotificationTargetType.chat,
                 senderId,
                 sender.getNickname() + "님이 메시지를 보냈습니다."
         );
