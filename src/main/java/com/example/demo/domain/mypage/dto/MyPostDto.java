@@ -24,6 +24,7 @@ public class MyPostDto {
     private Long channelId;
     private String channelName;
     private String channelImageUrl;
+    private boolean isBookmarked;
 
     public static MyPostDto from(Post post) {
         return MyPostDto.builder()
@@ -37,6 +38,7 @@ public class MyPostDto {
                 .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                 .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
                 .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                .isBookmarked(false)
                 .build();
     }
 }

@@ -43,10 +43,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     void increaseViewCount(@Param("postId") Long postId);
 
     @Query("SELECT p FROM Post p " +
+           "LEFT JOIN p.channel ch " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
            "WHERE p.author.id = :authorId AND p.contentType IN :contentTypes AND p.status IN ('active', 'frozen') AND h.id IS NULL AND b.id IS NULL " +
-           "AND (p.channel IS NULL OR p.channel.status = 'active')")
+           "AND (p.channel IS NULL OR ch.status = 'active')")
     Page<Post> findByAuthorIdAndContentTypeIn(@Param("authorId") Long authorId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
     @Query("SELECT p FROM Post p " +
@@ -108,11 +109,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Slice<Post> findSubscribedPostsCursor(@Param("channelIds") List<Long> channelIds, @Param("lastPostId") Long lastPostId, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
     @Query("SELECT p FROM Post p " +
-           "JOIN Bookmark bm ON p.id = bm.targetId " +
+           "LEFT JOIN p.channel ch " +
+           "JOIN Bookmark bm ON p.id = bm.targetId AND bm.targetType = p.contentType " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
            "WHERE bm.user.id = :userId AND p.contentType IN :contentTypes AND p.status IN ('active', 'frozen') AND h.id IS NULL AND b.id IS NULL " +
-           "AND (p.channel IS NULL OR p.channel.status = 'active')")
+           "AND (p.channel IS NULL OR ch.status = 'active')")
     Page<Post> findBookmarkedPostsByUser(@Param("userId") Long userId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
     // ─── 인기 탭: DB에서 점수 기반 정렬 (native SQL) ────────────────────────────

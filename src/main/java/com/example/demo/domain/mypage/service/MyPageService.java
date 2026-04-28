@@ -269,7 +269,6 @@ public class MyPageService {
         Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, user.getId(), pageable);
 
         return postPage.map(post -> {
-            MyPostDto dto = MyPostDto.from(post);
             if ("qna".equals(post.getContentType())) {
                 Qna qna = qnaRepository.findByPostId(post.getId());
                 if (qna != null) {
@@ -285,10 +284,11 @@ public class MyPageService {
                             .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                             .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
                             .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                            .isBookmarked(false)
                             .build();
                 }
             }
-            return dto;
+            return MyPostDto.from(post);
         });
     }
 
@@ -330,7 +330,6 @@ public class MyPageService {
         Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, user.getId(), pageable);
 
         return postPage.map(post -> {
-            MyPostDto dto = MyPostDto.from(post);
             if ("qna".equals(post.getContentType())) {
                 Qna qna = qnaRepository.findByPostId(post.getId());
                 if (qna != null) {
@@ -346,10 +345,23 @@ public class MyPageService {
                             .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                             .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
                             .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                            .isBookmarked(true)
                             .build();
                 }
             }
-            return dto;
+            return MyPostDto.builder()
+                    .id(post.getId())
+                    .contentType(post.getContentType())
+                    .title(post.getTitle())
+                    .likeCount(post.getLikeCount())
+                    .commentCount(post.getCommentCount())
+                    .viewCount(post.getViewCount())
+                    .createdAt(post.getCreatedAt())
+                    .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
+                    .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                    .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                    .isBookmarked(true)
+                    .build();
         });
     }
 
