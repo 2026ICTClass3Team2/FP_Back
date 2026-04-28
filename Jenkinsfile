@@ -64,7 +64,7 @@ pipeline {
 
                        # We wait up to 120 seconds (24 * 5) just in case
                        for i in $(seq 1 60); do
-                           RESPONSE=$(curl -s http://127.0.0.1:8090/api/actuator/health || echo "DOWN")
+                           RESPONSE=$(curl -s http://127.0.0.1:8090/api/actuator/health/liveness || echo "OFFLINE")
 
                            if echo "$RESPONSE" | grep -q "UP"; then
                                echo "✅ Spring Boot is UP and healthy!"
