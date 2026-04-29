@@ -87,9 +87,9 @@ public class AdminPostService {
         }
     }
 
-    // findAll 메서드를 아래와 같이 수정하세요.
+
     public List<Post> findAll() {
-        // 🔴 다시 전체를 다 가져오도록 복구합니다. (상태값 필터링 제거)
+
         return adminPostRepository.findAllByContentTypeOrderByCreatedAtDesc("notice");
     }
     @Transactional
