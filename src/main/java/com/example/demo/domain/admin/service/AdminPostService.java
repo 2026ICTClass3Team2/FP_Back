@@ -3,6 +3,7 @@ package com.example.demo.domain.admin.service;
 import com.example.demo.domain.admin.dto.AdminPostDto;
 import com.example.demo.domain.admin.repository.AdminPostRepository;
 import com.example.demo.domain.content.entity.Post;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,31 +11,46 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
-import java.util.UUID;
 
+@Slf4j
 @Service
 public class AdminPostService {
 
     private final AdminPostRepository adminPostRepository;
-    private final String uploadDir = "./upload-dir";
+    // 경로를 절대 경로로 깔끔하게 관리하기 위해 상수로 선언
+    private final Path rootLocation = Paths.get("upload-dir").toAbsolutePath().normalize();
 
     public AdminPostService(AdminPostRepository adminPostRepository) {
         this.adminPostRepository = adminPostRepository;
+        // 서비스 시작 시 폴더가 없으면 생성
+        try {
+            if (!Files.exists(rootLocation)) {
+                Files.createDirectories(rootLocation);
+            }
+        } catch (IOException e) {
+            log.error("Could not initialize storage", e);
+        }
     }
 
     @Transactional
     public void save(AdminPostDto dto) {
         String savedFileName = null;
-        // 🔴 MultipartFile 필드명이 DTO와 일치하는지 확인 필수
         if (dto.getFile() != null && !dto.getFile().isEmpty()) {
             savedFileName = saveFileToDisk(dto.getFile());
         }
 
         Post post = Post.builder()
-                .title(dto.getTitle()).body(dto.getBody()).tag(dto.getTag())
-                .authorName("관리자").contentType("notice").sourceType("internal")
-                .status(dto.isVisible() ? "active" : "hidden").viewCount(0)
-                .fileName(savedFileName).fileUrl(dto.getFileUrl()).build();
+                .title(dto.getTitle()) // 사용자가 입력한 제목 그대로 저장
+                .body(dto.getBody())
+                .tag(dto.getTag())
+                .authorName("관리자")
+                .contentType("notice")
+                .sourceType("internal")
+                .status(dto.isVisible() ? "active" : "hidden")
+                .viewCount(0)
+                .fileName(savedFileName) // 원본 파일명이 저장됨
+                .fileUrl(dto.getFileUrl())
+                .build();
         adminPostRepository.save(post);
     }
 
@@ -54,28 +70,35 @@ public class AdminPostService {
 
     private String saveFileToDisk(MultipartFile file) {
         try {
-            Path root = Paths.get(uploadDir);
-            if (!Files.exists(root)) Files.createDirectories(root);
-
-            // 🔴 UUID를 사용하여 파일명 충돌 및 특수문자 500 에러 방지
+            // 🔴 UUID를 제거하고 원본 파일명을 사용합니다.
             String originalFilename = file.getOriginalFilename();
-            String extension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            String cleanFileName = UUID.randomUUID().toString() + extension;
+            if (originalFilename == null) return null;
 
-            Path filePath = root.resolve(cleanFileName);
-            file.transferTo(filePath.toFile());
-            return cleanFileName;
+            Path targetLocation = rootLocation.resolve(originalFilename);
+
+            // 동일 파일명 존재 시 덮어쓰기 (중복 방지가 필요하면 다시 UUID를 써야 하지만 제목 깨짐 방지를 위해 우선 원본 유지)
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+            log.info("File stored successfully: {}", originalFilename);
+            return originalFilename;
         } catch (IOException e) {
-            throw new RuntimeException("파일 저장 중 서버 내부 오류 발생: " + e.getMessage());
+            log.error("Could not store file. Error: {}", e.getMessage());
+            throw new RuntimeException("파일 저장 실패!", e);
         }
     }
 
-    public List<Post> findAll() { return adminPostRepository.findAllByContentTypeOrderByCreatedAtDesc("notice"); }
-    @Transactional public void delete(Long id) { adminPostRepository.deleteById(id); }
-    @Transactional public Post incrementView(Long id) {
+    // findAll 메서드를 아래와 같이 수정하세요.
+    public List<Post> findAll() {
+        // 🔴 다시 전체를 다 가져오도록 복구합니다. (상태값 필터링 제거)
+        return adminPostRepository.findAllByContentTypeOrderByCreatedAtDesc("notice");
+    }
+    @Transactional
+    public void delete(Long id) {
+        adminPostRepository.deleteById(id);
+    }
+
+    @Transactional
+    public Post incrementView(Long id) {
         Post post = adminPostRepository.findById(id).orElseThrow();
         post.setViewCount((post.getViewCount() == null ? 0 : post.getViewCount()) + 1);
         return post;

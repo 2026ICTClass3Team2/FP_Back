@@ -53,7 +53,6 @@ public class JWTCheckFilter extends OncePerRequestFilter {
            path.startsWith("/api/member/check-") ||
            path.startsWith("/api/member/email/") ||
            path.startsWith("/api/member/password/") ||
-           path.startsWith("/api/admin/notice") ||
            path.startsWith("/api/member/oauth/setup-username/") || // 비밀번호 찾기/재설정 — 토큰 없이 접근
            path.startsWith("/api/tags/") || // 태그 검색 — 공개 엔드포인트
 
