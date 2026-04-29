@@ -69,4 +69,17 @@ public class ChatController {
         chatService.markAsRead(memberDTO.getId(), partnerId);
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * 특정 대화방을 목록에서 숨깁니다 (나가기).
+     * @param partnerId 대화 상대방 ID
+     */
+    @DeleteMapping("/conversations/{partnerId}")
+    public ResponseEntity<Void> hideConversation(
+            @AuthenticationPrincipal MemberDTO memberDTO,
+            @PathVariable Long partnerId
+    ) {
+        chatService.hideConversation(memberDTO.getId(), partnerId);
+        return ResponseEntity.ok().build();
+    }
 }
