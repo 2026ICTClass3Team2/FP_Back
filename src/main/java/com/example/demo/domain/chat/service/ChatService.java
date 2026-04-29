@@ -2,7 +2,9 @@ package com.example.demo.domain.chat.service;
 
 import com.example.demo.domain.chat.dto.ChatMessageDto;
 import com.example.demo.domain.chat.dto.ConversationSummaryDto;
+import com.example.demo.domain.chat.entity.ChatHidden;
 import com.example.demo.domain.chat.entity.ChatMessage;
+import com.example.demo.domain.chat.repository.ChatHiddenRepository;
 import com.example.demo.domain.chat.repository.ChatRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
@@ -14,7 +16,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +37,7 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final ChatRepository chatRepository;
+    private final ChatHiddenRepository chatHiddenRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
 
@@ -114,15 +120,23 @@ public class ChatService {
 
     /**
      * 내가 참여한 대화 목록(최근 메시지 포함)을 가져옵니다.
+     * 나가기 처리된 대화방은 새 메시지가 없으면 목록에서 제외됩니다.
      */
     @Transactional(readOnly = true)
     public List<ConversationSummaryDto> getConversations(Long myId) {
         List<ChatMessage> lastMessages = chatRepository.findRecentConversations(myId);
 
+        // 내가 숨긴 대화방의 hiddenAt 시각을 파트너 ID 기준으로 매핑
+        Map<Long, LocalDateTime> hiddenMap = chatHiddenRepository.findByUserId(myId).stream()
+                .collect(Collectors.toMap(ChatHidden::getPartnerId, ChatHidden::getHiddenAt));
+
         return lastMessages.stream().map(msg -> {
-            // 상대방 찾기 (내가 송신자면 수신자가 상대방, 내가 수신자면 송신자가 상대방)
             User partner = msg.getSender().getId().equals(myId) ? msg.getReceiver() : msg.getSender();
-            
+
+            // hiddenAt 이후 새 메시지가 없으면 목록에서 제외
+            LocalDateTime hiddenAt = hiddenMap.get(partner.getId());
+            if (hiddenAt != null && !msg.getCreatedAt().isAfter(hiddenAt)) return null;
+
             long unreadCount = chatRepository.countByConversationIdAndReceiverIdAndIsReadFalse(
                     msg.getConversationId(), myId);
 
@@ -135,6 +149,19 @@ public class ChatService {
                     msg.getCreatedAt(),
                     unreadCount
             );
-        }).collect(Collectors.toList());
+        }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /**
+     * 특정 대화방을 목록에서 숨깁니다. 이후 새 메시지가 오면 자동으로 다시 표시됩니다.
+     */
+    @Transactional
+    public void hideConversation(Long myId, Long partnerId) {
+        chatHiddenRepository.deleteByUserIdAndPartnerId(myId, partnerId);
+        chatHiddenRepository.save(ChatHidden.builder()
+                .userId(myId)
+                .partnerId(partnerId)
+                .build());
+        log.info("[Chat] Conversation hidden. userId={}, partnerId={}", myId, partnerId);
     }
 }
