@@ -78,8 +78,12 @@ dependencies {
 
     //Elastic Search용
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
-
+    //health check(Jenkins)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    //prometheus(monitor)
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    //loki log api
+    implementation 'com.github.loki4j:loki-logback-appender:1.5.1'
 }
 
 clean {
