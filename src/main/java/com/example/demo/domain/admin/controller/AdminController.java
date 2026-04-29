@@ -10,7 +10,9 @@ import com.example.demo.domain.channel.entity.Channel;
 import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.content.entity.ContentTag;
 import com.example.demo.domain.content.entity.Post;
+import com.example.demo.domain.content.entity.Tag;
 import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.domain.user.entity.User;
@@ -42,6 +44,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final PostRepository postRepository;
+    private final TagRepository tagRepository;
     private final PostSearchRepository postSearchRepository;
     private final UserRepository userRepository;
     private final ChannelRepository channelRepository;
@@ -205,5 +208,30 @@ public class AdminController {
     public ResponseEntity<?> markSuggestionAsSeen(@PathVariable Long suggestionId) {
         adminService.markSuggestionAsSeen(suggestionId);
         return ResponseEntity.ok(Map.of("message", "Suggestion marked as seen"));
+    }
+
+    @GetMapping("/tags")
+    public ResponseEntity<List<Map<String, Object>>> getAllTags() {
+        List<Map<String, Object>> tags = tagRepository.findAll().stream()
+                .map(t -> Map.<String, Object>of("id", t.getId(), "name", t.getName()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(tags);
+    }
+
+    @PostMapping("/tags")
+    public ResponseEntity<?> createTag(@RequestBody Map<String, String> body) {
+        String name = body.getOrDefault("name", "").trim();
+        if (name.isBlank()) return ResponseEntity.badRequest().body(Map.of("message", "태그 이름을 입력하세요."));
+        if (name.length() > 50) return ResponseEntity.badRequest().body(Map.of("message", "태그 이름은 50자 이하여야 합니다."));
+        if (tagRepository.findByName(name).isPresent()) return ResponseEntity.badRequest().body(Map.of("message", "이미 존재하는 태그입니다."));
+        Tag saved = tagRepository.save(Tag.builder().name(name).build());
+        return ResponseEntity.ok(Map.of("id", saved.getId(), "name", saved.getName()));
+    }
+
+    @DeleteMapping("/tags/{tagId}")
+    public ResponseEntity<?> deleteTag(@PathVariable Long tagId) {
+        if (!tagRepository.existsById(tagId)) return ResponseEntity.notFound().build();
+        tagRepository.deleteById(tagId);
+        return ResponseEntity.ok(Map.of("message", "Tag deleted"));
     }
 }
