@@ -93,30 +93,32 @@ public class CommentService {
         }
 
         // --- Notification Logic ---
-        if (parent != null) {
-            // It's a reply: notify the parent comment author
-            if (parent.getAuthor() != null && !parent.getAuthor().getId().equals(user.getId())) {
-                String message = "댓글에 새로운 답글이 달렸습니다: " + user.getNickname();
-                notificationService.sendNotification(
-                    parent.getAuthor(), 
-                    "new reply", 
-                    NotificationTargetType.comment, 
-                    savedComment.getId(), 
-                    message
-                );
+        try {
+            if (parent != null) {
+                if (parent.getAuthor() != null && !parent.getAuthor().getId().equals(user.getId())) {
+                    String message = "댓글에 새로운 답글이 달렸습니다: " + user.getNickname();
+                    notificationService.sendNotification(
+                        parent.getAuthor(),
+                        "new reply",
+                        NotificationTargetType.comment,
+                        savedComment.getId(),
+                        message
+                    );
+                }
+            } else {
+                if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                    String message = "게시글에 새로운 댓글이 달렸습니다: " + user.getNickname();
+                    notificationService.sendNotification(
+                        post.getAuthor(),
+                        "new comment",
+                        NotificationTargetType.comment,
+                        savedComment.getId(),
+                        message
+                    );
+                }
             }
-        } else {
-            // It's a root comment: notify the post author
-            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
-                String message = "게시글에 새로운 댓글이 달렸습니다: " + user.getNickname();
-                notificationService.sendNotification(
-                    post.getAuthor(), 
-                    "new comment", 
-                    NotificationTargetType.comment, 
-                    savedComment.getId(), 
-                    message
-                );
-            }
+        } catch (Exception e) {
+            log.warn("알림 전송 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
         }
 
         // Mention Detection
@@ -132,13 +134,17 @@ public class CommentService {
             userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
                 if (!mentionedUser.getId().equals(user.getId())) {
                     String message = user.getNickname() + "님이 댓글에서 당신을 언급했습니다";
-                    notificationService.sendNotification(
-                        mentionedUser,
-                        "mention",
-                        NotificationTargetType.comment,
-                        savedComment.getId(),
-                        message
-                    );
+                    try {
+                        notificationService.sendNotification(
+                            mentionedUser,
+                            "mention",
+                            NotificationTargetType.comment,
+                            savedComment.getId(),
+                            message
+                        );
+                    } catch (Exception e) {
+                        log.warn("멘션 알림 전송 실패: commentId={}, nickname={}, 오류={}", savedComment.getId(), nickname, e.getMessage());
+                    }
                 }
             });
         }
