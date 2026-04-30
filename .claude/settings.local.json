@@ -30,7 +30,8 @@
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"DESCRIBE hidden;\" 2>&1 | Select-String -NotMatch \"Warning\")",
       "Bash(node -e ' *)",
       "Bash(./gradlew clean *)",
-      "Bash(./mvnw.cmd compile *)"
+      "Bash(./mvnw.cmd compile *)",
+      "Bash(xargs find *)"
     ]
   }
 }

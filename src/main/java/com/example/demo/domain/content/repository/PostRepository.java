@@ -44,11 +44,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p " +
            "LEFT JOIN p.channel ch " +
-           "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
+           "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND " +
+            "h.user.id = :currentUserId " +
            "LEFT JOIN Block b ON b.blocked.id = p.author.id AND b.blocker.id = :currentUserId " +
-           "WHERE p.author.id = :authorId AND p.contentType IN :contentTypes AND p.status IN ('active', 'frozen') AND h.id IS NULL AND b.id IS NULL " +
+           "WHERE p.author.id = :authorId AND p.contentType IN :contentTypes AND " +
+            "p.status IN ('active', 'frozen') AND " +
+            "h.id IS NULL AND b.id IS NULL " +
            "AND (p.channel IS NULL OR ch.status = 'active')")
-    Page<Post> findByAuthorIdAndContentTypeIn(@Param("authorId") Long authorId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
+    Page<Post> findByAuthorIdAndContentTypeIn(@Param("authorId") Long authorId,
+                                              @Param("contentTypes") List<String> contentTypes,
+                                              @Param("currentUserId")
+                                              Long currentUserId, Pageable pageable);
 
     @Query("SELECT p FROM Post p " +
            "LEFT JOIN Hidden h ON h.targetId = p.id AND h.targetType = p.contentType AND h.user.id = :currentUserId " +
@@ -118,7 +124,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findBookmarkedPostsByUser(@Param("userId") Long userId, @Param("contentTypes") List<String> contentTypes, @Param("currentUserId") Long currentUserId, Pageable pageable);
 
     // ─── 인기 탭: DB에서 점수 기반 정렬 (native SQL) ────────────────────────────
-
     @Query(value =
         "SELECT p.* FROM post p " +
         "LEFT JOIN hidden h ON h.target_id = p.post_id AND h.user_id = :userId " +

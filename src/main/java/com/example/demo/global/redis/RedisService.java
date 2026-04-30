@@ -69,8 +69,12 @@ public class RedisService {
     public void setBlackList(String accessToken, long durationMillis) {
         redisTemplate.opsForValue().set(
                 "BKLST:" + accessToken,
-                "logout", // 값은 중요하지 않음, 키의 존재 여부가 중요
+                "logout",
                 Duration.ofMillis(durationMillis)
         );
+    }
+
+    public boolean isBlackListed(String accessToken) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey("BKLST:" + accessToken));
     }
 }

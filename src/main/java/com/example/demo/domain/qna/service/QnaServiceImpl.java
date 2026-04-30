@@ -53,15 +53,12 @@ public class QnaServiceImpl implements QnaService {
     public void createQna(QnaCreateRequestDto qnaCreateRequestDto, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
         int rewardPoints = qnaCreateRequestDto.getRewardPoints();
         if (rewardPoints > user.getCurrentPoint()) {
             throw new IllegalArgumentException("보유한 포인트보다 많은 포인트를 걸 수 없습니다.");
         }
-
         user.setCurrentPoint(user.getCurrentPoint() - rewardPoints);
         userRepository.save(user);
-
         Post post = Post.builder()
                 .title(qnaCreateRequestDto.getTitle())
                 .body(qnaCreateRequestDto.getBody())
@@ -69,13 +66,11 @@ public class QnaServiceImpl implements QnaService {
                 .author(user)
                 .build();
         Post savedPost = postRepository.save(post);
-
         Qna qna = Qna.builder()
                 .post(savedPost)
                 .rewardPoints(rewardPoints)
                 .build();
         Qna savedQna = qnaRepository.save(qna);
-
         if (rewardPoints > 0) {
             PointTransaction transaction = PointTransaction.builder()
                     .user(user)
@@ -130,24 +125,18 @@ public class QnaServiceImpl implements QnaService {
     public void updateQna(Long qnaId, QnaCreateRequestDto qnaCreateRequestDto, String email) {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
-
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
         Post post = qna.getPost();
-        
         if (!"active".equals(post.getStatus())) {
             throw new IllegalArgumentException("이 질문은 수정할 수 없는 상태입니다. (동결 또는 삭제)");
         }
-        
         if (post.getAuthor() == null || !post.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("Not authorized to update this post");
         }
-
         int oldRewardPoints = qna.getRewardPoints();
         int newRewardPoints = qnaCreateRequestDto.getRewardPoints();
         int pointDifference = newRewardPoints - oldRewardPoints;
-
         if (pointDifference > 0) {
             if (pointDifference > user.getCurrentPoint()) {
                 throw new IllegalArgumentException("보유한 포인트보다 많은 포인트를 걸 수 없습니다.");
@@ -217,54 +206,39 @@ public class QnaServiceImpl implements QnaService {
     public void acceptAnswer(Long qnaId, Long commentId, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
-
         if (!qna.getPost().getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("질문 작성자만 답변을 채택할 수 있습니다.");
         }
-
         if (!"active".equals(qna.getPost().getStatus())) {
             throw new IllegalArgumentException("동결되거나 삭제된 질문에서는 답변을 채택할 수 없습니다.");
         }
-
         if (qna.isSolved()) {
             throw new IllegalArgumentException("이미 채택된 질문입니다.");
         }
-
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
-
-        // 채택할 댓글이 해당 QnA 게시글에 속하는지 확인합니다.
-        // 이 검사가 없으면 다른 게시글의 댓글 ID를 전달해 잘못된 포인트 지급이나
-        // 엉뚱한 알림 전송이 발생할 수 있습니다.
         if (!comment.getPost().getId().equals(qna.getPost().getId())) {
             throw new IllegalArgumentException("해당 QnA에 속하지 않는 댓글은 채택할 수 없습니다.");
         }
-
-        // 루트 댓글(최상위 댓글)만 채택할 수 있습니다. 대댓글은 채택 대상이 아닙니다.
         if (comment.getParent() != null) {
             throw new IllegalArgumentException("대댓글은 답변으로 채택할 수 없습니다.");
         }
-
         if (comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("자신의 답변은 채택할 수 없습니다.");
         }
-
-        // 1. Update states
+        // 1. 상태 일괄 변경
         qna.setSolved(true);
         qna.setAnswerId(comment);
         qnaRepository.save(qna);
-
         Post post = qna.getPost();
         post.setIsSolved(true);
         postRepository.save(post);
-
         comment.setIsAnswer(true);
         commentRepository.save(comment);
 
-        // 2. Give points to the comment author
+        // 2. 포인트 지급 + 내역 기록 + 알림
         if (qna.getRewardPoints() > 0 && comment.getAuthor() != null) {
             User commentAuthor = comment.getAuthor();
             commentAuthor.setCurrentPoint(commentAuthor.getCurrentPoint() + qna.getRewardPoints());
@@ -278,12 +252,8 @@ public class QnaServiceImpl implements QnaService {
                     .pointBalance(commentAuthor.getCurrentPoint())
                     .build();
             pointTransactionRepository.save(transaction);
-
-            // Notify about points
             notificationService.sendNotification(commentAuthor, "point", NotificationTargetType.system, comment.getId(), "답변 채택으로 포인트가 적립되었습니다: +" + qna.getRewardPoints());
         }
-
-        // 3. Notify about selection (Always)
         if (comment.getAuthor() != null) {
             notificationService.sendNotification(comment.getAuthor(), "qna selected", NotificationTargetType.comment, comment.getId(), "작성하신 댓글이 답변으로 채택되었습니다!");
         }
@@ -294,7 +264,6 @@ public class QnaServiceImpl implements QnaService {
     public Page<QnaCardResponseDto> getQnaList(String query, String sort, String status, int page, int size, String email) {
         Pageable pageable = PageRequest.of(page, size);
         Page<QnaCardResponseDto> results = qnaRepository.findQnaList(query, sort, status, pageable);
-        
         if (email != null) {
             User user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {

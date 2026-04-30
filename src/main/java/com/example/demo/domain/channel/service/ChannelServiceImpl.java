@@ -69,29 +69,25 @@ public class ChannelServiceImpl implements ChannelService {
 
     @Override
     @Transactional
-    public Long createChannel(String channelName, String description, MultipartFile image, List<String> techStacks, String currentUsername) {
+    public Long createChannel(String channelName, String description, MultipartFile image,
+                              List<String> techStacks, String currentUsername) {
         User owner = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
         String imageUrl = null;
         if (image != null && !image.isEmpty()) {
             imageUrl = uploadImageToS3(image);
         }
-
         Channel channel = Channel.builder()
                 .name(channelName)
                 .description(description)
                 .imageUrl(imageUrl)
                 .owner(owner)
                 .build();
-
         Channel savedChannel = channelRepository.save(channel);
-
         if (techStacks != null && !techStacks.isEmpty()) {
             for (String techName : techStacks) {
                 Tag tag = tagRepository.findByName(techName)
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(techName).build()));
-
                 ChannelTag channelTag = ChannelTag.builder()
                         .channel(savedChannel)
                         .tag(tag)
@@ -99,7 +95,6 @@ public class ChannelServiceImpl implements ChannelService {
                 channelTagRepository.save(channelTag);
             }
         }
-
         log.info("Channel created. channelId: {}, owner: {}", savedChannel.getId(), currentUsername);
         return savedChannel.getId();
     }
@@ -150,7 +145,6 @@ public class ChannelServiceImpl implements ChannelService {
     public List<ChannelSummaryDto> getSubscribedChannels(String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
         return followRepository.findByUser_IdAndTargetType(user.getId(), TARGET_TYPE_CHANNEL)
                 .stream()
                 .map(follow -> channelRepository.findById(follow.getTargetId()).orElse(null))
@@ -167,7 +161,9 @@ public class ChannelServiceImpl implements ChannelService {
 
         List<Long> blockedIds = currentUsername == null ? List.of()
                 : userRepository.findByEmail(currentUsername)
-                        .map(user -> hiddenRepository.findTargetIdsByUserIdAndTargetType(user.getId(), HiddenTargetType.channel))
+                        .map(user -> hiddenRepository.
+                                     findTargetIdsByUserIdAndTargetType(user.getId(),
+                                             HiddenTargetType.channel))
                         .orElse(List.of());
 
         if (blockedIds.isEmpty()) return raw;
