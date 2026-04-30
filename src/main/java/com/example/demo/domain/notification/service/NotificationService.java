@@ -17,10 +17,9 @@ import com.example.demo.global.websocket.NotificationWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.context.annotation.Lazy;
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -41,15 +40,12 @@ public class NotificationService {
     // 순환 의존성 가능성을 방지하고 컨텍스트 초기화 순서 문제를 피하기 위함입니다.
     private final @Lazy NotificationWebSocketHandler notificationWebSocketHandler;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
         // Check user settings
         NotificationSetting setting = notificationSettingRepository.findById(receiver.getId())
                 .orElseGet(() -> {
-                    NotificationSetting newSetting = NotificationSetting.builder()
-                            .user(receiver)
-                            .userId(receiver.getId())  // explicit — @MapsId may not resolve proxy ID correctly
-                            .build();
+                    NotificationSetting newSetting = NotificationSetting.builder().user(receiver).build();
                     return notificationSettingRepository.save(newSetting);
                 });
 
