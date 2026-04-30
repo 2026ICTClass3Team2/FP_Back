@@ -121,7 +121,7 @@ public class CommentService {
 
         // Mention Detection
         String plainContent = requestDto.getContent().replaceAll("<[^>]*>", "");
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([가-힣a-zA-Z0-9]{2,10})");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([가-힣a-zA-Z0-9._-]{2,50})");
         java.util.regex.Matcher matcher = pattern.matcher(plainContent);
         java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
         while (matcher.find()) {
