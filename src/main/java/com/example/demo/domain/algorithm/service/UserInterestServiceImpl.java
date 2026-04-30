@@ -27,9 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @RequiredArgsConstructor
 public class UserInterestServiceImpl implements UserInterestService {
-
     private static final double DAILY_DECAY = 0.9;
-
     private static final double DELTA_VIEW = 0.3;
     private static final double DELTA_LIKE = 3.0;
     private static final double DELTA_DISLIKE = 2.0;
@@ -39,7 +37,6 @@ public class UserInterestServiceImpl implements UserInterestService {
     private static final double DELTA_NOT_INTERESTED = 5.0;
     private static final double DELTA_POST_WRITE = 5.0;
     private static final double DELTA_CHANNEL_SUBSCRIBE = 3.0;
-
     private static final Duration DEDUP_VIEW    = Duration.ofHours(1);
     private static final Duration DEDUP_COMMENT = Duration.ofHours(1);
     private static final Duration DEDUP_SHARE   = Duration.ofHours(1);
@@ -168,11 +165,6 @@ public class UserInterestServiceImpl implements UserInterestService {
         applyDeltaToChannelTags(userId, channelId, -DELTA_CHANNEL_SUBSCRIBE);
     }
 
-    /**
-     * 인메모리 캐시로 중복 행동 방지.
-     * 동일 (type, userId, postId) 조합이 window 내에 이미 존재하면 true(스킵).
-     * 최초 또는 window 만료 시 캐시를 갱신하고 false 반환.
-     */
     private boolean isDuplicateCached(Long userId, Long postId, String type, Duration window) {
         String key = type + ":" + userId + ":" + postId;
         LocalDateTime now = LocalDateTime.now();
@@ -203,7 +195,6 @@ public class UserInterestServiceImpl implements UserInterestService {
     private void updateInterest(User user, Tag tag, double delta) {
         Optional<Interest> existing = interestRepository.findByUserAndTag(user, tag);
         LocalDateTime now = LocalDateTime.now();
-
         if (existing.isPresent()) {
             Interest interest = existing.get();
             long days = ChronoUnit.DAYS.between(interest.getLastInteractionAt(), now);
@@ -222,5 +213,4 @@ public class UserInterestServiceImpl implements UserInterestService {
             }
         }
     }
-
 }

@@ -83,21 +83,17 @@ public class FavoriteService {
     public Slice<PostFeedResponseDto> getFavoritesFeed(String currentEmail, Long lastPostId, int size) {
         User currentUser = userRepository.findByEmail(currentEmail)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
         List<Long> authorIds = followRepository.findByUser_IdAndTargetType(currentUser.getId(), TARGET_TYPE)
                 .stream()
                 .map(Follow::getTargetId)
                 .collect(Collectors.toList());
-
         if (authorIds.isEmpty()) {
             return new SliceImpl<>(java.util.Collections.emptyList());
         }
-
         PageRequest pageRequest = PageRequest.of(0, size);
         Slice<Post> postSlice = (lastPostId == null)
                 ? postRepository.findFavoritesFeedFirstPage(authorIds, currentUser.getId(), pageRequest)
                 : postRepository.findFavoritesFeedCursor(authorIds, lastPostId, currentUser.getId(), pageRequest);
-
         return postSlice.map(post -> convertToDto(post, currentUser));
     }
 

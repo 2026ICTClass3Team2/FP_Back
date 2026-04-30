@@ -59,12 +59,10 @@ public class MyPageService {
     public MyPageProfileResponseDto getProfile(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
         List<String> techStacks = interestRepository.findByUserIdAndIsProfileTagTrue(user.getId())
                 .stream()
                 .map(interest -> interest.getTag().getName())
                 .collect(Collectors.toList());
-
         return MyPageProfileResponseDto.builder()
                 .userId(user.getId())
                 .profilePicUrl(user.getProfilePicUrl())

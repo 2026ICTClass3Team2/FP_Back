@@ -45,13 +45,11 @@ public class UserService {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
-        
         // username 중복 체크
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         }
-
-        // 1. 유저 저장
+        // 유저 저장
         User user = User.builder()
                 .email(email)
                 .username(username)
@@ -63,13 +61,12 @@ public class UserService {
                 .build();
                 
         User savedUser = userRepository.save(user);
-
-        // 1.5. 알림 설정 초기화
+        // 알림 설정 초기화
         notificationSettingRepository.save(NotificationSetting.builder()
                 .user(savedUser)
                 .build());
 
-        // 2. 관심사 저장 (선택 입력)
+        // 관심사 저장 (선택 입력)
         List<String> techStacks = userJoinDTO.getTechStacks();
         if (techStacks != null && !techStacks.isEmpty()) {
             for (String stackName : techStacks) {
@@ -123,14 +120,11 @@ public class UserService {
     public void sendPasswordResetEmail(String email) throws MessagingException {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다."));
-
         if (user.getProvider() != Provider.local) {
             throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호 찾기를 이용할 수 없습니다.");
         }
-
         String token = UUID.randomUUID().toString();
         redisService.savePasswordResetToken(token, email);
-
         String resetLink = frontendUrl + "/reset-password?token=" + token;
         mailService.sendPasswordResetEmail(email, resetLink);
     }
@@ -147,14 +141,11 @@ public class UserService {
         if (email == null) {
             throw new IllegalArgumentException("비밀번호 재설정 링크가 만료되었거나 유효하지 않습니다.");
         }
-
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
-
         if (user.getProvider() != Provider.local) {
             throw new IllegalArgumentException("소셜 로그인 계정은 비밀번호를 변경할 수 없습니다.");
         }
-
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         redisService.deletePasswordResetToken(token); // 일회성 토큰 삭제
