@@ -47,13 +47,6 @@ public class ChatController {
     public ResponseEntity<List<ConversationSummaryDto>> getConversations(
             @AuthenticationPrincipal MemberDTO memberDTO
     ) {
-        // MemberDTO에 getId()가 없으면 memberDTO.getEmail()로 조회하거나,
-        // MemberDTO를 수정하여 id를 포함하게 해야 합니다.
-        // 현재 MemberDTO 구조를 확인했을 때 User를 상속받고 있으나 id 필드는 보이지 않습니다.
-        // 보통 MemberDTO 생성 시 id를 넘겨받도록 설계되어 있을 것입니다.
-        // 여기서는 memberDTO.getId()가 있다고 가정하거나, 이메일로 서비스를 호출합니다.
-        // (UserRepository findByEmail은 이미 존재함)
-        // 일단 id가 있다고 가정하고 작성합니다. 만약 없다면 UserDetails 조회 로직이 필요합니다.
         return ResponseEntity.ok(chatService.getConversations(memberDTO.getId()));
     }
 

@@ -1,5 +1,6 @@
 package com.example.demo.domain.comment.service;
 
+import com.example.demo.domain.algorithm.service.UserInterestService;
 import com.example.demo.domain.comment.dto.CommentRequestDto;
 import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.entity.Comment;
@@ -8,6 +9,8 @@ import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
+import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.report.enums.HiddenTargetType;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
@@ -39,8 +42,8 @@ public class CommentService {
     private final InteractionRepository interactionRepository;
     private final BlockRepository blockRepository;
     private final HiddenRepository hiddenRepository;
-    private final com.example.demo.domain.notification.service.NotificationService notificationService;
-    private final com.example.demo.domain.algorithm.service.UserInterestService userInterestService;
+    private final NotificationService notificationService;
+    private final UserInterestService userInterestService;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -97,7 +100,7 @@ public class CommentService {
                 notificationService.sendNotification(
                     parent.getAuthor(), 
                     "new reply", 
-                    com.example.demo.domain.notification.entity.NotificationTargetType.comment, 
+                    NotificationTargetType.comment, 
                     savedComment.getId(), 
                     message
                 );
@@ -109,7 +112,7 @@ public class CommentService {
                 notificationService.sendNotification(
                     post.getAuthor(), 
                     "new comment", 
-                    com.example.demo.domain.notification.entity.NotificationTargetType.comment, 
+                    NotificationTargetType.comment, 
                     savedComment.getId(), 
                     message
                 );
@@ -118,7 +121,7 @@ public class CommentService {
 
         // Mention Detection
         String plainContent = requestDto.getContent().replaceAll("<[^>]*>", "");
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([가-힣a-zA-Z0-9]{2,10})");
         java.util.regex.Matcher matcher = pattern.matcher(plainContent);
         java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
         while (matcher.find()) {
@@ -132,7 +135,7 @@ public class CommentService {
                     notificationService.sendNotification(
                         mentionedUser,
                         "mention",
-                        com.example.demo.domain.notification.entity.NotificationTargetType.comment,
+                        NotificationTargetType.comment,
                         savedComment.getId(),
                         message
                     );
