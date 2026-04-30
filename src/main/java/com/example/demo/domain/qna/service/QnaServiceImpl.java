@@ -96,7 +96,7 @@ public class QnaServiceImpl implements QnaService {
         if (post.getBody() == null) return;
         
         String plainContent = post.getBody().replaceAll("<[^>]*>", "");
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([가-힣a-zA-Z0-9._-]{2,50})");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([가-힣a-zA-Z0-9]{2,10})");
         java.util.regex.Matcher matcher = pattern.matcher(plainContent);
         java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
         
