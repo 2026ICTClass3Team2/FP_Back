@@ -159,7 +159,6 @@ public class NotificationService {
     public void markAllTargetTypeAsRead(User user, NotificationTargetType targetType) {
         notificationRepository.markAllTargetTypeNotificationsAsRead(user.getId(), targetType);
     }
-
     public List<NotificationResponseDto> getNotifications(String email, String filter) {
         User user = userRepository.findByEmail(email).orElseThrow();
         List<Notification> notifications;

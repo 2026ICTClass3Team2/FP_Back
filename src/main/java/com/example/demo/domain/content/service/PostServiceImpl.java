@@ -121,13 +121,13 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        // 항상 LLM 태그 자동 추가 (작성자가 이미 붙인 태그 제외, 비동기)
-        // onPostWrite는 LlmTagService 내부에서 LLM 태그 저장 완료 후 호출됨 (user+LLM 전체 태그 반영)
-        llmTagService.assignTagsToPost(savedPost.getId(), savedPost.getTitle(), savedPost.getBody(), userTagNames, user.getId());
+        llmTagService.assignTagsToPost(savedPost.getId(), savedPost.getTitle(), savedPost.getBody(),
+                userTagNames, user.getId());
 
         // --- Notification Logic ---
         // 1. Channel Subscribers
-        List<Follow> channelFollowers = followRepository.findByTargetIdAndTargetType(channel.getId(), "channel");
+        List<Follow> channelFollowers = followRepository.
+                findByTargetIdAndTargetType(channel.getId(), "channel");
         for (Follow follow : channelFollowers) {
             User follower = follow.getUser();
             if (!follower.getId().equals(user.getId())) {
@@ -143,7 +143,8 @@ public class PostServiceImpl implements PostService {
         }
 
         // 2. User Followers
-        List<Follow> userFollowers = followRepository.findByTargetIdAndTargetType(user.getId(), "user");
+        List<Follow> userFollowers = followRepository.
+                findByTargetIdAndTargetType(user.getId(), "user");
         for (Follow follow : userFollowers) {
             User follower = follow.getUser();
             String message = "팔로우하신 " + user.getNickname() + "님이 새로운 게시글을 올렸습니다.";
@@ -260,7 +261,6 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Object getFeedByTab(FeedTab tab, Long lastPostId, int page, int size, String currentUsername) {
         User currentUser = resolveUser(currentUsername);
-
         return switch (tab) {
             case LATEST -> getPostsFeed("LATEST", lastPostId, null, size, currentUsername);
             case POPULAR -> getPopularFeed(page, size, currentUser);
@@ -357,16 +357,13 @@ public class PostServiceImpl implements PostService {
                     .sum();
             interestScore = tagSum / tags.size();
         }
-
-        // 인기도 점수 (100으로 정규화)
+        // 인기도 점수
         double rawPop = post.getLikeCount() * 2.0 + post.getCommentCount() * 3.0
                 + post.getBookmarkCount() * 4.0 + post.getViewCount() * 0.1;
         double popularityScore = Math.min(rawPop / 100.0, 10.0);
-
         // 최신성 점수: 경과 시간이 길수록 감소
         double ageHours = ChronoUnit.HOURS.between(post.getCreatedAt(), LocalDateTime.now());
         double recencyScore = 1.0 / (1.0 + ageHours / 24.0);
-
         return interestScore * 0.4 + popularityScore * 0.3 + recencyScore * 0.3;
     }
 

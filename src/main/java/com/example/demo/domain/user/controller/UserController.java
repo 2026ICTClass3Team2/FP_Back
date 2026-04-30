@@ -209,32 +209,26 @@ public class UserController {
         try {
             Claims claims = jwtUtil.validateToken(refreshToken);
             String email = claims.get("email", String.class);
-
             String savedRefreshToken = redisService.getRefreshToken(email);
             if (savedRefreshToken == null || !savedRefreshToken.equals(refreshToken)) {
                 throw new CustomJWTException("INVALID_REFRESH_TOKEN");
             }
-
             Map<String, Object> newClaims = new HashMap<>();
             newClaims.put("email", email);
             if (claims.get("roleName") != null) {
                 newClaims.put("roleName", claims.get("roleName"));
             }
-
             String newAccessToken = jwtUtil.generateToken(newClaims, 30);
 
-            long expTime = claims.getExpiration().getTime();
-            long now = System.currentTimeMillis();
-            if (expTime - now < 1000 * 60 * 60 * 24) { 
-                String newRefreshToken = jwtUtil.generateToken(newClaims, 60 * 24 * 7);
-                redisService.saveRefreshToken(email, newRefreshToken, 7);
-                Cookie newRefreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
-                newRefreshTokenCookie.setHttpOnly(true);
-                newRefreshTokenCookie.setSecure(true);
-                newRefreshTokenCookie.setPath("/");
-                newRefreshTokenCookie.setMaxAge(7 * 24 * 60 * 60);
-                response.addCookie(newRefreshTokenCookie);
-            }
+            // RTR: Access Token 갱신 시 항상 Refresh Token도 교체
+            String newRefreshToken = jwtUtil.generateToken(newClaims, 60 * 24 * 7);
+            redisService.saveRefreshToken(email, newRefreshToken, 7);
+            Cookie newRefreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
+            newRefreshTokenCookie.setHttpOnly(true);
+            newRefreshTokenCookie.setSecure(true);
+            newRefreshTokenCookie.setPath("/");
+            newRefreshTokenCookie.setMaxAge(7 * 24 * 60 * 60);
+            response.addCookie(newRefreshTokenCookie);
 
             return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
 
