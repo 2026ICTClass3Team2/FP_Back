@@ -22,9 +22,11 @@ import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
+import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.report.entity.Hidden;
 import com.example.demo.domain.report.enums.HiddenReasonType;
 import com.example.demo.domain.report.enums.HiddenTargetType;
+import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
 import com.example.demo.domain.user.entity.Interest;
 import com.example.demo.domain.user.entity.User;
@@ -65,6 +67,8 @@ public class PostServiceImpl implements PostService {
     private final FollowRepository followRepository;
     private final InterestRepository interestRepository;
     private final HiddenRepository hiddenRepository;
+    private final BlockRepository blockRepository;
+    private final CommentRepository commentRepository;
     private final NotificationService notificationService;
     private final UserInterestService userInterestService;
     private final LlmTagService llmTagService;
@@ -261,12 +265,16 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Object getFeedByTab(FeedTab tab, Long lastPostId, int page, int size, String currentUsername) {
         User currentUser = resolveUser(currentUsername);
-        return switch (tab) {
+        Object result = switch (tab) {
             case LATEST -> getPostsFeed("LATEST", lastPostId, null, size, currentUsername);
             case POPULAR -> getPopularFeed(page, size, currentUser);
             case ALGORITHM -> getAlgorithmFeed(page, size, currentUser);
             case SUBSCRIBED -> getSubscribedFeed(page, size, currentUser);
         };
+        if (currentUser != null) {
+            applyBlockedCommentAdjustment(result, currentUser);
+        }
+        return result;
     }
 
     private Page<PostFeedResponseDto> getPopularFeed(int page, int size, User currentUser) {
@@ -420,13 +428,13 @@ public class PostServiceImpl implements PostService {
         Long currentUserId = (currentUser != null) ? currentUser.getId() : null;
         final User finalUser = currentUser;
 
+        Slice<PostFeedResponseDto> result;
+
         if ("POPULAR".equalsIgnoreCase(tab)) {
             PageRequest pageRequest = PageRequest.of(page != null ? page : 0, size);
-            return postRepository.findPopularPosts(currentUserId, pageRequest)
+            result = postRepository.findPopularPosts(currentUserId, pageRequest)
                     .map(post -> convertToDto(post, finalUser));
-        }
-
-        if ("ALGORITHM".equalsIgnoreCase(tab)) {
+        } else if ("ALGORITHM".equalsIgnoreCase(tab)) {
             PageRequest pageRequest = PageRequest.of(page != null ? page : 0, size);
             List<Long> tagIds = java.util.Collections.emptyList();
             if (currentUser != null) {
@@ -435,17 +443,14 @@ public class PostServiceImpl implements PostService {
                         .map(i -> i.getTag().getId())
                         .collect(Collectors.toList());
             }
-            // tagIds가 비어있으면 매칭 수가 0으로 동일 → likeCount, createdAt 기준 정렬 (사실상 popular)
-            // tagIds가 있으면 관심사 많이 매칭되는 게시물 우선
             if (tagIds.isEmpty()) {
-                return postRepository.findPopularPosts(currentUserId, pageRequest)
+                result = postRepository.findPopularPosts(currentUserId, pageRequest)
+                        .map(post -> convertToDto(post, finalUser));
+            } else {
+                result = postRepository.findAlgorithmPosts(tagIds, currentUserId, pageRequest)
                         .map(post -> convertToDto(post, finalUser));
             }
-            return postRepository.findAlgorithmPosts(tagIds, currentUserId, pageRequest)
-                    .map(post -> convertToDto(post, finalUser));
-        }
-
-        if ("SUBSCRIBED".equalsIgnoreCase(tab)) {
+        } else if ("SUBSCRIBED".equalsIgnoreCase(tab)) {
             if (currentUser == null) {
                 return org.springframework.data.domain.Page.empty();
             }
@@ -463,18 +468,52 @@ public class PostServiceImpl implements PostService {
             } else {
                 posts = postRepository.findSubscribedPostsCursor(channelIds, lastPostId, currentUserId, pageRequest);
             }
-            return posts.map(post -> convertToDto(post, finalUser));
+            result = posts.map(post -> convertToDto(post, finalUser));
+        } else {
+            // LATEST (default)
+            PageRequest pageRequest = PageRequest.of(0, size);
+            Slice<Post> posts;
+            if (lastPostId == null) {
+                posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
+            } else {
+                posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
+            }
+            result = posts.map(post -> convertToDto(post, finalUser));
         }
 
-        // LATEST (default)
-        PageRequest pageRequest = PageRequest.of(0, size);
-        Slice<Post> posts;
-        if (lastPostId == null) {
-            posts = postRepository.findPostsFirstPage(currentUserId, pageRequest);
+        return result;
+    }
+
+    // 차단 유저 댓글 수 보정 - Page/Slice 공통 (Object 타입으로 받아 content 리스트에 직접 반영)
+    @SuppressWarnings("unchecked")
+    private void applyBlockedCommentAdjustment(Object pageOrSlice, User currentUser) {
+        if (pageOrSlice == null) return;
+
+        List<PostFeedResponseDto> content;
+        if (pageOrSlice instanceof Slice) {
+            content = ((Slice<PostFeedResponseDto>) pageOrSlice).getContent();
         } else {
-            posts = postRepository.findPostsByCursor(lastPostId, currentUserId, pageRequest);
+            return;
         }
-        return posts.map(post -> convertToDto(post, finalUser));
+        if (content.isEmpty()) return;
+
+        List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(currentUser.getId());
+        if (blockedUserIds.isEmpty()) return;
+
+        List<Long> postIds = content.stream()
+                .map(PostFeedResponseDto::getPostId)
+                .collect(Collectors.toList());
+
+        Map<Long, Long> blockedCountMap = new HashMap<>();
+        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
+                .forEach(row -> blockedCountMap.put((Long) row[0], (Long) row[1]));
+
+        content.forEach(dto -> {
+            long blocked = blockedCountMap.getOrDefault(dto.getPostId(), 0L);
+            if (blocked > 0) {
+                dto.setCommentCount((int) Math.max(0, dto.getCommentCount() - blocked));
+            }
+        });
     }
 
     @Override
