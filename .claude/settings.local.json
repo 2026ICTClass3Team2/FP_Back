@@ -31,8 +31,7 @@
       "Bash(node -e ' *)",
       "Bash(./gradlew clean *)",
       "Bash(./mvnw.cmd compile *)",
-      "Bash(xargs find *)",
-      "Bash(git log *)"
+      "Bash(xargs find *)"
     ]
   }
 }
