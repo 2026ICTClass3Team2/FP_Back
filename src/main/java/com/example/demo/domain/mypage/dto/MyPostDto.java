@@ -5,10 +5,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,6 +19,7 @@ public class MyPostDto {
     private Long qnaId;
     private String contentType;
     private String title;
+    private Boolean resolved;
     private Integer likeCount;
     private Integer commentCount;
     private Integer viewCount;

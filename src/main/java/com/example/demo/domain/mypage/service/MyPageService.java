@@ -1,5 +1,6 @@
 package com.example.demo.domain.mypage.service;
 
+import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.entity.Tag;
 import com.example.demo.domain.content.repository.PostRepository;
@@ -34,7 +35,9 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import jakarta.mail.MessagingException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +49,7 @@ public class MyPageService {
     private final TagRepository tagRepository;
     private final PostRepository postRepository;
     private final BlockRepository blockRepository;
+    private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final S3Client s3Client;
@@ -270,7 +274,7 @@ public class MyPageService {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, user.getId(), pageable);
 
-        return postPage.map(post -> {
+        Page<MyPostDto> result = postPage.map(post -> {
             if ("qna".equals(post.getContentType())) {
                 Qna qna = qnaRepository.findByPostId(post.getId());
                 if (qna != null) {
@@ -279,6 +283,7 @@ public class MyPageService {
                             .qnaId(qna.getId())
                             .contentType(post.getContentType())
                             .title(post.getTitle())
+                            .resolved(qna.isSolved())
                             .likeCount(post.getLikeCount())
                             .commentCount(post.getCommentCount())
                             .viewCount(post.getViewCount())
@@ -292,6 +297,8 @@ public class MyPageService {
             }
             return MyPostDto.from(post);
         });
+        applyBlockedCommentAdjustment(result.getContent(), user);
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -331,7 +338,7 @@ public class MyPageService {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, user.getId(), pageable);
 
-        return postPage.map(post -> {
+        Page<MyPostDto> result = postPage.map(post -> {
             if ("qna".equals(post.getContentType())) {
                 Qna qna = qnaRepository.findByPostId(post.getId());
                 if (qna != null) {
@@ -340,6 +347,7 @@ public class MyPageService {
                             .qnaId(qna.getId())
                             .contentType(post.getContentType())
                             .title(post.getTitle())
+                            .resolved(qna.isSolved())
                             .likeCount(post.getLikeCount())
                             .commentCount(post.getCommentCount())
                             .viewCount(post.getViewCount())
@@ -364,6 +372,26 @@ public class MyPageService {
                     .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
                     .isBookmarked(true)
                     .build();
+        });
+        applyBlockedCommentAdjustment(result.getContent(), user);
+        return result;
+    }
+
+    private void applyBlockedCommentAdjustment(List<MyPostDto> dtos, User user) {
+        if (dtos.isEmpty()) return;
+        List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(user.getId());
+        if (blockedUserIds.isEmpty()) return;
+
+        List<Long> postIds = dtos.stream().map(MyPostDto::getId).collect(Collectors.toList());
+        Map<Long, Long> blockedCountMap = new HashMap<>();
+        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
+                .forEach(row -> blockedCountMap.put((Long) row[0], (Long) row[1]));
+
+        dtos.forEach(dto -> {
+            long blocked = blockedCountMap.getOrDefault(dto.getId(), 0L);
+            if (blocked > 0) {
+                dto.setCommentCount((int) Math.max(0, dto.getCommentCount() - blocked));
+            }
         });
     }
 
