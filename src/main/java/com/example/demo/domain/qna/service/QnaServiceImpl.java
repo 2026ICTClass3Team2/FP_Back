@@ -20,6 +20,7 @@ import com.example.demo.domain.qna.dto.QnaCreateRequestDto;
 import com.example.demo.domain.qna.dto.QnaDetailResponseDto;
 import com.example.demo.domain.qna.entity.Qna;
 import com.example.demo.domain.qna.repository.QnaRepository;
+import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -46,19 +49,30 @@ public class QnaServiceImpl implements QnaService {
     private final BookmarkRepository bookmarkRepository;
     private final PointTransactionRepository pointTransactionRepository;
     private final CommentRepository commentRepository;
+    private final BlockRepository blockRepository;
     private final com.example.demo.domain.notification.service.NotificationService notificationService;
+    private final LlmQnaService llmQnaService;
 
     @Override
     @Transactional
     public void createQna(QnaCreateRequestDto qnaCreateRequestDto, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        int rewardPoints = qnaCreateRequestDto.getRewardPoints();
-        if (rewardPoints > user.getCurrentPoint()) {
+
+        int manualPoints = qnaCreateRequestDto.getRewardPoints();
+        if (manualPoints < 0) {
+            throw new IllegalArgumentException("포인트는 0 이상이어야 합니다.");
+        }
+        if (manualPoints > user.getCurrentPoint()) {
             throw new IllegalArgumentException("보유한 포인트보다 많은 포인트를 걸 수 없습니다.");
         }
-        user.setCurrentPoint(user.getCurrentPoint() - rewardPoints);
-        userRepository.save(user);
+
+        // 수동 포인트 차감
+        if (manualPoints > 0) {
+            user.setCurrentPoint(user.getCurrentPoint() - manualPoints);
+            userRepository.save(user);
+        }
+
         Post post = Post.builder()
                 .title(qnaCreateRequestDto.getTitle())
                 .body(qnaCreateRequestDto.getBody())
@@ -66,29 +80,34 @@ public class QnaServiceImpl implements QnaService {
                 .author(user)
                 .build();
         Post savedPost = postRepository.save(post);
+
+        // LLM 난이도 채점 (1~10) + 수동 포인트 합산 → 총 채택 보상
+        int llmScore = llmQnaService.scoreQnaDifficulty(
+                qnaCreateRequestDto.getTitle(),
+                qnaCreateRequestDto.getBody()
+        );
+        int totalRewardPoints = manualPoints + llmScore;
+
         Qna qna = Qna.builder()
                 .post(savedPost)
-                .rewardPoints(rewardPoints)
+                .rewardPoints(totalRewardPoints)
                 .build();
         Qna savedQna = qnaRepository.save(qna);
-        if (rewardPoints > 0) {
+
+        if (manualPoints > 0) {
             PointTransaction transaction = PointTransaction.builder()
                     .user(user)
                     .targetId(savedQna.getId())
                     .targetType("qna")
-                    .pointChange(-rewardPoints)
+                    .pointChange(-manualPoints)
                     .pointBalance(user.getCurrentPoint())
                     .build();
             pointTransactionRepository.save(transaction);
-            
-            // --- Notification Logic ---
-            notificationService.sendNotification(user, "point", NotificationTargetType.system, savedQna.getId(), "QnA 보상 설정으로 포인트가 차감되었습니다: -" + rewardPoints);
-            // ---------------------------
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, savedQna.getId(),
+                    "QnA 보상 설정으로 포인트가 차감되었습니다: -" + manualPoints + " (AI 난이도 +" + llmScore + "P 포함, 총 " + totalRewardPoints + "P)");
         }
 
         saveTags(savedPost, qnaCreateRequestDto.getTags());
-
-        // Mentions
         processMentions(savedPost, user);
     }
 
@@ -134,50 +153,9 @@ public class QnaServiceImpl implements QnaService {
         if (post.getAuthor() == null || !post.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("Not authorized to update this post");
         }
-        int oldRewardPoints = qna.getRewardPoints();
-        int newRewardPoints = qnaCreateRequestDto.getRewardPoints();
-        int pointDifference = newRewardPoints - oldRewardPoints;
-        if (pointDifference > 0) {
-            if (pointDifference > user.getCurrentPoint()) {
-                throw new IllegalArgumentException("보유한 포인트보다 많은 포인트를 걸 수 없습니다.");
-            }
-            user.setCurrentPoint(user.getCurrentPoint() - pointDifference);
-            userRepository.save(user);
-
-            PointTransaction transaction = PointTransaction.builder()
-                    .user(user)
-                    .targetId(qna.getId())
-                    .targetType("qna")
-                    .pointChange(-pointDifference)
-                    .pointBalance(user.getCurrentPoint())
-                    .build();
-            pointTransactionRepository.save(transaction);
-
-            // --- Notification Logic ---
-            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "QnA 보상 수정으로 포인트가 차감되었습니다: -" + pointDifference);
-            // ---------------------------
-        } else if (pointDifference < 0) {
-            // If they reduced the points, refund the difference
-            int refund = Math.abs(pointDifference);
-            user.setCurrentPoint(user.getCurrentPoint() + refund);
-            userRepository.save(user);
-
-            PointTransaction transaction = PointTransaction.builder()
-                    .user(user)
-                    .targetId(qna.getId())
-                    .targetType("qna")
-                    .pointChange(refund)
-                    .pointBalance(user.getCurrentPoint())
-                    .build();
-            pointTransactionRepository.save(transaction);
-
-            // --- Notification Logic ---
-            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(), "QnA 보상 수정으로 포인트가 환불되었습니다: +" + refund);
-        }
-
+        // rewardPoints는 LLM이 채점한 값 유지 (수정 불가)
         post.setTitle(qnaCreateRequestDto.getTitle());
         post.setBody(qnaCreateRequestDto.getBody());
-        qna.setRewardPoints(newRewardPoints);
 
         // Update tags: Clear existing and save new ones
         contentTagRepository.deleteAll(post.getContentTags());
@@ -225,9 +203,8 @@ public class QnaServiceImpl implements QnaService {
         if (comment.getParent() != null) {
             throw new IllegalArgumentException("대댓글은 답변으로 채택할 수 없습니다.");
         }
-        if (comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("자신의 답변은 채택할 수 없습니다.");
-        }
+        boolean isSelfAccept = comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId());
+
         // 1. 상태 일괄 변경
         qna.setSolved(true);
         qna.setAnswerId(comment);
@@ -238,8 +215,8 @@ public class QnaServiceImpl implements QnaService {
         comment.setIsAnswer(true);
         commentRepository.save(comment);
 
-        // 2. 포인트 지급 + 내역 기록 + 알림
-        if (qna.getRewardPoints() > 0 && comment.getAuthor() != null) {
+        // 2. 포인트 지급 + 내역 기록 + 알림 (자기 채택 시 포인트 미지급)
+        if (!isSelfAccept && qna.getRewardPoints() > 0 && comment.getAuthor() != null) {
             User commentAuthor = comment.getAuthor();
             commentAuthor.setCurrentPoint(commentAuthor.getCurrentPoint() + qna.getRewardPoints());
             userRepository.save(commentAuthor);
@@ -254,7 +231,7 @@ public class QnaServiceImpl implements QnaService {
             pointTransactionRepository.save(transaction);
             notificationService.sendNotification(commentAuthor, "point", NotificationTargetType.system, comment.getId(), "답변 채택으로 포인트가 적립되었습니다: +" + qna.getRewardPoints());
         }
-        if (comment.getAuthor() != null) {
+        if (!isSelfAccept && comment.getAuthor() != null) {
             notificationService.sendNotification(comment.getAuthor(), "qna selected", NotificationTargetType.comment, comment.getId(), "작성하신 댓글이 답변으로 채택되었습니다!");
         }
     }
@@ -268,11 +245,30 @@ public class QnaServiceImpl implements QnaService {
             User user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {
                 Long userId = user.getId();
+
+                // 차단 유저 댓글 수 보정: postId별 차단 댓글 수 배치 조회
+                List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(userId);
+                Map<Long, Long> blockedCommentCountByPostId = new HashMap<>();
+                if (!blockedUserIds.isEmpty()) {
+                    List<Long> postIds = results.getContent().stream()
+                            .map(dto -> {
+                                Qna q = qnaRepository.findById(dto.getQnaId()).orElse(null);
+                                return q != null ? q.getPost().getId() : null;
+                            })
+                            .filter(id -> id != null)
+                            .collect(Collectors.toList());
+                    if (!postIds.isEmpty()) {
+                        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
+                                .forEach(row -> blockedCommentCountByPostId.put((Long) row[0], (Long) row[1]));
+                    }
+                }
+
                 results.getContent().forEach(dto -> {
                     // Populate tech stacks for the list view
                     Qna qna = qnaRepository.findById(dto.getQnaId()).orElse(null);
                     if(qna != null) {
-                        dto.setPostId(qna.getPost().getId());
+                        Long postId = qna.getPost().getId();
+                        dto.setPostId(postId);
                         List<String> techStacks = qna.getPost().getContentTags().stream()
                                 .map(contentTag -> contentTag.getTag().getName())
                                 .collect(Collectors.toList());
@@ -286,6 +282,12 @@ public class QnaServiceImpl implements QnaService {
                             String actionType = interaction.get().getActionType();
                             dto.setLiked("like".equals(actionType));
                             dto.setDisliked("dislike".equals(actionType));
+                        }
+
+                        // 차단 유저 댓글 수 차감
+                        long blocked = blockedCommentCountByPostId.getOrDefault(postId, 0L);
+                        if (blocked > 0) {
+                            dto.setCommentCount(Math.max(0, dto.getCommentCount() - (int) blocked));
                         }
                     }
                 });
