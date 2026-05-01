@@ -8,6 +8,7 @@ spring:
     username: admin
     password: password
 
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -122,4 +123,4 @@ management:
       percentiles-histogram:
         http.server.requests: true
       percentiles:
-        http.server.requests: 0.5,0.95,0.99
+        http.server.requests: 0.95,0.99
