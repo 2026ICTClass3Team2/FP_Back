@@ -225,9 +225,8 @@ public class QnaServiceImpl implements QnaService {
         if (comment.getParent() != null) {
             throw new IllegalArgumentException("대댓글은 답변으로 채택할 수 없습니다.");
         }
-        if (comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("자신의 답변은 채택할 수 없습니다.");
-        }
+        boolean isSelfAccept = comment.getAuthor() != null && comment.getAuthor().getId().equals(user.getId());
+
         // 1. 상태 일괄 변경
         qna.setSolved(true);
         qna.setAnswerId(comment);
@@ -238,8 +237,8 @@ public class QnaServiceImpl implements QnaService {
         comment.setIsAnswer(true);
         commentRepository.save(comment);
 
-        // 2. 포인트 지급 + 내역 기록 + 알림
-        if (qna.getRewardPoints() > 0 && comment.getAuthor() != null) {
+        // 2. 포인트 지급 + 내역 기록 + 알림 (자기 채택 시 포인트 미지급)
+        if (!isSelfAccept && qna.getRewardPoints() > 0 && comment.getAuthor() != null) {
             User commentAuthor = comment.getAuthor();
             commentAuthor.setCurrentPoint(commentAuthor.getCurrentPoint() + qna.getRewardPoints());
             userRepository.save(commentAuthor);
@@ -254,7 +253,7 @@ public class QnaServiceImpl implements QnaService {
             pointTransactionRepository.save(transaction);
             notificationService.sendNotification(commentAuthor, "point", NotificationTargetType.system, comment.getId(), "답변 채택으로 포인트가 적립되었습니다: +" + qna.getRewardPoints());
         }
-        if (comment.getAuthor() != null) {
+        if (!isSelfAccept && comment.getAuthor() != null) {
             notificationService.sendNotification(comment.getAuthor(), "qna selected", NotificationTargetType.comment, comment.getId(), "작성하신 댓글이 답변으로 채택되었습니다!");
         }
     }
