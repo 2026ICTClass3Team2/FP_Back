@@ -31,7 +31,22 @@
       "Bash(node -e ' *)",
       "Bash(./gradlew clean *)",
       "Bash(./mvnw.cmd compile *)",
-      "Bash(xargs find *)"
+      "Bash(xargs find *)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SHOW CREATE TABLE point_transaction\\\\G\" 2>&1)",
+      "Bash(./venv/Scripts/python -c \"from langchain_google_genai import ChatGoogleGenerativeAI; print\\('OK'\\)\")",
+      "Bash(curl -s -X POST http://localhost:8001/api/qna/score -H \"Content-Type: application/json\" -d \"{\\\\\"title\\\\\":\\\\\"test\\\\\",\\\\\"body\\\\\":\\\\\"test\\\\\"}\")",
+      "Bash(curl *)",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SHOW CREATE TABLE notification\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT point_transaction_id, target_type, point_change, target_id FROM point_transaction ORDER BY point_transaction_id DESC LIMIT 5\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT q.qna_id, q.is_solved, q.reward_points, p.title, p.status FROM qna q JOIN post p ON q.post_id = p.post_id ORDER BY q.qna_id DESC LIMIT 5\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SHOW CREATE TABLE post\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SHOW CREATE TABLE comment\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SHOW CREATE TABLE qna\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT c.comment_id, c.content, c.is_answer, c.status, c.post_id, p.post_id as qna_post_id FROM comment c JOIN qna q ON c.post_id = q.post_id WHERE q.qna_id IN \\(28,29,30\\) ORDER BY c.comment_id DESC LIMIT 10\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT c.comment_id, LEFT\\(c.content,30\\) as content, c.is_answer, c.status, c.post_id FROM comment c JOIN qna q ON c.post_id = q.post_id WHERE q.qna_id IN \\(28,29,30\\) ORDER BY c.comment_id DESC LIMIT 10\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT q.qna_id, q.post_id, q.reward_points, q.is_solved, c.comment_id, c.post_id as comment_post_id, c.user_id as comment_author FROM qna q LEFT JOIN comment c ON c.post_id = q.post_id WHERE q.qna_id IN \\(28,29,30\\) ORDER BY q.qna_id, c.comment_id\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
+      "Bash(find C:\\\\\\\\finalProject\\\\\\\\final_project\\\\\\\\src -name \"*types*\" -o -name \"*interface*\")",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")"
     ]
   }
 }

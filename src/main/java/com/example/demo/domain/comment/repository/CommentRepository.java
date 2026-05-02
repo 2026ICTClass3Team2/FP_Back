@@ -22,4 +22,12 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     // 차단 유저의 루트 댓글 수 집계 (postId별)
     @Query("SELECT c.post.id, COUNT(c) FROM Comment c WHERE c.post.id IN :postIds AND c.author.id IN :blockedUserIds AND c.parent IS NULL AND c.status = 'active' GROUP BY c.post.id")
     List<Object[]> countBlockedRootCommentsByPostIds(@Param("postIds") List<Long> postIds, @Param("blockedUserIds") List<Long> blockedUserIds);
+
+    // 특정 게시글의 활성 루트 댓글 수 조회 (수정/삭제 가능 여부 판단용)
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.post.id = :postId AND c.parent IS NULL AND c.status = 'active'")
+    long countActiveRootCommentsByPostId(@Param("postId") Long postId);
+
+    // Bug 4: 작성자 본인 댓글을 제외한 활성 루트 댓글 수 (본인 댓글만 있으면 0)
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.post.id = :postId AND c.parent IS NULL AND c.status = 'active' AND c.author.id != :authorId")
+    long countActiveRootCommentsByPostIdExcludingAuthor(@Param("postId") Long postId, @Param("authorId") Long authorId);
 }
