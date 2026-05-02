@@ -29,6 +29,9 @@ public class Qna {
     @Column(name = "reward_points", nullable = false)
     private int rewardPoints;
 
+    @Column(name = "llm_score", nullable = false)
+    private int llmScore;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "answer_id")
     private Comment answerId;

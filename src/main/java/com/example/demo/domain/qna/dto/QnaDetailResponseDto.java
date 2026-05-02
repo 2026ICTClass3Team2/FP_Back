@@ -15,7 +15,9 @@ public class QnaDetailResponseDto {
     private String authorProfileImageUrl;
     private Long userId;
     private boolean resolved;
-    private int points;
+    private int points;         // 총 보상 포인트 (manual + LLM)
+    private int manualRewardPoints; // 작성자 수동 설정 포인트
+    private int llmScore;           // LLM 난이도 점수
     private List<String> techStacks;
     private LocalDateTime createdAt;
     private int commentCount;

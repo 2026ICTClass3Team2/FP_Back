@@ -91,6 +91,7 @@ public class QnaServiceImpl implements QnaService {
         Qna qna = Qna.builder()
                 .post(savedPost)
                 .rewardPoints(totalRewardPoints)
+                .llmScore(llmScore)
                 .build();
         Qna savedQna = qnaRepository.save(qna);
 
@@ -153,9 +154,62 @@ public class QnaServiceImpl implements QnaService {
         if (post.getAuthor() == null || !post.getAuthor().getId().equals(user.getId())) {
             throw new IllegalArgumentException("Not authorized to update this post");
         }
-        // rewardPoints는 LLM이 채점한 값 유지 (수정 불가)
+
+        // Bug 4: 본인 댓글만 있으면 수정 허용 (타인 댓글이 1개 이상이면 수정 불가)
+        long commentCount = commentRepository.countActiveRootCommentsByPostIdExcludingAuthor(post.getId(), user.getId());
+        if (commentCount > 0) {
+            throw new IllegalArgumentException("답변이 달린 질문은 수정할 수 없습니다.");
+        }
+
+        // 포인트 수정 처리
+        int newManualPoints = qnaCreateRequestDto.getRewardPoints();
+        if (newManualPoints < 0) {
+            throw new IllegalArgumentException("포인트는 0 이상이어야 합니다.");
+        }
+
+        Optional<PointTransaction> originalTxOpt = pointTransactionRepository
+                .findByUserAndTargetIdAndTargetType(user, qna.getId(), "qna");
+        int originalManualPoints = originalTxOpt.map(tx -> -tx.getPointChange()).orElse(0);
+
+        // 타인 댓글이 없으므로 포인트 증감 모두 허용
+        int pointDiff = newManualPoints - originalManualPoints; // 양수: 추가 차감, 음수: 환불
+
+        if (pointDiff > 0 && pointDiff > user.getCurrentPoint()) {
+            throw new IllegalArgumentException("보유한 포인트가 부족합니다.");
+        }
+
+        user.setCurrentPoint(user.getCurrentPoint() - pointDiff);
+        userRepository.save(user);
+
+        // 기존 qna 트랜잭션 삭제 후 재생성
+        originalTxOpt.ifPresent(pointTransactionRepository::delete);
+        if (newManualPoints > 0) {
+            PointTransaction newTx = PointTransaction.builder()
+                    .user(user)
+                    .targetId(qna.getId())
+                    .targetType("qna")
+                    .pointChange(-newManualPoints)
+                    .pointBalance(user.getCurrentPoint())
+                    .build();
+            pointTransactionRepository.save(newTx);
+        }
+
+        if (pointDiff > 0) {
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(),
+                    "QnA 보상 포인트가 증가되었습니다: -" + pointDiff + " (총 " + newManualPoints + "P)");
+        } else if (pointDiff < 0) {
+            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(),
+                    "QnA 보상 포인트가 감소되어 환불되었습니다: +" + (-pointDiff) + " (총 " + newManualPoints + "P)");
+        }
+
         post.setTitle(qnaCreateRequestDto.getTitle());
         post.setBody(qnaCreateRequestDto.getBody());
+
+        // LLM 난이도 재채점 후 분리 저장
+        int newLlmScore = llmQnaService.scoreQnaDifficulty(post.getTitle(), post.getBody());
+        qna.setLlmScore(newLlmScore);
+        qna.setRewardPoints(newManualPoints + newLlmScore);
+        qnaRepository.save(qna);
 
         // Update tags: Clear existing and save new ones
         contentTagRepository.deleteAll(post.getContentTags());
@@ -274,6 +328,7 @@ public class QnaServiceImpl implements QnaService {
                                 .collect(Collectors.toList());
                         dto.setTechStacks(techStacks);
 
+                        dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
                         dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
                         dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qna.getPost().getId(), "qna"));
 
@@ -301,10 +356,11 @@ public class QnaServiceImpl implements QnaService {
                             .map(contentTag -> contentTag.getTag().getName())
                             .collect(Collectors.toList());
                     dto.setTechStacks(techStacks);
+                    dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
                 }
             });
         }
-        
+
         return results;
     }
 
@@ -366,6 +422,8 @@ public class QnaServiceImpl implements QnaService {
 
         dto.setResolved(qna.isSolved());
         dto.setPoints(qna.getRewardPoints());
+        dto.setLlmScore(qna.getLlmScore());
+        dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
         dto.setCreatedAt(post.getCreatedAt());
         dto.setCommentCount(post.getCommentCount());
         dto.setLikeCount(post.getLikeCount());
@@ -410,6 +468,34 @@ public class QnaServiceImpl implements QnaService {
 
         if (!"active".equals(qna.getPost().getStatus())) {
             throw new IllegalArgumentException("이미 삭제되었거나 동결된 게시물은 삭제할 수 없습니다.");
+        }
+
+        // Bug 4: 본인 댓글만 있으면 삭제 허용 (타인 댓글이 1개 이상이면 삭제 불가)
+        long commentCount = commentRepository.countActiveRootCommentsByPostIdExcludingAuthor(qna.getPost().getId(), user.getId());
+        if (commentCount > 0) {
+            throw new IllegalArgumentException("답변이 달린 질문은 삭제할 수 없습니다.");
+        }
+
+        // 채택 없이 삭제 시 수동 포인트 전액 환불 (댓글 0개 보장된 시점)
+        if (!qna.isSolved()) {
+            pointTransactionRepository.findByUserAndTargetIdAndTargetType(user, qna.getId(), "qna")
+                    .ifPresent(tx -> {
+                        int refund = -tx.getPointChange(); // pointChange가 음수이므로 양수로 변환
+                        if (refund > 0) {
+                            user.setCurrentPoint(user.getCurrentPoint() + refund);
+                            userRepository.save(user);
+                            PointTransaction refundTx = PointTransaction.builder()
+                                    .user(user)
+                                    .targetId(qna.getId())
+                                    .targetType("qna")
+                                    .pointChange(refund)
+                                    .pointBalance(user.getCurrentPoint())
+                                    .build();
+                            pointTransactionRepository.save(refundTx);
+                            notificationService.sendNotification(user, "point", NotificationTargetType.system, qna.getId(),
+                                    "질문 삭제로 설정 포인트가 환불되었습니다: +" + refund);
+                        }
+                    });
         }
 
         qna.getPost().setStatus("hidden");
