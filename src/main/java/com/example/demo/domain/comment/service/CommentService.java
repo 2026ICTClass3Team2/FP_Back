@@ -7,6 +7,8 @@ import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.qna.entity.Qna;
+import com.example.demo.domain.qna.repository.QnaRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
@@ -46,6 +48,7 @@ public class CommentService {
     private final HiddenRepository hiddenRepository;
     private final NotificationService notificationService;
     private final UserInterestService userInterestService;
+    private final QnaRepository qnaRepository;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -275,6 +278,16 @@ public class CommentService {
         Post post = comment.getPost();
         post.setCommentCount(Math.max(0, post.getCommentCount() - 1));
         postRepository.save(post);
+
+        // Bug 5: 채택된 답변 댓글이 삭제되면 QnA 해결 상태 롤백
+        if (Boolean.TRUE.equals(comment.getIsAnswer()) && "qna".equals(post.getContentType())) {
+            Qna qna = qnaRepository.findByPostId(post.getId());
+            if (qna != null && qna.isSolved()) {
+                qna.setSolved(false);
+                qna.setAnswerId(null);
+                post.setIsSolved(false);
+            }
+        }
     }
 
     @Transactional
