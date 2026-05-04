@@ -4,6 +4,7 @@ import com.example.demo.domain.algorithm.enums.FeedTab;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.dto.PostInteractionResponseDto;
 import com.example.demo.domain.content.dto.PostUpdateRequestDto;
 import com.example.demo.domain.content.service.PostService;
 import jakarta.validation.Valid;
@@ -145,8 +146,8 @@ public class PostController {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }
 
-        postService.toggleInteraction(postId, "like", userDetails.getUsername());
-        return ResponseEntity.ok().build();
+        PostInteractionResponseDto result = postService.toggleInteraction(postId, "like", userDetails.getUsername());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{postId}/dislike")
@@ -158,8 +159,8 @@ public class PostController {
             return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
         }
 
-        postService.toggleInteraction(postId, "dislike", userDetails.getUsername());
-        return ResponseEntity.ok().build();
+        PostInteractionResponseDto result = postService.toggleInteraction(postId, "dislike", userDetails.getUsername());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{postId}/bookmark")
