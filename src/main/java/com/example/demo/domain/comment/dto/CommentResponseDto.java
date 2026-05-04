@@ -31,6 +31,12 @@ public class CommentResponseDto {
     @JsonProperty("isReported")
     private boolean isReported = false;
 
+    @JsonProperty("isLiked")
+    private boolean isLiked = false;
+
+    @JsonProperty("isDisliked")
+    private boolean isDisliked = false;
+
     private List<CommentResponseDto> children = new ArrayList<>();
 
     public CommentResponseDto(Comment comment) {

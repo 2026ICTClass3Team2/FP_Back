@@ -46,7 +46,8 @@
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT c.comment_id, LEFT\\(c.content,30\\) as content, c.is_answer, c.status, c.post_id FROM comment c JOIN qna q ON c.post_id = q.post_id WHERE q.qna_id IN \\(28,29,30\\) ORDER BY c.comment_id DESC LIMIT 10\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
       "PowerShell(& \"C:\\\\Program Files\\\\MySQL\\\\MySQL Server 8.0\\\\bin\\\\mysql.exe\" -u root -p1234 finaldb -e \"SELECT q.qna_id, q.post_id, q.reward_points, q.is_solved, c.comment_id, c.post_id as comment_post_id, c.user_id as comment_author FROM qna q LEFT JOIN comment c ON c.post_id = q.post_id WHERE q.qna_id IN \\(28,29,30\\) ORDER BY q.qna_id, c.comment_id\\\\G\" 2>&1 | Select-String -NotMatch \"Warning\")",
       "Bash(find C:\\\\\\\\finalProject\\\\\\\\final_project\\\\\\\\src -name \"*types*\" -o -name \"*interface*\")",
-      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(npx --yes tsc --noEmit)"
     ]
   }
 }

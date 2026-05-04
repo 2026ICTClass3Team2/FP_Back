@@ -4,6 +4,7 @@ import com.example.demo.domain.algorithm.enums.FeedTab;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.dto.PostInteractionResponseDto;
 import com.example.demo.domain.content.dto.PostUpdateRequestDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Slice;
@@ -19,7 +20,7 @@ public interface PostService {
 
     void deletePost(Long postId, String currentUsername);
 
-    void toggleInteraction(Long postId, String actionType, String currentUsername);
+    PostInteractionResponseDto toggleInteraction(Long postId, String actionType, String currentUsername);
 
     boolean toggleBookmark(Long postId, String currentUsername);
     

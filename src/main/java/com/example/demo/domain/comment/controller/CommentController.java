@@ -120,44 +120,44 @@ public class CommentController {
     }
 
     @PostMapping("/posts/{postId}/comments/{commentId}/like")
-    public ResponseEntity<Void> togglePostLike(
+    public ResponseEntity<CommentResponseDto> togglePostLike(
             @PathVariable("postId") Long postId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        commentService.toggleInteraction(postId, commentId, "like", userDetails.getUsername());
-        return ResponseEntity.ok().build();
+        CommentResponseDto dto = commentService.toggleInteraction(postId, commentId, "like", userDetails.getUsername());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/qna/{qnaId}/comments/{commentId}/like")
-    public ResponseEntity<Void> toggleQnaLike(
+    public ResponseEntity<CommentResponseDto> toggleQnaLike(
             @PathVariable("qnaId") Long qnaId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
         validateContentType(resolvedPostId, "qna");
-        commentService.toggleInteraction(resolvedPostId, commentId, "like", userDetails.getUsername());
-        return ResponseEntity.ok().build();
+        CommentResponseDto dto = commentService.toggleInteraction(resolvedPostId, commentId, "like", userDetails.getUsername());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/posts/{postId}/comments/{commentId}/dislike")
-    public ResponseEntity<Void> togglePostDislike(
+    public ResponseEntity<CommentResponseDto> togglePostDislike(
             @PathVariable("postId") Long postId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         validateContentType(postId, "feed");
-        commentService.toggleInteraction(postId, commentId, "dislike", userDetails.getUsername());
-        return ResponseEntity.ok().build();
+        CommentResponseDto dto = commentService.toggleInteraction(postId, commentId, "dislike", userDetails.getUsername());
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping("/qna/{qnaId}/comments/{commentId}/dislike")
-    public ResponseEntity<Void> toggleQnaDislike(
+    public ResponseEntity<CommentResponseDto> toggleQnaDislike(
             @PathVariable("qnaId") Long qnaId,
             @PathVariable("commentId") Long commentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         Long resolvedPostId = qnaService.resolveQnaPostId(qnaId);
         validateContentType(resolvedPostId, "qna");
-        commentService.toggleInteraction(resolvedPostId, commentId, "dislike", userDetails.getUsername());
-        return ResponseEntity.ok().build();
+        CommentResponseDto dto = commentService.toggleInteraction(resolvedPostId, commentId, "dislike", userDetails.getUsername());
+        return ResponseEntity.ok(dto);
     }
 }
