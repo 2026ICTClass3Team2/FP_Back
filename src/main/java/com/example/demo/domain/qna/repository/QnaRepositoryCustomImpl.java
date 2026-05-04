@@ -27,22 +27,11 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
         QQna qna = QQna.qna;
         QPost post = QPost.post;
         QUser user = QUser.user;
-
         List<QnaCardResponseDto> results = queryFactory
                 .select(new QQnaCardResponseDto(
-                        qna.id,
-                        post.title,
-                        post.body,
-                        user.username,
-                        user.nickname,
-                        user.profilePicUrl,
-                        qna.isSolved,
-                        qna.rewardPoints,
-                        post.createdAt,
-                        post.commentCount,
-                        post.likeCount,
-                        post.dislikeCount,
-                        post.viewCount
+                        qna.id, post.title, post.body, user.username, user.nickname,
+                        user.profilePicUrl, qna.isSolved, qna.rewardPoints, post.createdAt,
+                        post.commentCount, post.likeCount, post.dislikeCount, post.viewCount
                 ))
                 .from(qna)
                 .join(qna.post, post)
@@ -67,9 +56,7 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                         searchQuery(query),
                         statusFilter(status)
                 );
-
         Long total = countQuery.fetchOne();
-
         return new PageImpl<>(results, pageable, total != null ? total : 0L);
     }
 

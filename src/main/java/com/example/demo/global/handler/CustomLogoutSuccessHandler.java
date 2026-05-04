@@ -1,7 +1,9 @@
 package com.example.demo.global.handler;
 
+import com.example.demo.global.jwt.JWTUtil;
 import com.example.demo.global.redis.RedisService;
 import com.google.gson.Gson;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,6 +22,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
     private final RedisService redisService;
+    private final JWTUtil jwtUtil;
 
     @Override
     public void onLogoutSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
@@ -30,26 +33,38 @@ public class CustomLogoutSuccessHandler implements LogoutSuccessHandler {
             username = authentication.getName();
         }
 
-        // 2. Redis에서 Refresh Token 삭제
+        // 2. Access Token 블랙리스트 등록 (잔여 유효기간만큼 TTL)
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String accessToken = authHeader.substring(7);
+            try {
+                Claims claims = jwtUtil.validateToken(accessToken);
+                long remaining = claims.getExpiration().getTime() - System.currentTimeMillis();
+                if (remaining > 0) {
+                    redisService.setBlackList(accessToken, remaining);
+                    log.info("Access Token blacklisted for user: {}", username);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to blacklist access token: {}", e.getMessage());
+            }
+        }
+
+        // 3. Redis에서 Refresh Token 삭제
         if (username != null) {
             redisService.deleteRefreshToken(username);
             log.info("Refresh Token deleted from Redis for user: {}", username);
         }
 
-        // 3. 브라우저 쿠키에서 Refresh Token 삭제 (클라이언트에서 폐기)
+        // 4. 브라우저 쿠키에서 Refresh Token 삭제
         Cookie cookie = new Cookie("refreshToken", null);
         cookie.setMaxAge(0); // 0으로 설정하여 즉시 만료
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
-        
-        // 중요: 쿠키의 도메인(domain)이나 SameSite 속성이 프론트엔드 환경과 다를 경우 
-        // 브라우저가 쿠키 삭제를 무시할 수 있으므로, 필요하다면 SameSite 속성 추가
-        cookie.setAttribute("SameSite", "None"); 
-
+        cookie.setAttribute("SameSite", "None");
         response.addCookie(cookie);
 
-        // 4. 응답 전송
+        // 5. 응답 전송
         Gson gson = new Gson();
         String jsonStr = gson.toJson(Map.of("message", "Logout successful"));
         response.setContentType("application/json;charset=utf-8");

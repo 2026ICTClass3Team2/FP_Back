@@ -37,4 +37,4 @@ out/
 .vscode/
 MySQLTables.txt
 
-/.claude/
+claude/

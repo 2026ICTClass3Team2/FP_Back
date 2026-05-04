@@ -41,8 +41,8 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         Map<String, Object> claims = new HashMap<>(Map.of("email", username));
 
-        // 1. Access Token 발급 (30분)
-        String accessToken = jwtUtil.generateToken(claims, 30);
+        // 1. Access Token 발급 (60분)
+        String accessToken = jwtUtil.generateToken(claims, 60);
 
         // 2. Refresh Token 발급 (7일)
         String refreshToken = jwtUtil.generateToken(claims, 60 * 24 * 7);

@@ -3,13 +3,10 @@ package com.example.demo.domain.user.entity;
 import com.example.demo.domain.content.entity.Tag;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -29,9 +26,13 @@ public class Interest {
     @Column(name = "is_profile_tag", nullable = false)
     private Boolean isProfileTag = false;
 
-    @CreationTimestamp
-    @Column(name = "last_interaction_at", nullable = false, updatable = false)
+    @Column(name = "last_interaction_at", nullable = false)
     private LocalDateTime lastInteractionAt;
+
+    public void updateScore(double newScore, LocalDateTime now) {
+        this.weightScore = newScore;
+        this.lastInteractionAt = now;
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

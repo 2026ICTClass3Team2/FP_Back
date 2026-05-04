@@ -3,6 +3,7 @@ package com.example.demo.global.config;
 import com.example.demo.domain.user.repository.SuspendedRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.jwt.JWTCheckFilter;
+import com.example.demo.global.redis.RedisService;
 import com.example.demo.global.handler.ApiLoginFailurerHandler;
 import com.example.demo.global.handler.ApiLoginSuccessHandler;
 import com.example.demo.global.handler.CustomAccessDeniedHandler;
@@ -42,6 +43,7 @@ public class SecurityConfig {
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
     private final UserRepository userRepository;
     private final SuspendedRepository suspendedRepository;
+    private final RedisService redisService;
 
     // OAuth2 의존성 주입
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -95,14 +97,14 @@ public class SecurityConfig {
                         "/api/member/password/**",
                         // WebSocket 핸드셰이크 엔드포인트는 여기서 허용합니다.
                         // 실제 인증은 JwtHandshakeInterceptor에서 토큰을 검증해 처리합니다.
-                        "/ws/**").permitAll()
+                        "/ws/**", "/api/actuator/**").permitAll()
                 .requestMatchers("/api/mypage/**", "/api/suggestions").authenticated()
                 .anyRequest().permitAll()
         );
 
         // 7. JWT 확인 필터 추가
         http.addFilterBefore(
-                new JWTCheckFilter(jwtUtil, userRepository, suspendedRepository),
+                new JWTCheckFilter(jwtUtil, userRepository, suspendedRepository, redisService),
                 UsernamePasswordAuthenticationFilter.class
         );
         

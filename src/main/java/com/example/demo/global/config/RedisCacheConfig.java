@@ -1,0 +1,39 @@
+package com.example.demo.global.config;
+
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+import java.time.Duration;
+import java.util.Map;
+
+@EnableCaching
+@Configuration
+public class RedisCacheConfig {
+
+    @Bean
+    public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
+        // no-args 생성자: 내부적으로 defaultTyping + JavaTimeModule 설정된 ObjectMapper 사용
+        GenericJackson2JsonRedisSerializer valueSerializer =
+                new GenericJackson2JsonRedisSerializer();
+
+        RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
+                .serializeKeysWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                        .fromSerializer(valueSerializer))
+                .disableCachingNullValues();
+
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(defaults)
+                .withInitialCacheConfigurations(Map.of(
+                        "popularChannels", defaults.entryTtl(Duration.ofMinutes(5))
+                ))
+                .build();
+    }
+}

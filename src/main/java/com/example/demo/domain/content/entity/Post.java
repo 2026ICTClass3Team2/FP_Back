@@ -75,6 +75,10 @@ public class Post {
     @Builder.Default
     private Boolean isSolved = false;
 
+    @Column(name = "bookmark_count", nullable = false)
+    @Builder.Default
+    private Integer bookmarkCount = 0;
+
     @Column(name = "comment_count", nullable = false)
     @Builder.Default
     private Integer commentCount = 0;

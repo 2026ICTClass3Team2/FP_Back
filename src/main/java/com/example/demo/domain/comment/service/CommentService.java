@@ -1,13 +1,18 @@
 package com.example.demo.domain.comment.service;
 
+import com.example.demo.domain.algorithm.service.UserInterestService;
 import com.example.demo.domain.comment.dto.CommentRequestDto;
 import com.example.demo.domain.comment.dto.CommentResponseDto;
 import com.example.demo.domain.comment.entity.Comment;
 import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.qna.entity.Qna;
+import com.example.demo.domain.qna.repository.QnaRepository;
 import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
+import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.report.enums.HiddenTargetType;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
@@ -26,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,7 +46,9 @@ public class CommentService {
     private final InteractionRepository interactionRepository;
     private final BlockRepository blockRepository;
     private final HiddenRepository hiddenRepository;
-    private final com.example.demo.domain.notification.service.NotificationService notificationService;
+    private final NotificationService notificationService;
+    private final UserInterestService userInterestService;
+    private final QnaRepository qnaRepository;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -83,38 +92,46 @@ public class CommentService {
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
 
+        // 관심도 반영 (피드 게시글 댓글만)
+        if ("feed".equals(post.getContentType())) {
+            userInterestService.onComment(user.getId(), postId);
+        }
+
         // --- Notification Logic ---
-        if (parent != null) {
-            // It's a reply: notify the parent comment author
-            if (parent.getAuthor() != null && !parent.getAuthor().getId().equals(user.getId())) {
-                String message = "댓글에 새로운 답글이 달렸습니다: " + user.getNickname();
-                notificationService.sendNotification(
-                    parent.getAuthor(), 
-                    "new reply", 
-                    com.example.demo.domain.notification.entity.NotificationTargetType.comment, 
-                    savedComment.getId(), 
-                    message
-                );
+
+        try {
+            if (parent != null) {
+                if (parent.getAuthor() != null && !parent.getAuthor().getId().equals(user.getId())) {
+                    String message = "댓글에 새로운 답글이 달렸습니다: " + user.getNickname();
+                    notificationService.sendNotification(
+                            parent.getAuthor(),
+                            "new reply",
+                            NotificationTargetType.comment,
+                            savedComment.getId(),
+                            message
+                    );
+                }
+            } else {
+                if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
+                    String message = "게시글에 새로운 댓글이 달렸습니다: " + user.getNickname();
+                    notificationService.sendNotification(
+                            post.getAuthor(),
+                            "new comment",
+                            NotificationTargetType.comment,
+                            savedComment.getId(),
+                            message
+                    );
+                }
             }
-        } else {
-            // It's a root comment: notify the post author
-            if (post.getAuthor() != null && !post.getAuthor().getId().equals(user.getId())) {
-                String message = "게시글에 새로운 댓글이 달렸습니다: " + user.getNickname();
-                notificationService.sendNotification(
-                    post.getAuthor(), 
-                    "new comment", 
-                    com.example.demo.domain.notification.entity.NotificationTargetType.comment, 
-                    savedComment.getId(), 
-                    message
-                );
-            }
+        } catch (Exception e) {
+            log.warn("알림 전송 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
         }
 
         // Mention Detection
         String plainContent = requestDto.getContent().replaceAll("<[^>]*>", "");
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([^\\s@]+)");
-        java.util.regex.Matcher matcher = pattern.matcher(plainContent);
-        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+        Pattern pattern = Pattern.compile("@([가-힣a-zA-Z0-9._-]{2,50})");
+        Matcher matcher = pattern.matcher(plainContent);
+        Set<String> mentionedNicknames = new HashSet<>();
         while (matcher.find()) {
             mentionedNicknames.add(matcher.group(1));
         }
@@ -123,17 +140,20 @@ public class CommentService {
             userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
                 if (!mentionedUser.getId().equals(user.getId())) {
                     String message = user.getNickname() + "님이 댓글에서 당신을 언급했습니다";
-                    notificationService.sendNotification(
-                        mentionedUser,
-                        "mention",
-                        com.example.demo.domain.notification.entity.NotificationTargetType.comment,
-                        savedComment.getId(),
-                        message
-                    );
+                    try {
+                        notificationService.sendNotification(
+                                mentionedUser,
+                                "mention",
+                                NotificationTargetType.comment,
+                                savedComment.getId(),
+                                message
+                        );
+                    } catch (Exception e) {
+                        log.warn("멘션 알림 전송 실패: commentId={}, nickname={}, 오류={}", savedComment.getId(), nickname, e.getMessage());
+                    }
                 }
             });
         }
-        // ---------------------------
 
         return new CommentResponseDto(savedComment);
     }
@@ -258,6 +278,16 @@ public class CommentService {
         Post post = comment.getPost();
         post.setCommentCount(Math.max(0, post.getCommentCount() - 1));
         postRepository.save(post);
+
+        // Bug 5: 채택된 답변 댓글이 삭제되면 QnA 해결 상태 롤백
+        if (Boolean.TRUE.equals(comment.getIsAnswer()) && "qna".equals(post.getContentType())) {
+            Qna qna = qnaRepository.findByPostId(post.getId());
+            if (qna != null && qna.isSolved()) {
+                qna.setSolved(false);
+                qna.setAnswerId(null);
+                post.setIsSolved(false);
+            }
+        }
     }
 
     @Transactional
@@ -275,7 +305,7 @@ public class CommentService {
         }
 
         Optional<Interaction> existingInteraction = interactionRepository
-                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comments", comment.getId());
+                .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comment", comment.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
@@ -292,7 +322,7 @@ public class CommentService {
             Interaction newInteraction = Interaction.builder()
                     .user(user)
                     .targetId(comment.getId())
-                    .targetType("comments")
+                    .targetType("comment")
                     .actionType(actionType)
                     .build();
             interactionRepository.save(newInteraction);

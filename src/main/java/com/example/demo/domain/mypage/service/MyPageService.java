@@ -1,5 +1,6 @@
 package com.example.demo.domain.mypage.service;
 
+import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.entity.Tag;
 import com.example.demo.domain.content.repository.PostRepository;
@@ -11,6 +12,7 @@ import com.example.demo.domain.mypage.dto.PasswordUpdateRequestDto;
 import com.example.demo.domain.mypage.dto.ProfileUpdateRequestDto;
 import com.example.demo.domain.qna.entity.Qna;
 import com.example.demo.domain.qna.repository.QnaRepository;
+import com.example.demo.domain.favorite.service.FavoriteService;
 import com.example.demo.domain.report.entity.Block;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.Interest;
@@ -33,7 +35,9 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import jakarta.mail.MessagingException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,10 +49,12 @@ public class MyPageService {
     private final TagRepository tagRepository;
     private final PostRepository postRepository;
     private final BlockRepository blockRepository;
+    private final CommentRepository commentRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final S3Client s3Client;
     private final QnaRepository qnaRepository;
+    private final FavoriteService favoriteService;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
@@ -57,12 +63,10 @@ public class MyPageService {
     public MyPageProfileResponseDto getProfile(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
-
         List<String> techStacks = interestRepository.findByUserIdAndIsProfileTagTrue(user.getId())
                 .stream()
                 .map(interest -> interest.getTag().getName())
                 .collect(Collectors.toList());
-
         return MyPageProfileResponseDto.builder()
                 .userId(user.getId())
                 .profilePicUrl(user.getProfilePicUrl())
@@ -88,15 +92,16 @@ public class MyPageService {
 
         boolean isMine = false;
         Boolean isBlocked = null;
+        Boolean isFavorited = null;
 
         if (viewerEmail != null) {
-            userRepository.findByEmail(viewerEmail).ifPresent(viewer -> {});
             java.util.Optional<User> viewerOpt = userRepository.findByEmail(viewerEmail);
             if (viewerOpt.isPresent()) {
                 User viewer = viewerOpt.get();
                 isMine = viewer.getId().equals(user.getId());
                 if (!isMine) {
                     isBlocked = blockRepository.existsByBlockerIdAndBlockedId(viewer.getId(), user.getId());
+                    isFavorited = favoriteService.isFavorited(viewer.getId(), user.getId());
                 }
             }
         }
@@ -113,6 +118,7 @@ public class MyPageService {
                 .provider(user.getProvider().name())
                 .isMine(isMine)
                 .isBlocked(isBlocked)
+                .isFavorited(isFavorited)
                 .build();
     }
 
@@ -177,7 +183,8 @@ public class MyPageService {
                         .user(user)
                         .tag(tag)
                         .isProfileTag(true)
-                        .weightScore(5.0) // 프로필 지정 스택은 가중치를 높게 줌
+                        .weightScore(5.0)
+                        .lastInteractionAt(java.time.LocalDateTime.now())
                         .build();
                 interestRepository.save(interest);
             }
@@ -267,8 +274,7 @@ public class MyPageService {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<Post> postPage = postRepository.findByAuthorIdAndContentTypeIn(user.getId(), contentTypes, user.getId(), pageable);
 
-        return postPage.map(post -> {
-            MyPostDto dto = MyPostDto.from(post);
+        Page<MyPostDto> result = postPage.map(post -> {
             if ("qna".equals(post.getContentType())) {
                 Qna qna = qnaRepository.findByPostId(post.getId());
                 if (qna != null) {
@@ -277,6 +283,7 @@ public class MyPageService {
                             .qnaId(qna.getId())
                             .contentType(post.getContentType())
                             .title(post.getTitle())
+                            .resolved(qna.isSolved())
                             .likeCount(post.getLikeCount())
                             .commentCount(post.getCommentCount())
                             .viewCount(post.getViewCount())
@@ -284,11 +291,14 @@ public class MyPageService {
                             .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                             .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
                             .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                            .isBookmarked(false)
                             .build();
                 }
             }
-            return dto;
+            return MyPostDto.from(post);
         });
+        applyBlockedCommentAdjustment(result.getContent(), user);
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -328,8 +338,7 @@ public class MyPageService {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<Post> postPage = postRepository.findBookmarkedPostsByUser(user.getId(), contentTypes, user.getId(), pageable);
 
-        return postPage.map(post -> {
-            MyPostDto dto = MyPostDto.from(post);
+        Page<MyPostDto> result = postPage.map(post -> {
             if ("qna".equals(post.getContentType())) {
                 Qna qna = qnaRepository.findByPostId(post.getId());
                 if (qna != null) {
@@ -338,6 +347,7 @@ public class MyPageService {
                             .qnaId(qna.getId())
                             .contentType(post.getContentType())
                             .title(post.getTitle())
+                            .resolved(qna.isSolved())
                             .likeCount(post.getLikeCount())
                             .commentCount(post.getCommentCount())
                             .viewCount(post.getViewCount())
@@ -345,10 +355,43 @@ public class MyPageService {
                             .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
                             .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
                             .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                            .isBookmarked(true)
                             .build();
                 }
             }
-            return dto;
+            return MyPostDto.builder()
+                    .id(post.getId())
+                    .contentType(post.getContentType())
+                    .title(post.getTitle())
+                    .likeCount(post.getLikeCount())
+                    .commentCount(post.getCommentCount())
+                    .viewCount(post.getViewCount())
+                    .createdAt(post.getCreatedAt())
+                    .channelId(post.getChannel() != null ? post.getChannel().getId() : null)
+                    .channelName(post.getChannel() != null ? post.getChannel().getName() : null)
+                    .channelImageUrl(post.getChannel() != null ? post.getChannel().getImageUrl() : null)
+                    .isBookmarked(true)
+                    .build();
+        });
+        applyBlockedCommentAdjustment(result.getContent(), user);
+        return result;
+    }
+
+    private void applyBlockedCommentAdjustment(List<MyPostDto> dtos, User user) {
+        if (dtos.isEmpty()) return;
+        List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(user.getId());
+        if (blockedUserIds.isEmpty()) return;
+
+        List<Long> postIds = dtos.stream().map(MyPostDto::getId).collect(Collectors.toList());
+        Map<Long, Long> blockedCountMap = new HashMap<>();
+        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
+                .forEach(row -> blockedCountMap.put((Long) row[0], (Long) row[1]));
+
+        dtos.forEach(dto -> {
+            long blocked = blockedCountMap.getOrDefault(dto.getId(), 0L);
+            if (blocked > 0) {
+                dto.setCommentCount((int) Math.max(0, dto.getCommentCount() - blocked));
+            }
         });
     }
 

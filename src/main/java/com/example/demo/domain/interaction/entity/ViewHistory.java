@@ -7,11 +7,11 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-// @Entity
+@Entity
 @Table(
         name = "view_history",
         indexes = {
-                @Index(name = "idx_view_history_user_target", columnList = "user_id, target_type, target_id")
+                @Index(name = "idx_view_history_dedup", columnList = "user_id, post_id, viewed_at")
         }
 )
 @Getter
@@ -22,18 +22,15 @@ public class ViewHistory {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "view_id")
+    @Column(name = "view_history_id")
     private Long id;
 
-    @Column(name = "target_id", nullable = false)
-    private Long targetId;
-
-    @Column(name = "target_type", nullable = false, length = 50)
-    private String targetType; // 'posts'
-
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "viewed_at", nullable = false, updatable = false)
+    private LocalDateTime viewedAt;
+
+    @Column(name = "post_id", nullable = false)
+    private Long postId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

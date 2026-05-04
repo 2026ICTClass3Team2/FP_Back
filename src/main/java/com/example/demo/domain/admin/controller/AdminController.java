@@ -6,7 +6,23 @@ import com.example.demo.domain.admin.dto.AdminChannelDto;
 import com.example.demo.domain.admin.dto.ReportAdminDto;
 import com.example.demo.domain.admin.dto.SuspendRequestDto;
 import com.example.demo.domain.admin.service.AdminService;
+import com.example.demo.domain.channel.entity.Channel;
+import com.example.demo.domain.channel.repository.ChannelRepository;
+import com.example.demo.domain.content.entity.ContentTag;
+import com.example.demo.domain.content.entity.Post;
+import com.example.demo.domain.content.entity.Tag;
+import com.example.demo.domain.content.repository.PostRepository;
+import com.example.demo.domain.content.repository.TagRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
+import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.UserRepository;
+import com.example.demo.global.elasticsearch.entity.ChannelSearchDoc;
+import com.example.demo.global.elasticsearch.entity.PostSearchDoc;
+import com.example.demo.global.elasticsearch.entity.UserSearchDoc;
+import com.example.demo.global.elasticsearch.repository.ChannelSearchRepository;
+import com.example.demo.global.elasticsearch.repository.PostSearchRepository;
+import com.example.demo.global.elasticsearch.repository.UserSearchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,10 +30,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
@@ -26,6 +43,44 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final PostRepository postRepository;
+    private final TagRepository tagRepository;
+    private final PostSearchRepository postSearchRepository;
+    private final UserRepository userRepository;
+    private final ChannelRepository channelRepository;
+    private final UserSearchRepository userSearchRepository;
+    private final ChannelSearchRepository channelSearchRepository;
+
+    @PostMapping("/sync-elasticsearch")
+    public ResponseEntity<String> syncData() {
+        // 1. Sync Posts
+        List<Post> allPosts = postRepository.findAll();
+        List<PostSearchDoc> postDocs = allPosts.stream()
+                .map(post -> {
+                    List<String> tags = post.getContentTags().stream()
+                            .map(ContentTag::getTagName)
+                            .collect(Collectors.toList());
+                    return new PostSearchDoc(post, tags);
+                })
+                .collect(Collectors.toList());
+        postSearchRepository.saveAll(postDocs);
+
+        // 2. Sync Users
+        List<User> allUsers = userRepository.findAll();
+        List<UserSearchDoc> userDocs = allUsers.stream()
+                .map(UserSearchDoc::new)
+                .collect(Collectors.toList());
+        userSearchRepository.saveAll(userDocs);
+
+        // 3. Sync Channels
+        List<Channel> allChannels = channelRepository.findAll();
+        List<ChannelSearchDoc> channelDocs = allChannels.stream()
+                .map(ChannelSearchDoc::new)
+                .collect(Collectors.toList());
+        channelSearchRepository.saveAll(channelDocs);
+
+        return ResponseEntity.ok("Sync Complete for Posts, Users, and Channels!");
+    }
 
     @GetMapping("/stats")
     public ResponseEntity<AdminDashboardStatsDto> getDashboardStats() {
@@ -43,31 +98,28 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/warn")
-    public ResponseEntity<?> warnUser(@PathVariable Long userId, @AuthenticationPrincipal UserDetails userDetails) {
-        // Assume userDetails has some way to get admin ID. For now we fetch by email/username in service or just pass placeholder.
-        // Actually we need the admin's ID. Let's assume we can get it or we just use 1L as a fallback.
-        // In a real app we'd fetch the admin User entity. We'll leave the adminId retrieval abstraction here.
-        adminService.warnUser(userId, 1L); // TODO: Replace 1L with actual admin ID
+    public ResponseEntity<?> warnUser(@PathVariable Long userId, @AuthenticationPrincipal MemberDTO memberDTO) {
+        adminService.warnUser(userId, memberDTO.getId());
         return ResponseEntity.ok(Map.of("message", "User warned successfully"));
     }
 
     @PostMapping("/users/{userId}/suspend")
-    public ResponseEntity<?> suspendUser(@PathVariable Long userId, @RequestBody SuspendRequestDto requestDto) {
-        adminService.suspendUser(userId, 1L, requestDto); // TODO: Replace 1L with actual admin ID
+    public ResponseEntity<?> suspendUser(@PathVariable Long userId, @RequestBody SuspendRequestDto requestDto, @AuthenticationPrincipal MemberDTO memberDTO) {
+        adminService.suspendUser(userId, memberDTO.getId(), requestDto);
         return ResponseEntity.ok(Map.of("message", "User suspended successfully"));
     }
 
     @PostMapping("/users/{userId}/revert-warn")
-    public ResponseEntity<?> revertWarnUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<?> revertWarnUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body, @AuthenticationPrincipal MemberDTO memberDTO) {
         String reason = (body != null && body.containsKey("reason")) ? body.get("reason") : "I made a mistake";
-        adminService.revertWarnUser(userId, 1L, reason);
+        adminService.revertWarnUser(userId, memberDTO.getId(), reason);
         return ResponseEntity.ok(Map.of("message", "Warning reverted successfully"));
     }
 
     @PostMapping("/users/{userId}/revert-suspend")
-    public ResponseEntity<?> revertSuspendUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body) {
+    public ResponseEntity<?> revertSuspendUser(@PathVariable Long userId, @RequestBody(required = false) Map<String, String> body, @AuthenticationPrincipal MemberDTO memberDTO) {
         String reason = (body != null && body.containsKey("reason")) ? body.get("reason") : "I made a mistake";
-        adminService.revertSuspendUser(userId, 1L, reason);
+        adminService.revertSuspendUser(userId, memberDTO.getId(), reason);
         return ResponseEntity.ok(Map.of("message", "Suspension reverted successfully"));
     }
 
@@ -156,5 +208,30 @@ public class AdminController {
     public ResponseEntity<?> markSuggestionAsSeen(@PathVariable Long suggestionId) {
         adminService.markSuggestionAsSeen(suggestionId);
         return ResponseEntity.ok(Map.of("message", "Suggestion marked as seen"));
+    }
+
+    @GetMapping("/tags")
+    public ResponseEntity<List<Map<String, Object>>> getAllTags() {
+        List<Map<String, Object>> tags = tagRepository.findAll().stream()
+                .map(t -> Map.<String, Object>of("id", t.getId(), "name", t.getName()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(tags);
+    }
+
+    @PostMapping("/tags")
+    public ResponseEntity<?> createTag(@RequestBody Map<String, String> body) {
+        String name = body.getOrDefault("name", "").trim();
+        if (name.isBlank()) return ResponseEntity.badRequest().body(Map.of("message", "태그 이름을 입력하세요."));
+        if (name.length() > 50) return ResponseEntity.badRequest().body(Map.of("message", "태그 이름은 50자 이하여야 합니다."));
+        if (tagRepository.findByName(name).isPresent()) return ResponseEntity.badRequest().body(Map.of("message", "이미 존재하는 태그입니다."));
+        Tag saved = tagRepository.save(Tag.builder().name(name).build());
+        return ResponseEntity.ok(Map.of("id", saved.getId(), "name", saved.getName()));
+    }
+
+    @DeleteMapping("/tags/{tagId}")
+    public ResponseEntity<?> deleteTag(@PathVariable Long tagId) {
+        if (!tagRepository.existsById(tagId)) return ResponseEntity.notFound().build();
+        tagRepository.deleteById(tagId);
+        return ResponseEntity.ok(Map.of("message", "Tag deleted"));
     }
 }

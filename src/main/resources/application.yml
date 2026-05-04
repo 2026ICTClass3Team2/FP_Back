@@ -1,4 +1,6 @@
 spring:
+#  profiles:
+#    active: local
   application:
     name: final_spring
 
@@ -73,6 +75,9 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+  elasticsearch:
+    uris: http://${ELASTICSEARCH_HOST:localhost}:9200
+
 jwt:
   secret: ${JWT_SECRET}
 
@@ -84,6 +89,10 @@ server:
   port: 8090
   servlet:
     context-path: "/api"
+  forward-headers-strategy: native
+
+llm:
+  service-url: http://localhost:8001
 
 aws:
   s3:
@@ -92,3 +101,27 @@ aws:
   credentials:
     access-key: ${AWS_ACCESS_KEY}
     secret-key: ${AWS_SECRET_KEY}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    web:
+      server:
+        request:
+          autotime:
+            enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99

@@ -13,6 +13,8 @@ public interface ChannelService {
     ChannelDetailDto getChannelDetail(Long channelId, String currentUsername);
     List<ChannelSummaryDto> getSubscribedChannels(String currentUsername);
     List<ChannelSummaryDto> getPopularChannels(String currentUsername);
+    /** 캐시 대상: 차단 필터 없는 순수 top5 */
+    List<ChannelSummaryDto> getPopularChannelsRaw();
     void subscribeChannel(Long channelId, String currentUsername);
     void unsubscribeChannel(Long channelId, String currentUsername);
     void unblockChannel(Long channelId, String currentUsername);

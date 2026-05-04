@@ -64,9 +64,7 @@ public class MailService {
 
     public void sendSimpleMessage(String sendEmail) throws MessagingException {
         String number = createNumber();
-
         log.info("Sending email to: {} from: {}", sendEmail, senderEmail);
-
         try {
             MimeMessage message = createMail(sendEmail, number);
             javaMailSender.send(message);
@@ -103,13 +101,10 @@ public class MailService {
 
     public void sendUpdateVerificationMessage(String sendEmail) throws MessagingException {
         String number = createNumber();
-
         log.info("Sending update verification email to: {} from: {}", sendEmail, senderEmail);
-
         try {
             MimeMessage message = createUpdateEmailMail(sendEmail, number);
             javaMailSender.send(message);
-
             redisService.saveAuthCode(sendEmail, number, 3 * 60 * 1000);
             log.info("Update verification email sent successfully to {}", sendEmail);
         } catch (Exception e) {
@@ -153,7 +148,6 @@ public class MailService {
     // 인증번호 검증
     public boolean verifyAuthCode(String email, String code) {
         String savedCode = redisService.getAuthCode(email);
-        
         if (savedCode != null && savedCode.equals(code)) {
             redisService.deleteAuthCode(email); // 인증 성공 후 삭제
             return true;

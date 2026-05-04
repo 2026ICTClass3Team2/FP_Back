@@ -2,8 +2,11 @@ package com.example.demo.domain.notification.controller;
 
 import com.example.demo.domain.notification.dto.NotificationResponseDto;
 import com.example.demo.domain.notification.dto.NotificationSettingDto;
+import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
 import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.User;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,6 +43,14 @@ public class NotificationController {
     @PostMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal MemberDTO memberDTO) {
         notificationService.markAllAsRead(memberDTO.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/read-type")
+    public ResponseEntity<Void> markTypeAsRead(@AuthenticationPrincipal MemberDTO memberDTO,
+                                             @RequestParam NotificationTargetType targetType) {
+        User user = User.builder().id(memberDTO.getId()).build();
+        notificationService.markAllTargetTypeAsRead(user, targetType);
         return ResponseEntity.ok().build();
     }
 

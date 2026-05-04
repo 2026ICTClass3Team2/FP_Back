@@ -16,8 +16,11 @@ import com.example.demo.domain.user.entity.User;
 import com.example.demo.global.websocket.NotificationWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -36,14 +39,23 @@ public class NotificationService {
     // WebSocket 핸들러 — 알림 저장 직후 실시간 푸시를 담당합니다.
     // @Lazy를 사용하는 이유: NotificationService와 WebSocketHandler 사이의
     // 순환 의존성 가능성을 방지하고 컨텍스트 초기화 순서 문제를 피하기 위함입니다.
-    private final NotificationWebSocketHandler notificationWebSocketHandler;
+    private final @Lazy NotificationWebSocketHandler notificationWebSocketHandler;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
-        // Check user settings
+        // REQUIRES_NEW는 새 세션을 생성하므로 outer 트랜잭션의 receiver는 detached 상태.
+        // getReferenceById(프록시)는 @MapsId persist 시 Hibernate가 ID를 추출할 때 null을 반환할 수 있어
+        // AssertionFailure를 유발한다. findById로 완전 초기화된 엔티티를 사용한다.
+        User managedReceiver = userRepository.findById(receiver.getId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + receiver.getId()));
+
         NotificationSetting setting = notificationSettingRepository.findById(receiver.getId())
                 .orElseGet(() -> {
-                    NotificationSetting newSetting = NotificationSetting.builder().user(receiver).build();
+                    // userId는 명시하지 않음 — @MapsId가 user.getId()에서 자동으로 파생함.
+                    // userId를 명시하면 save()가 merge()를 호출해 새 엔티티에서 AssertionFailure 재발.
+                    NotificationSetting newSetting = NotificationSetting.builder()
+                            .user(managedReceiver)
+                            .build();
                     return notificationSettingRepository.save(newSetting);
                 });
 
@@ -75,13 +87,12 @@ public class NotificationService {
                 shouldSend = setting.isAdmin();
                 break;
             default:
-                shouldSend = true; // Default to true for unknown types or system types
+                shouldSend = true;
         }
 
         if (shouldSend) {
-            // DB에 알림을 저장합니다. 이 레코드가 NotificationTab에서 조회됩니다.
             Notification notification = Notification.builder()
-                    .user(receiver)
+                    .user(managedReceiver)
                     .notificationType(message)
                     .targetType(targetType)
                     .targetId(targetId)
@@ -148,6 +159,15 @@ public class NotificationService {
         notificationRepository.markAllAsRead(user.getId());
     }
 
+    @Transactional
+    public void markTargetAsRead(User user, NotificationTargetType targetType, Long targetId) {
+        notificationRepository.markTargetNotificationsAsRead(user.getId(), targetType, targetId);
+    }
+
+    @Transactional
+    public void markAllTargetTypeAsRead(User user, NotificationTargetType targetType) {
+        notificationRepository.markAllTargetTypeNotificationsAsRead(user.getId(), targetType);
+    }
     public List<NotificationResponseDto> getNotifications(String email, String filter) {
         User user = userRepository.findByEmail(email).orElseThrow();
         List<Notification> notifications;

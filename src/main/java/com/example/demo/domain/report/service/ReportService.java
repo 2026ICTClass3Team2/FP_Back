@@ -12,6 +12,7 @@ import com.example.demo.domain.report.entity.Hidden;
 import com.example.demo.domain.report.entity.Report;
 import com.example.demo.domain.report.enums.HiddenReasonType;
 import com.example.demo.domain.report.enums.HiddenTargetType;
+import com.example.demo.domain.report.enums.ReportStatus;
 import com.example.demo.domain.report.enums.ReportTargetType;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
@@ -41,7 +42,6 @@ public class ReportService {
     public boolean processReport(ReportRequestDto requestDto, String reporterEmail) {
         User reporter = userRepository.findByEmail(reporterEmail)
                 .orElseThrow(() -> new IllegalArgumentException("신고자를 찾을 수 없습니다."));
-
         // 1. 신고 접수
         Report report = Report.builder()
                 .reporter(reporter)
@@ -49,16 +49,14 @@ public class ReportService {
                 .targetType(requestDto.getTargetType())
                 .category(requestDto.getReasonType())
                 .details(requestDto.getReasonDetail())
+                .status(ReportStatus.pending)
                 .build();
         reportRepository.save(report);
-
         boolean isBlockedOrHidden = false;
-
         // 2. 게시글 신고 - 차단 여부에 관계없이 게시글 숨김
         if (requestDto.getTargetType() == ReportTargetType.post) {
             Post postToHide = postRepository.findById(requestDto.getTargetId())
                     .orElseThrow(() -> new IllegalArgumentException("숨길 게시글을 찾을 수 없습니다."));
-
             if (!hiddenRepository.existsByUserIdAndTargetId(reporter.getId(), postToHide.getId())) {
                 Hidden hidden = Hidden.builder()
                         .user(reporter)
@@ -84,11 +82,9 @@ public class ReportService {
             }
             isBlockedOrHidden = true;
         }
-
         // 4. 채널 차단 처리 (채널 신고 + blockChannel 체크 시)
         if (requestDto.getTargetType() == ReportTargetType.channel && requestDto.isBlockChannel()) {
             Long channelId = requestDto.getTargetId();
-
             if (!hiddenRepository.existsByUserIdAndTargetIdAndTargetType(reporter.getId(), channelId, HiddenTargetType.channel)) {
                 Hidden hidden = Hidden.builder()
                         .user(reporter)
@@ -98,14 +94,12 @@ public class ReportService {
                         .build();
                 hiddenRepository.save(hidden);
             }
-
             // 구독 중이면 자동 구독 취소
             followRepository.findByUser_IdAndTargetIdAndTargetType(reporter.getId(), channelId, TARGET_TYPE_CHANNEL)
                     .ifPresent(follow -> {
                         followRepository.delete(follow);
                         channelRepository.updateFollowerCount(channelId, -1);
                     });
-
             isBlockedOrHidden = true;
         }
 

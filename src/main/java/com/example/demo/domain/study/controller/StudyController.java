@@ -4,13 +4,17 @@ import com.example.demo.domain.study.dto.HiddenChapDetailDto;
 import com.example.demo.domain.study.dto.HiddenLangDetailDto;
 import com.example.demo.domain.study.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +24,34 @@ import java.util.Map;
 public class StudyController {
 
     private final ResourceRepository resourceRepository;
+    private final JdbcTemplate jdbcTemplate;
+
+    // 환경변수 STUDY_DB_URL 이 설정된 경우에만 주입됨 (로컬 테스트 / 별도 원격 DB)
+    @Autowired(required = false)
+    @Qualifier("studyJdbcTemplate")
+    private JdbcTemplate studyJdbcTemplate;
+
+    @GetMapping("/data")
+    public ResponseEntity<Map<String, Object>> getStudyData() {
+        JdbcTemplate tmpl = studyJdbcTemplate != null ? studyJdbcTemplate : jdbcTemplate;
+
+        List<Map<String, Object>> languages = tmpl.queryForList(
+            "SELECT resource_id, name FROM resource"
+        );
+        List<Map<String, Object>> chapters = tmpl.queryForList(
+            "SELECT original_id, resource_id, title, content, index_order, is_hidden, is_translated " +
+            "FROM original ORDER BY resource_id, index_order"
+        );
+        List<Map<String, Object>> translated = tmpl.queryForList(
+            "SELECT original_id, language, title, content FROM translated"
+        );
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("languages", languages);
+        result.put("chapters", chapters);
+        result.put("translated", translated);
+        return ResponseEntity.ok(result);
+    }
 
     /** 현재 사용자의 역할 반환 */
     @GetMapping("/my-role")
