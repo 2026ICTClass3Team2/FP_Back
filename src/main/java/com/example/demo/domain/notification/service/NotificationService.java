@@ -43,12 +43,18 @@ public class NotificationService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
-        // Check user settings
+        // REQUIRES_NEW는 새 세션을 생성하므로 outer 트랜잭션의 receiver는 detached 상태.
+        // getReferenceById(프록시)는 @MapsId persist 시 Hibernate가 ID를 추출할 때 null을 반환할 수 있어
+        // AssertionFailure를 유발한다. findById로 완전 초기화된 엔티티를 사용한다.
+        User managedReceiver = userRepository.findById(receiver.getId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + receiver.getId()));
+
         NotificationSetting setting = notificationSettingRepository.findById(receiver.getId())
                 .orElseGet(() -> {
+                    // userId는 명시하지 않음 — @MapsId가 user.getId()에서 자동으로 파생함.
+                    // userId를 명시하면 save()가 merge()를 호출해 새 엔티티에서 AssertionFailure 재발.
                     NotificationSetting newSetting = NotificationSetting.builder()
-                            .user(receiver)
-                            .userId(receiver.getId())  // explicit — @MapsId may not resolve proxy ID correctly
+                            .user(managedReceiver)
                             .build();
                     return notificationSettingRepository.save(newSetting);
                 });
@@ -81,13 +87,12 @@ public class NotificationService {
                 shouldSend = setting.isAdmin();
                 break;
             default:
-                shouldSend = true; // Default to true for unknown types or system types
+                shouldSend = true;
         }
 
         if (shouldSend) {
-            // DB에 알림을 저장합니다. 이 레코드가 NotificationTab에서 조회됩니다.
             Notification notification = Notification.builder()
-                    .user(receiver)
+                    .user(managedReceiver)
                     .notificationType(message)
                     .targetType(targetType)
                     .targetId(targetId)
