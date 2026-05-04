@@ -1,5 +1,6 @@
 package com.example.demo.domain.content.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 
@@ -28,9 +29,13 @@ public class PostDetailResponseDto {
     private int viewCount;
     private int commentCount;
     
+    @JsonProperty("isLiked")
     private boolean isLiked;
+    @JsonProperty("isDisliked")
     private boolean isDisliked;
+    @JsonProperty("isBookmarked")
     private boolean isBookmarked;
+    @JsonProperty("isAuthor")
     private boolean isAuthor;
 
     private List<String> tags;

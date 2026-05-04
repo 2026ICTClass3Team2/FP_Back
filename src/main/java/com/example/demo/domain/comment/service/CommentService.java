@@ -169,65 +169,111 @@ public class CommentService {
         // 2. 현재 사용자의 차단/숨김 정보 조회
         Set<Long> blockedUserIds = Collections.emptySet();
         Set<Long> hiddenCommentIds = Collections.emptySet();
+        Set<Long> likedCommentIds = Collections.emptySet();
+        Set<Long> dislikedCommentIds = Collections.emptySet();
 
         if (currentUserEmail != null) {
             User currentUser = userRepository.findByEmail(currentUserEmail).orElse(null);
             if (currentUser != null) {
                 blockedUserIds = new HashSet<>(blockRepository.findBlockedUserIdsByBlockerId(currentUser.getId()));
                 hiddenCommentIds = new HashSet<>(hiddenRepository.findTargetIdsByUserIdAndTargetType(currentUser.getId(), HiddenTargetType.comment));
+
+                // 3. 부모 댓글 ID로 대댓글까지 포함한 전체 댓글 ID 수집 후 상호작용 일괄 조회
+                List<Long> rootCommentIds = rootComments.stream().map(Comment::getId).collect(Collectors.toList());
+                List<Comment> replies = commentRepository.findRepliesByParentIds(rootCommentIds);
+
+                Set<Long> allCommentIds = new HashSet<>(rootCommentIds);
+                replies.stream().map(Comment::getId).forEach(allCommentIds::add);
+
+                List<Interaction> interactions = interactionRepository
+                        .findByUserIdAndTargetTypeAndTargetIdIn(currentUser.getId(), "comment", allCommentIds);
+
+                likedCommentIds = interactions.stream()
+                        .filter(i -> "like".equals(i.getActionType()))
+                        .map(Interaction::getTargetId)
+                        .collect(Collectors.toSet());
+                dislikedCommentIds = interactions.stream()
+                        .filter(i -> "dislike".equals(i.getActionType()))
+                        .map(Interaction::getTargetId)
+                        .collect(Collectors.toSet());
+
+                // replies를 재사용하기 위해 아래 조회를 대체 — 이미 조회했으므로 로컬 변수로 처리
+                final Set<Long> finalBlockedUserIds = blockedUserIds;
+                final Set<Long> finalHiddenCommentIds = hiddenCommentIds;
+                final Set<Long> finalLikedCommentIds = likedCommentIds;
+                final Set<Long> finalDislikedCommentIds = dislikedCommentIds;
+
+                Map<Long, CommentResponseDto> commentMap = new HashMap<>();
+                List<CommentResponseDto> rootCommentDtos = rootComments.stream()
+                        .map(comment -> {
+                            CommentResponseDto dto = new CommentResponseDto(comment);
+                            if (finalHiddenCommentIds.contains(comment.getId())) dto.setReported(true);
+                            dto.setLiked(finalLikedCommentIds.contains(comment.getId()));
+                            dto.setDisliked(finalDislikedCommentIds.contains(comment.getId()));
+                            commentMap.put(dto.getId(), dto);
+                            return dto;
+                        })
+                        .collect(Collectors.toList());
+
+                for (Comment reply : replies) {
+                    if (reply.getAuthor() != null && finalBlockedUserIds.contains(reply.getAuthor().getId())) continue;
+                    CommentResponseDto parentDto = commentMap.get(reply.getParent().getId());
+                    if (parentDto != null && !"deleted".equals(reply.getStatus())) {
+                        CommentResponseDto replyDto = new CommentResponseDto(reply);
+                        if (finalHiddenCommentIds.contains(reply.getId())) replyDto.setReported(true);
+                        replyDto.setLiked(finalLikedCommentIds.contains(reply.getId()));
+                        replyDto.setDisliked(finalDislikedCommentIds.contains(reply.getId()));
+                        parentDto.getChildren().add(replyDto);
+                    }
+                }
+
+                return rootCommentDtos.stream()
+                        .filter(dto -> {
+                            if (!"deleted".equals(dto.getStatus())) {
+                                Long authorId = dto.getAuthorUserId();
+                                if (authorId != null && finalBlockedUserIds.contains(authorId)) return false;
+                            }
+                            return true;
+                        })
+                        .peek(dto -> dto.setReplyCount(dto.getChildren().size()))
+                        .filter(dto -> "active".equals(dto.getStatus()) ||
+                                       ("deleted".equals(dto.getStatus()) && dto.getReplyCount() > 0))
+                        .collect(Collectors.toList());
             }
         }
 
-        // 3. 부모 댓글 ID 리스트 추출
-        List<Long> rootCommentIds = rootComments.stream()
-                .map(Comment::getId)
-                .collect(Collectors.toList());
-
-        // 4. 대댓글 조회 (등록순)
+        // 비로그인 사용자: 상호작용 상태 없이 반환
+        List<Long> rootCommentIds = rootComments.stream().map(Comment::getId).collect(Collectors.toList());
         List<Comment> replies = commentRepository.findRepliesByParentIds(rootCommentIds);
 
         final Set<Long> finalBlockedUserIds = blockedUserIds;
         final Set<Long> finalHiddenCommentIds = hiddenCommentIds;
 
-        // 5. DTO 변환 및 트리 구조 조립
         Map<Long, CommentResponseDto> commentMap = new HashMap<>();
         List<CommentResponseDto> rootCommentDtos = rootComments.stream()
                 .map(comment -> {
                     CommentResponseDto dto = new CommentResponseDto(comment);
-                    if (finalHiddenCommentIds.contains(comment.getId())) {
-                        dto.setReported(true);
-                    }
+                    if (finalHiddenCommentIds.contains(comment.getId())) dto.setReported(true);
                     commentMap.put(dto.getId(), dto);
                     return dto;
                 })
                 .collect(Collectors.toList());
 
         for (Comment reply : replies) {
-            // 차단된 유저의 대댓글 제외
-            if (reply.getAuthor() != null && finalBlockedUserIds.contains(reply.getAuthor().getId())) {
-                continue;
-            }
+            if (reply.getAuthor() != null && finalBlockedUserIds.contains(reply.getAuthor().getId())) continue;
             CommentResponseDto parentDto = commentMap.get(reply.getParent().getId());
-            if (parentDto != null) {
-                if (!"deleted".equals(reply.getStatus())) {
-                    CommentResponseDto replyDto = new CommentResponseDto(reply);
-                    if (finalHiddenCommentIds.contains(reply.getId())) {
-                        replyDto.setReported(true);
-                    }
-                    parentDto.getChildren().add(replyDto);
-                }
+            if (parentDto != null && !"deleted".equals(reply.getStatus())) {
+                CommentResponseDto replyDto = new CommentResponseDto(reply);
+                if (finalHiddenCommentIds.contains(reply.getId())) replyDto.setReported(true);
+                parentDto.getChildren().add(replyDto);
             }
         }
 
-        // 6. 최종 리스트 필터링 (차단 유저 + replyCount 설정)
         return rootCommentDtos.stream()
                 .filter(dto -> {
-                    // 차단된 유저의 루트 댓글 제외 (단, 삭제된 댓글은 남김)
                     if (!"deleted".equals(dto.getStatus())) {
                         Long authorId = dto.getAuthorUserId();
-                        if (authorId != null && finalBlockedUserIds.contains(authorId)) {
-                            return false;
-                        }
+                        if (authorId != null && finalBlockedUserIds.contains(authorId)) return false;
                     }
                     return true;
                 })
@@ -291,7 +337,7 @@ public class CommentService {
     }
 
     @Transactional
-    public void toggleInteraction(Long postId, Long commentId, String actionType, String email) {
+    public CommentResponseDto toggleInteraction(Long postId, Long commentId, String actionType, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Comment comment = getCommentByPost(postId, commentId);
@@ -307,16 +353,23 @@ public class CommentService {
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), "comment", comment.getId());
 
+        boolean nowLiked = false;
+        boolean nowDisliked = false;
+
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
             if (interaction.getActionType().equals(actionType)) {
+                // 같은 액션 → 취소
                 interactionRepository.delete(interaction);
                 updateInteractionCount(comment, actionType, -1);
             } else {
+                // 다른 액션으로 전환
                 String previousActionType = interaction.getActionType();
                 interaction.setActionType(actionType);
                 updateInteractionCount(comment, previousActionType, -1);
                 updateInteractionCount(comment, actionType, 1);
+                nowLiked = "like".equals(actionType);
+                nowDisliked = "dislike".equals(actionType);
             }
         } else {
             Interaction newInteraction = Interaction.builder()
@@ -327,7 +380,14 @@ public class CommentService {
                     .build();
             interactionRepository.save(newInteraction);
             updateInteractionCount(comment, actionType, 1);
+            nowLiked = "like".equals(actionType);
+            nowDisliked = "dislike".equals(actionType);
         }
+
+        CommentResponseDto dto = new CommentResponseDto(comment);
+        dto.setLiked(nowLiked);
+        dto.setDisliked(nowDisliked);
+        return dto;
     }
 
     private void updateInteractionCount(Comment comment, String actionType, int delta) {
