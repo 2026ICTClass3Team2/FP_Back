@@ -7,6 +7,7 @@ import com.example.demo.domain.channel.repository.ChannelRepository;
 import com.example.demo.domain.content.dto.PostCreateRequestDto;
 import com.example.demo.domain.content.dto.PostDetailResponseDto;
 import com.example.demo.domain.content.dto.PostFeedResponseDto;
+import com.example.demo.domain.content.dto.PostInteractionResponseDto;
 import com.example.demo.domain.content.dto.PostUpdateRequestDto;
 import com.example.demo.domain.content.entity.Bookmark;
 import com.example.demo.domain.content.entity.Post;
@@ -571,7 +572,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void toggleInteraction(Long postId, String actionType, String currentUsername) {
+    public PostInteractionResponseDto toggleInteraction(Long postId, String actionType, String currentUsername) {
         User user = userRepository.findByEmail(currentUsername)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -585,25 +586,31 @@ public class PostServiceImpl implements PostService {
         Optional<Interaction> existingInteraction = interactionRepository
                 .findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
 
+        boolean nowLiked = false;
+        boolean nowDisliked = false;
+
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
             if (interaction.getActionType().equals(actionType)) {
+                // 같은 액션 → 취소
                 interactionRepository.delete(interaction);
                 updatePostInteractionCount(post, actionType, -1);
-                // 취소 → 역방향 관심도 조정
                 if ("like".equals(actionType)) userInterestService.onUnlike(user.getId(), postId);
                 else if ("dislike".equals(actionType)) userInterestService.onUndislike(user.getId(), postId);
+                // nowLiked, nowDisliked 모두 false 유지
             } else {
+                // 다른 액션으로 전환
                 String previousActionType = interaction.getActionType();
                 interaction.setActionType(actionType);
                 updatePostInteractionCount(post, previousActionType, -1);
                 updatePostInteractionCount(post, actionType, 1);
-                // 전환: 단일 호출로 합산 delta 적용 (race condition 방지)
                 if ("like".equals(previousActionType) && "dislike".equals(actionType)) {
                     userInterestService.onSwitchLikeToDislike(user.getId(), postId);
                 } else if ("dislike".equals(previousActionType) && "like".equals(actionType)) {
                     userInterestService.onSwitchDislikeToLike(user.getId(), postId);
                 }
+                nowLiked = "like".equals(actionType);
+                nowDisliked = "dislike".equals(actionType);
             }
         } else {
             Interaction newInteraction = Interaction.builder()
@@ -616,7 +623,11 @@ public class PostServiceImpl implements PostService {
             updatePostInteractionCount(post, actionType, 1);
             if ("like".equals(actionType)) userInterestService.onLike(user.getId(), postId);
             else if ("dislike".equals(actionType)) userInterestService.onDislike(user.getId(), postId);
+            nowLiked = "like".equals(actionType);
+            nowDisliked = "dislike".equals(actionType);
         }
+
+        return new PostInteractionResponseDto(post.getLikeCount(), post.getDislikeCount(), nowLiked, nowDisliked);
     }
 
     private void updatePostInteractionCount(Post post, String actionType, int delta) {
