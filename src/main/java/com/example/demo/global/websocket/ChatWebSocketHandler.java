@@ -74,16 +74,23 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             ChatSendRequest request = objectMapper.readValue(message.getPayload(), ChatSendRequest.class);
 
             if ("SEND".equals(request.getType())) {
-                // 2. DB 저장 및 DTO 생성
                 ChatMessageDto messageDto = chatService.saveMessage(
                         senderId, request.getReceiverId(), request.getContent());
-
-                // 3. 수신자에게 전송
                 String payload = objectMapper.writeValueAsString(messageDto);
                 sendMessageToUser(request.getReceiverId(), payload);
-
-                // 4. 송신자 본인에게도 에코 (다른 탭 동기화 등)
                 sendMessageToUser(senderId, payload);
+
+            } else if ("EDIT".equals(request.getType())) {
+                Map<String, Object> result = chatService.editMessage(
+                        request.getChatId(), senderId, request.getContent());
+                String payload = objectMapper.writeValueAsString(result);
+                broadcastToConversation(senderId, result.get("receiverId"), payload);
+
+            } else if ("DELETE".equals(request.getType())) {
+                Map<String, Object> result = chatService.deleteMessage(
+                        request.getChatId(), senderId);
+                String payload = objectMapper.writeValueAsString(result);
+                broadcastToConversation(senderId, result.get("receiverId"), payload);
             }
         } catch (Exception e) {
             log.error("[ChatWS] Error handling message: {}", e.getMessage(), e);
@@ -109,6 +116,13 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             } else {
                 sessions.remove(session);
             }
+        }
+    }
+
+    private void broadcastToConversation(Long senderId, Object receiverIdObj, String payload) {
+        sendMessageToUser(senderId, payload);
+        if (receiverIdObj instanceof Number) {
+            sendMessageToUser(((Number) receiverIdObj).longValue(), payload);
         }
     }
 

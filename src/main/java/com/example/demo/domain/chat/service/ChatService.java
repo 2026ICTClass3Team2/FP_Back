@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -145,11 +146,64 @@ public class ChatService {
                     partner.getId(),
                     partner.getNickname(),
                     partner.getProfilePicUrl(),
-                    msg.getContent(),
+                    msg.isDeleted() ? "(삭제된 메시지입니다)" : msg.getContent(),
                     msg.getCreatedAt(),
                     unreadCount
             );
         }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /**
+     * 메시지 내용을 수정합니다. 본인 메시지만 수정 가능합니다.
+     */
+    @Transactional
+    public Map<String, Object> editMessage(Long chatId, Long senderId, String newContent) {
+        ChatMessage msg = chatRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalArgumentException("Message not found: " + chatId));
+        if (!msg.getSender().getId().equals(senderId)) {
+            throw new IllegalArgumentException("Not authorized to edit this message");
+        }
+        if (msg.isDeleted()) {
+            throw new IllegalArgumentException("Cannot edit a deleted message");
+        }
+        msg.setContent(newContent);
+        msg.setEdited(true);
+        chatRepository.save(msg);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", "EDIT_MESSAGE");
+        result.put("chatId", msg.getId());
+        result.put("conversationId", msg.getConversationId());
+        result.put("content", msg.getContent());
+        result.put("isEdited", true);
+        result.put("senderId", senderId);
+        result.put("receiverId", msg.getReceiver() != null ? msg.getReceiver().getId() : null);
+        log.info("[Chat] Message edited. chatId={}, senderId={}", chatId, senderId);
+        return result;
+    }
+
+    /**
+     * 메시지를 소프트 삭제합니다. 본인 메시지만 삭제 가능합니다.
+     */
+    @Transactional
+    public Map<String, Object> deleteMessage(Long chatId, Long senderId) {
+        ChatMessage msg = chatRepository.findById(chatId)
+                .orElseThrow(() -> new IllegalArgumentException("Message not found: " + chatId));
+        if (!msg.getSender().getId().equals(senderId)) {
+            throw new IllegalArgumentException("Not authorized to delete this message");
+        }
+        msg.setDeleted(true);
+        msg.setContent("");
+        chatRepository.save(msg);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("type", "DELETE_MESSAGE");
+        result.put("chatId", msg.getId());
+        result.put("conversationId", msg.getConversationId());
+        result.put("senderId", senderId);
+        result.put("receiverId", msg.getReceiver() != null ? msg.getReceiver().getId() : null);
+        log.info("[Chat] Message deleted. chatId={}, senderId={}", chatId, senderId);
+        return result;
     }
 
     /**

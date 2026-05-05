@@ -36,6 +36,14 @@ public class ChatMessage {
     @Builder.Default
     private Boolean isRead = false;
 
+    @Column(name = "is_edited", nullable = false)
+    @Builder.Default
+    private boolean isEdited = false;
+
+    @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
+    private boolean isDeleted = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

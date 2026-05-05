@@ -88,7 +88,7 @@ public class AdminServiceImpl implements AdminService {
         notificationService.sendNotification(
             user, 
             "admin", 
-            NotificationTargetType.user, 
+            NotificationTargetType.admin, 
             userId, 
             "운영자로부터 경고를 받았습니다. 누적 경고: " + user.getWarningCount() + "회"
         );
@@ -109,7 +109,7 @@ public class AdminServiceImpl implements AdminService {
             notificationService.sendNotification(
                 user, 
                 "admin", 
-                NotificationTargetType.user, 
+                NotificationTargetType.admin, 
                 userId, 
                 "누적 경고 3회로 인해 계정이 1일간 정지되었습니다."
             );
@@ -136,7 +136,7 @@ public class AdminServiceImpl implements AdminService {
         notificationService.sendNotification(
             user, 
             "admin", 
-            NotificationTargetType.user, 
+            NotificationTargetType.admin, 
             userId, 
             "운영자에 의해 계정이 정지되었습니다. 사유: " + requestDto.getReason()
         );

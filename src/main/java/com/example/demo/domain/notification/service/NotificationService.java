@@ -41,7 +41,7 @@ public class NotificationService {
     // 순환 의존성 가능성을 방지하고 컨텍스트 초기화 순서 문제를 피하기 위함입니다.
     private final @Lazy NotificationWebSocketHandler notificationWebSocketHandler;
 
-    @Transactional(propagation = Propagation.REQUIRED)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
         User managedReceiver = userRepository.findById(receiver.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + receiver.getId()));

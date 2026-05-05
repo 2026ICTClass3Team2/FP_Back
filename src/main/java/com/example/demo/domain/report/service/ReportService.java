@@ -57,11 +57,12 @@ public class ReportService {
         if (requestDto.getTargetType() == ReportTargetType.post) {
             Post postToHide = postRepository.findById(requestDto.getTargetId())
                     .orElseThrow(() -> new IllegalArgumentException("숨길 게시글을 찾을 수 없습니다."));
-            if (!hiddenRepository.existsByUserIdAndTargetId(reporter.getId(), postToHide.getId())) {
+            HiddenTargetType postHiddenType = HiddenTargetType.valueOf(postToHide.getContentType());
+            if (!hiddenRepository.existsByUserIdAndTargetIdAndTargetType(reporter.getId(), postToHide.getId(), postHiddenType)) {
                 Hidden hidden = Hidden.builder()
                         .user(reporter)
                         .targetId(postToHide.getId())
-                        .targetType(HiddenTargetType.valueOf(postToHide.getContentType()))
+                        .targetType(postHiddenType)
                         .reason(HiddenReasonType.reported)
                         .build();
                 hiddenRepository.save(hidden);
@@ -71,7 +72,7 @@ public class ReportService {
 
         // 3. 댓글 신고 - 신고한 댓글 숨김
         if (requestDto.getTargetType() == ReportTargetType.comments) {
-            if (!hiddenRepository.existsByUserIdAndTargetId(reporter.getId(), requestDto.getTargetId())) {
+            if (!hiddenRepository.existsByUserIdAndTargetIdAndTargetType(reporter.getId(), requestDto.getTargetId(), HiddenTargetType.comment)) {
                 Hidden hidden = Hidden.builder()
                         .user(reporter)
                         .targetId(requestDto.getTargetId())
