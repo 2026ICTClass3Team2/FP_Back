@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_hidden_target", columnList = "user_id, target_type, target_id")
         },
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_hidden_pair", columnNames = {"user_id", "target_id"})
+                @UniqueConstraint(name = "uk_hidden_pair", columnNames = {"user_id", "target_type", "target_id"})
         }
 )
 @Getter

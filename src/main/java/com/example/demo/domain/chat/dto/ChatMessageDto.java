@@ -38,6 +38,8 @@ public class ChatMessageDto {
     /* ───── 메시지 내용 ───── */
     private final String content;
     private final Boolean isRead;
+    private final boolean isEdited;
+    private final boolean isDeleted;
     private final LocalDateTime createdAt;
 
     /**
@@ -47,30 +49,20 @@ public class ChatMessageDto {
      */
     private final String type = "NEW_MESSAGE";
 
-    /**
-     * ChatMessage 엔티티로부터 DTO를 생성합니다.
-     * sender가 null(탈퇴 사용자)인 경우에도 안전하게 처리합니다.
-     *
-     * @param msg 영속화된 ChatMessage 엔티티
-     */
     public ChatMessageDto(ChatMessage msg) {
         this.chatId          = msg.getId();
         this.conversationId  = msg.getConversationId();
 
-        // sender가 탈퇴해 NULL 이 된 경우 기본값을 설정합니다.
-        this.senderId        = msg.getSender() != null
-                ? msg.getSender().getId() : null;
-        this.senderNickname  = msg.getSender() != null
-                ? msg.getSender().getNickname() : "(알 수 없음)";
-        this.senderProfilePic = msg.getSender() != null
-                ? msg.getSender().getProfilePicUrl() : null;
+        this.senderId        = msg.getSender() != null ? msg.getSender().getId() : null;
+        this.senderNickname  = msg.getSender() != null ? msg.getSender().getNickname() : "(알 수 없음)";
+        this.senderProfilePic = msg.getSender() != null ? msg.getSender().getProfilePicUrl() : null;
 
-        // receiver도 탈퇴 가능 — ID만 필요하므로 null 허용
-        this.receiverId      = msg.getReceiver() != null
-                ? msg.getReceiver().getId() : null;
+        this.receiverId      = msg.getReceiver() != null ? msg.getReceiver().getId() : null;
 
-        this.content         = msg.getContent();
+        this.isDeleted       = msg.isDeleted();
+        this.content         = msg.isDeleted() ? null : msg.getContent();
         this.isRead          = msg.getIsRead();
+        this.isEdited        = msg.isEdited();
         this.createdAt       = msg.getCreatedAt();
     }
 }
