@@ -127,11 +127,16 @@ public class CommentService {
             log.warn("알림 전송 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
         }
 
-        // Mention Detection
+        // Mention Detection — parse embed spans first (supports spaces), then fall back to plain text
+        Set<String> mentionedNicknames = new HashSet<>();
+        Pattern htmlPattern = Pattern.compile("data-nickname=\"([^\"]+)\"");
+        Matcher htmlMatcher = htmlPattern.matcher(requestDto.getContent());
+        while (htmlMatcher.find()) {
+            mentionedNicknames.add(htmlMatcher.group(1));
+        }
         String plainContent = requestDto.getContent().replaceAll("<[^>]*>", "");
         Pattern pattern = Pattern.compile("@([가-힣a-zA-Z0-9._-]{2,50})");
         Matcher matcher = pattern.matcher(plainContent);
-        Set<String> mentionedNicknames = new HashSet<>();
         while (matcher.find()) {
             mentionedNicknames.add(matcher.group(1));
         }
