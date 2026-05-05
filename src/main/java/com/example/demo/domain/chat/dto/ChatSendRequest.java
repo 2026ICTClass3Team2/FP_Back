@@ -31,6 +31,12 @@ public class ChatSendRequest {
     private String type;
 
     /**
+     * 수정/삭제 대상 메시지 ID.
+     * "EDIT"/"DELETE" 타입에서만 사용합니다.
+     */
+    private Long chatId;
+
+    /**
      * 수신자의 user_id.
      * 서버는 이 값을 사용해 대화 ID를 결정하고 메시지를 저장합니다.
      */

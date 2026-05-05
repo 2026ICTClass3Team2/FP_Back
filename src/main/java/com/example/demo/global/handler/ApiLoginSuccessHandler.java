@@ -70,7 +70,11 @@ public class ApiLoginSuccessHandler implements AuthenticationSuccessHandler {
             responseData.put("status", user.getStatus().name());
             if (user.getStatus() == UserStatus.suspended) {
                 suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(user.getId())
-                        .ifPresent(s -> responseData.put("releasedAt", s.getReleasedAt()));
+                        .ifPresent(s -> {
+                            if (s.getReleasedAt() != null) {
+                                responseData.put("releasedAt", s.getReleasedAt().toString());
+                            }
+                        });
             }
         }
 
