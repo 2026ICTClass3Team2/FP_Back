@@ -33,7 +33,7 @@ public class EventQnaScheduler {
      * 매주 월요일 오전 9시에 이벤트 QnA 3문제를 자동 생성합니다.
      * (easy 10P / medium 15P / hard 20P)
      */
-    @Scheduled(cron = "0 0 9 * * MON")
+    @Scheduled(cron = "0 0 9 * * WED")
     @Transactional
     public void generateWeeklyEventQuestions() {
         log.info("[이벤트 QnA] 주간 이벤트 문제 생성 시작");
