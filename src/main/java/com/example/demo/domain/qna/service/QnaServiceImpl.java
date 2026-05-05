@@ -343,7 +343,6 @@ public class QnaServiceImpl implements QnaService {
                                 .map(contentTag -> contentTag.getTag().getName())
                                 .collect(Collectors.toList());
                         dto.setTechStacks(techStacks);
-                    }
 
                         dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
                         dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
@@ -531,7 +530,7 @@ public class QnaServiceImpl implements QnaService {
             throw new IllegalArgumentException("동결되거나 삭제된 질문에는 반응할 수 없습니다.");
         }
 
-        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", qnaId);
+        Optional<Interaction> existingInteraction = interactionRepository.findByUserIdAndTargetTypeAndTargetId(user.getId(), "post", post.getId());
 
         if (existingInteraction.isPresent()) {
             Interaction interaction = existingInteraction.get();
