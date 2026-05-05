@@ -120,6 +120,9 @@ public class ReportService {
                         .build();
                 blockRepository.save(block);
             }
+            // 차단한 유저를 팔로우하고 있었다면 자동으로 팔로우 해제
+            followRepository.findByUser_IdAndTargetIdAndTargetType(reporter.getId(), userToBlock.getId(), "user")
+                    .ifPresent(followRepository::delete);
             isBlockedOrHidden = true;
         }
 
