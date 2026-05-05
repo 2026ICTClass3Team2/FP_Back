@@ -24,6 +24,7 @@ import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.user.entity.User;
 import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,10 +35,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class QnaServiceImpl implements QnaService {
 
     private final PostRepository postRepository;
@@ -109,17 +113,29 @@ public class QnaServiceImpl implements QnaService {
         }
 
         saveTags(savedPost, qnaCreateRequestDto.getTags());
-        processMentions(savedPost, user);
+        try {
+            processMentions(savedPost, user);
+        } catch (Exception e) {
+            log.warn("멘션 처리 실패 (QnA 저장은 성공): postId={}, 오류={}", savedPost.getId(), e.getMessage());
+        }
     }
 
     private void processMentions(Post post, User author) {
         if (post.getBody() == null) return;
-        
+
+        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
+
+        // Parse embed mention spans first (supports nicknames with spaces)
+        Pattern htmlPattern = Pattern.compile("data-nickname=\"([^\"]+)\"");
+        Matcher htmlMatcher = htmlPattern.matcher(post.getBody());
+        while (htmlMatcher.find()) {
+            mentionedNicknames.add(htmlMatcher.group(1));
+        }
+
+        // Fallback: plain-text regex for manually typed @mentions (single-word nicknames)
         String plainContent = post.getBody().replaceAll("<[^>]*>", "");
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("@([가-힣a-zA-Z0-9._-]{2,50})");
         java.util.regex.Matcher matcher = pattern.matcher(plainContent);
-        java.util.Set<String> mentionedNicknames = new java.util.HashSet<>();
-        
         while (matcher.find()) {
             mentionedNicknames.add(matcher.group(1));
         }
