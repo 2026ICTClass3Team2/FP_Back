@@ -41,11 +41,8 @@ public class NotificationService {
     // 순환 의존성 가능성을 방지하고 컨텍스트 초기화 순서 문제를 피하기 위함입니다.
     private final @Lazy NotificationWebSocketHandler notificationWebSocketHandler;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void sendNotification(User receiver, String type, NotificationTargetType targetType, Long targetId, String message) {
-        // REQUIRES_NEW는 새 세션을 생성하므로 outer 트랜잭션의 receiver는 detached 상태.
-        // getReferenceById(프록시)는 @MapsId persist 시 Hibernate가 ID를 추출할 때 null을 반환할 수 있어
-        // AssertionFailure를 유발한다. findById로 완전 초기화된 엔티티를 사용한다.
         User managedReceiver = userRepository.findById(receiver.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + receiver.getId()));
 
