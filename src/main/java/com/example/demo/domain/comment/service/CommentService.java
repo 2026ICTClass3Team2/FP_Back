@@ -13,6 +13,8 @@ import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
+import com.example.demo.domain.point.entity.PointTransaction;
+import com.example.demo.domain.point.repository.PointTransactionRepository;
 import com.example.demo.domain.report.enums.HiddenTargetType;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
@@ -49,6 +51,7 @@ public class CommentService {
     private final NotificationService notificationService;
     private final UserInterestService userInterestService;
     private final QnaRepository qnaRepository;
+    private final PointTransactionRepository pointTransactionRepository;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -87,6 +90,7 @@ public class CommentService {
                 .status("active")
                 .build();
 
+        int preExistingCommentCount = post.getCommentCount();
         Comment savedComment = commentRepository.save(comment);
 
         post.setCommentCount(post.getCommentCount() + 1);
@@ -95,6 +99,36 @@ public class CommentService {
         // 관심도 반영 (피드 게시글 댓글만)
         if ("feed".equals(post.getContentType())) {
             userInterestService.onComment(user.getId(), postId);
+        }
+
+        // 이벤트 QnA 첫 댓글 자동 포인트 지급
+        if (parent == null && preExistingCommentCount == 0 && "qna".equals(post.getContentType())) {
+            try {
+                Qna eventQna = qnaRepository.findByPostId(post.getId());
+                if (eventQna != null && eventQna.isEvent() && !eventQna.isSolved()
+                        && savedComment.getAuthor() != null && eventQna.getEventPoints() > 0) {
+                    User commenter = savedComment.getAuthor();
+                    commenter.setCurrentPoint(commenter.getCurrentPoint() + eventQna.getEventPoints());
+                    userRepository.save(commenter);
+
+                    PointTransaction pointTx = PointTransaction.builder()
+                            .user(commenter)
+                            .targetId(savedComment.getId())
+                            .targetType("event")
+                            .pointChange(eventQna.getEventPoints())
+                            .pointBalance(commenter.getCurrentPoint())
+                            .build();
+                    pointTransactionRepository.save(pointTx);
+
+                    notificationService.sendNotification(
+                            commenter, "point", NotificationTargetType.system,
+                            savedComment.getId(),
+                            "이벤트 QnA 첫 답변으로 포인트가 적립되었습니다: +" + eventQna.getEventPoints()
+                    );
+                }
+            } catch (Exception e) {
+                log.warn("이벤트 포인트 지급 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
+            }
         }
 
         // --- Notification Logic ---

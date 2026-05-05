@@ -25,6 +25,9 @@ public class QnaDetailResponseDto {
     private int dislikeCount;
     private int viewCount;
 
+    private boolean isEvent;
+    private int eventPoints;
+
     private boolean isLiked;
     private boolean isDisliked;
     private boolean isBookmarked;

@@ -345,6 +345,7 @@ public class QnaServiceImpl implements QnaService {
                         dto.setTechStacks(techStacks);
 
                         dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
+                        dto.setEvent(qna.isEvent());
                         dto.setAuthor(qna.getPost().getAuthor() != null && qna.getPost().getAuthor().getId().equals(userId));
                         dto.setBookmarked(bookmarkRepository.existsByUserIdAndTargetIdAndTargetType(userId, qna.getPost().getId(), "qna"));
 
@@ -373,6 +374,7 @@ public class QnaServiceImpl implements QnaService {
                             .collect(Collectors.toList());
                     dto.setTechStacks(techStacks);
                     dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
+                    dto.setEvent(qna.isEvent());
                 }
             });
         }
@@ -440,6 +442,8 @@ public class QnaServiceImpl implements QnaService {
         dto.setPoints(qna.getRewardPoints());
         dto.setLlmScore(qna.getLlmScore());
         dto.setManualRewardPoints(qna.getRewardPoints() - qna.getLlmScore());
+        dto.setEvent(qna.isEvent());
+        dto.setEventPoints(qna.getEventPoints());
         dto.setCreatedAt(post.getCreatedAt());
         dto.setCommentCount(post.getCommentCount());
         dto.setLikeCount(post.getLikeCount());

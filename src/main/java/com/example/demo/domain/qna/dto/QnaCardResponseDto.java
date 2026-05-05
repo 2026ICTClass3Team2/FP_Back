@@ -27,6 +27,7 @@ public class QnaCardResponseDto {
     private int viewCount;
 
     private int manualRewardPoints;
+    private boolean isEvent;
 
     private boolean isLiked;
     private boolean isDisliked;
