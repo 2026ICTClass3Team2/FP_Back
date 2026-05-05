@@ -32,6 +32,14 @@ public class Qna {
     @Column(name = "llm_score", nullable = false)
     private int llmScore;
 
+    @Column(name = "is_event", nullable = false)
+    @Builder.Default
+    private boolean isEvent = false;
+
+    @Column(name = "event_points", nullable = false)
+    @Builder.Default
+    private int eventPoints = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "answer_id")
     private Comment answerId;
