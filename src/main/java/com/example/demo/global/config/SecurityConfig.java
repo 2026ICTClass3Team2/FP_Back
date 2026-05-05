@@ -1,6 +1,5 @@
 package com.example.demo.global.config;
 
-import com.example.demo.domain.user.repository.SuspendedRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.jwt.JWTCheckFilter;
 import com.example.demo.global.redis.RedisService;
@@ -42,7 +41,6 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomLogoutSuccessHandler customLogoutSuccessHandler;
     private final UserRepository userRepository;
-    private final SuspendedRepository suspendedRepository;
     private final RedisService redisService;
 
     // OAuth2 의존성 주입
@@ -104,7 +102,7 @@ public class SecurityConfig {
 
         // 7. JWT 확인 필터 추가
         http.addFilterBefore(
-                new JWTCheckFilter(jwtUtil, userRepository, suspendedRepository, redisService),
+                new JWTCheckFilter(jwtUtil, userRepository, redisService),
                 UsernamePasswordAuthenticationFilter.class
         );
         

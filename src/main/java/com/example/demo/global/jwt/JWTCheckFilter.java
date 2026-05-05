@@ -2,7 +2,7 @@ package com.example.demo.global.jwt;
 
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.domain.user.entity.User;
-import com.example.demo.domain.user.repository.SuspendedRepository;
+import com.example.demo.domain.user.entity.UserStatus;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.exception.CustomJWTException;
 import com.example.demo.global.redis.RedisService;
@@ -27,13 +27,11 @@ import java.util.Map;
 public class JWTCheckFilter extends OncePerRequestFilter {
     private final JWTUtil jwtUtil;
     private final UserRepository userRepository;
-    private final SuspendedRepository suspendedRepository;
     private final RedisService redisService;
 
-    public JWTCheckFilter(JWTUtil jwtUtil, UserRepository userRepository, SuspendedRepository suspendedRepository, RedisService redisService) {
+    public JWTCheckFilter(JWTUtil jwtUtil, UserRepository userRepository, RedisService redisService) {
         this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
-        this.suspendedRepository = suspendedRepository;
         this.redisService = redisService;
     }
 
@@ -113,11 +111,10 @@ public class JWTCheckFilter extends OncePerRequestFilter {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new CustomJWTException("INVALID_USER"));
 
-            // 정지된 유저인지 확인
-            suspendedRepository.findByUserIdAndReleasedAtIsNull(user.getId())
-                    .ifPresent(suspended -> {
-                        throw new CustomJWTException("SUSPENDED_USER");
-                    });
+            // 정지된 유저인지 확인 (임시/영구 정지 모두 차단)
+            if (user.getStatus() == UserStatus.suspended) {
+                throw new CustomJWTException("SUSPENDED_USER");
+            }
 
             List<String> roleNames = List.of(user.getRole().name());
             // 사용자 정보를 MemberDTO에 저장
@@ -136,7 +133,8 @@ public class JWTCheckFilter extends OncePerRequestFilter {
         } catch (CustomJWTException e) {
             // JWT 관련 커스텀 예외 처리
             log.error("JWT Exception: {}", e.getMessage());
-            handleException(response, "ERROR_ACCESS_TOKEN", e.getMessage());
+            String errorKey = "SUSPENDED_USER".equals(e.getMessage()) ? "SUSPENDED_USER" : "ERROR_ACCESS_TOKEN";
+            handleException(response, errorKey, e.getMessage());
         } catch (Exception e) {
             // 그 외 일반 예외 처리
             log.error("Internal Server Error: {}", e.getMessage(), e);
