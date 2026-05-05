@@ -62,7 +62,7 @@ public class LlmTagService {
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(60))
                     .block();
 
             if (response == null) {

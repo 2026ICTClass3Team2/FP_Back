@@ -482,6 +482,9 @@ public class PostServiceImpl implements PostService {
             result = posts.map(post -> convertToDto(post, finalUser));
         }
 
+        if (currentUser != null) {
+            applyBlockedCommentAdjustment(result, currentUser);
+        }
         return result;
     }
 
@@ -506,7 +509,7 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.toList());
 
         Map<Long, Long> blockedCountMap = new HashMap<>();
-        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
+        commentRepository.countAllBlockedCommentsByPostIds(postIds, blockedUserIds)
                 .forEach(row -> blockedCountMap.put((Long) row[0], (Long) row[1]));
 
         content.forEach(dto -> {
@@ -546,7 +549,17 @@ public class PostServiceImpl implements PostService {
         // re-fetch to get updated view count
         post = postRepository.findById(postId).get();
 
-        return convertToDetailDto(post, currentUser);
+        PostDetailResponseDto detailDto = convertToDetailDto(post, currentUser);
+        if (currentUser != null) {
+            List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(currentUser.getId());
+            if (!blockedUserIds.isEmpty()) {
+                commentRepository.countAllBlockedCommentsByPostIds(List.of(post.getId()), blockedUserIds)
+                        .stream().findFirst()
+                        .ifPresent(row -> detailDto.setCommentCount(
+                                (int) Math.max(0, detailDto.getCommentCount() - (Long) row[1])));
+            }
+        }
+        return detailDto;
     }
 
     @Override
