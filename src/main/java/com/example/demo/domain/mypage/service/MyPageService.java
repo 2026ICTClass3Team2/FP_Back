@@ -384,8 +384,8 @@ public class MyPageService {
 
         List<Long> postIds = dtos.stream().map(MyPostDto::getId).collect(Collectors.toList());
         Map<Long, Long> blockedCountMap = new HashMap<>();
-        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
-                .forEach(row -> blockedCountMap.put((Long) row[0], (Long) row[1]));
+        commentRepository.countAllHiddenCommentsByPostIds(postIds, blockedUserIds)
+                .forEach(row -> blockedCountMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
 
         dtos.forEach(dto -> {
             long blocked = blockedCountMap.getOrDefault(dto.getId(), 0L);

@@ -334,8 +334,8 @@ public class QnaServiceImpl implements QnaService {
                             .filter(id -> id != null)
                             .collect(Collectors.toList());
                     if (!postIds.isEmpty()) {
-                        commentRepository.countBlockedRootCommentsByPostIds(postIds, blockedUserIds)
-                                .forEach(row -> blockedCommentCountByPostId.put((Long) row[0], (Long) row[1]));
+                        commentRepository.countAllHiddenCommentsByPostIds(postIds, blockedUserIds)
+                                .forEach(row -> blockedCommentCountByPostId.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
                     }
                 }
 
@@ -451,7 +451,18 @@ public class QnaServiceImpl implements QnaService {
         dto.setEvent(qna.isEvent());
         dto.setEventPoints(qna.getEventPoints());
         dto.setCreatedAt(post.getCreatedAt());
-        dto.setCommentCount(post.getCommentCount());
+        // 차단 유저 댓글 수 보정 (루트 + 대댓글 by 차단유저, 비차단유저 대댓글 under 차단루트)
+        int displayCommentCount = post.getCommentCount();
+        if (userId != null) {
+            List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(userId);
+            if (!blockedUserIds.isEmpty()) {
+                List<Long> postIdList = List.of(post.getId());
+                long blocked = commentRepository.countAllHiddenCommentsByPostIds(postIdList, blockedUserIds)
+                        .stream().mapToLong(row -> ((Number) row[1]).longValue()).sum();
+                displayCommentCount = (int) Math.max(0, displayCommentCount - blocked);
+            }
+        }
+        dto.setCommentCount(displayCommentCount);
         dto.setLikeCount(post.getLikeCount());
         dto.setDislikeCount(post.getDislikeCount());
         dto.setViewCount(post.getViewCount()); // post proxy is initialized from DB after the @Modifying UPDATE, so value is already N+1
