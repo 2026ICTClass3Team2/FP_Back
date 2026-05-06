@@ -19,6 +19,8 @@ public class GlobalSearchResponse {
     private List<UserSearchDoc> users = List.of();
     @Builder.Default
     private List<ChannelSearchDoc> channels = List.of();
+    @Builder.Default
+    private List<TagResult> tags = List.of();
 }
 
 
