@@ -13,6 +13,8 @@ import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.entity.Tag;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.content.repository.TagRepository;
+import com.example.demo.domain.qna.entity.Qna;
+import com.example.demo.domain.qna.repository.QnaRepository;
 import com.example.demo.domain.suggestion.entity.Suggestion;
 import com.example.demo.domain.user.dto.MemberDTO;
 import com.example.demo.domain.user.entity.User;
@@ -45,6 +47,7 @@ public class AdminController {
     private final AdminService adminService;
     private final PostRepository postRepository;
     private final TagRepository tagRepository;
+    private final QnaRepository qnaRepository;
     private final PostSearchRepository postSearchRepository;
     private final UserRepository userRepository;
     private final ChannelRepository channelRepository;
@@ -60,7 +63,12 @@ public class AdminController {
                     List<String> tags = post.getContentTags().stream()
                             .map(ContentTag::getTagName)
                             .collect(Collectors.toList());
-                    return new PostSearchDoc(post, tags);
+                    PostSearchDoc doc = new PostSearchDoc(post, tags);
+                    if ("qna".equals(post.getContentType())) {
+                        Qna qna = qnaRepository.findByPostId(post.getId());
+                        if (qna != null) doc.setQnaId(qna.getId());
+                    }
+                    return doc;
                 })
                 .collect(Collectors.toList());
         postSearchRepository.saveAll(postDocs);
