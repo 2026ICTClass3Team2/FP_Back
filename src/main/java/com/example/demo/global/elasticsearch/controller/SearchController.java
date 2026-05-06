@@ -17,7 +17,9 @@ public class SearchController {
     private final GlobalSearchService searchService;
 
     @GetMapping
-    public ResponseEntity<GlobalSearchResponse> globalSearch(@RequestParam String q) {
-        return ResponseEntity.ok(searchService.searchEverything(q));
+    public ResponseEntity<GlobalSearchResponse> globalSearch(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "5") int size) {
+        return ResponseEntity.ok(searchService.searchEverything(q, size));
     }
 }

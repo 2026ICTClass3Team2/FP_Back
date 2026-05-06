@@ -51,6 +51,9 @@ public class PostSearchDoc {
     @Field(type = FieldType.Keyword)
     private String thumbnailUrl;
 
+    @Field(type = FieldType.Long)
+    private Long qnaId;
+
     // Constructor to easily map from your JPA Entity to this ES Document
     public PostSearchDoc(Post post, List<String> tagNames) {
         this.id = post.getId().toString();
