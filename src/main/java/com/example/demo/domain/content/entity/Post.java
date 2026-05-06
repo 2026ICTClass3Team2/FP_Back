@@ -46,7 +46,7 @@ public class Post {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "LONGTEXT", nullable = false)
     private String body;
 
     @Column(name = "content_type", nullable = false)
