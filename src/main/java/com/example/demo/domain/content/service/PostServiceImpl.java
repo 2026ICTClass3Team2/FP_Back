@@ -522,8 +522,8 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.toList());
 
         Map<Long, Long> blockedCountMap = new HashMap<>();
-        commentRepository.countAllBlockedCommentsByPostIds(postIds, blockedUserIds)
-                .forEach(row -> blockedCountMap.put((Long) row[0], (Long) row[1]));
+        commentRepository.countAllHiddenCommentsByPostIds(postIds, blockedUserIds)
+                .forEach(row -> blockedCountMap.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
 
         content.forEach(dto -> {
             long blocked = blockedCountMap.getOrDefault(dto.getPostId(), 0L);
@@ -566,10 +566,11 @@ public class PostServiceImpl implements PostService {
         if (currentUser != null) {
             List<Long> blockedUserIds = blockRepository.findBlockedUserIdsByBlockerId(currentUser.getId());
             if (!blockedUserIds.isEmpty()) {
-                commentRepository.countAllBlockedCommentsByPostIds(List.of(post.getId()), blockedUserIds)
-                        .stream().findFirst()
-                        .ifPresent(row -> detailDto.setCommentCount(
-                                (int) Math.max(0, detailDto.getCommentCount() - (Long) row[1])));
+                long blockedCount = commentRepository.countAllHiddenCommentsByPostIds(List.of(post.getId()), blockedUserIds)
+                        .stream().mapToLong(row -> ((Number) row[1]).longValue()).sum();
+                if (blockedCount > 0) {
+                    detailDto.setCommentCount((int) Math.max(0, detailDto.getCommentCount() - blockedCount));
+                }
             }
         }
         return detailDto;
