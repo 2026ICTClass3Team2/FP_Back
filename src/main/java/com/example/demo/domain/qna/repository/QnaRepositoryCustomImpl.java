@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 
 @RequiredArgsConstructor
 public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
@@ -58,6 +59,29 @@ public class QnaRepositoryCustomImpl implements QnaRepositoryCustom {
                 );
         Long total = countQuery.fetchOne();
         return new PageImpl<>(results, pageable, total != null ? total : 0L);
+    }
+
+    @Override
+    public Map<String, Long> getQnaStats() {
+        QQna qna = QQna.qna;
+        QPost post = QPost.post;
+
+        Long total = queryFactory.select(qna.count())
+                .from(qna)
+                .join(qna.post, post)
+                .where(post.status.eq("active"))
+                .fetchOne();
+
+        Long solved = queryFactory.select(qna.count())
+                .from(qna)
+                .join(qna.post, post)
+                .where(post.status.eq("active").and(qna.isSolved.isTrue()))
+                .fetchOne();
+
+        long t = total != null ? total : 0L;
+        long s = solved != null ? solved : 0L;
+        
+        return Map.of("total", t, "solved", s, "unsolved", t - s);
     }
 
     private BooleanExpression searchQuery(String query) {

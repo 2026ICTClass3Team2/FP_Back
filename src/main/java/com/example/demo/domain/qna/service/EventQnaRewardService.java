@@ -1,5 +1,7 @@
 package com.example.demo.domain.qna.service;
 
+import com.example.demo.domain.comment.entity.Comment;
+import com.example.demo.domain.comment.repository.CommentRepository;
 import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EventQnaRewardService {
 
     private final QnaRepository qnaRepository;
+    private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final PointTransactionRepository pointTransactionRepository;
@@ -39,10 +42,18 @@ public class EventQnaRewardService {
         }
 
         qna.setSolved(true);
+        qnaRepository.save(qna);
+
         Post post = qna.getPost();
         if (post != null) {
             post.setIsSolved(true);
             postRepository.save(post);
+        }
+
+        Comment comment = commentRepository.findById(commentId).orElse(null);
+        if (comment != null) {
+            comment.setIsAnswer(true);
+            commentRepository.save(comment);
         }
 
         commenter.setCurrentPoint(commenter.getCurrentPoint() + qna.getEventPoints());
