@@ -15,7 +15,7 @@ public class UserJoinDTO {
     private String email;
 
     @NotBlank(message = "아이디(username)는 필수 입력 값입니다.")
-    @Pattern(regexp = "^\\S{4,}$", message = "아이디는 공백 없이 4자 이상이어야 합니다.")
+    @Pattern(regexp = "^[a-z0-9]{4,20}$", message = "아이디는 소문자 영문과 숫자만 사용 가능하며, 4~20자여야 합니다.")
     private String username;
 
     @NotBlank(message = "비밀번호는 필수 입력 값입니다.")

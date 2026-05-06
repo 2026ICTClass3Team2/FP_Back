@@ -107,8 +107,8 @@ public class UserService {
         if (userRepository.existsByUsername(username)) {
             throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
         }
-        if (!username.matches("^\\S{4,}$")) {
-            throw new IllegalArgumentException("아이디는 공백 없이 4자 이상이어야 합니다.");
+        if (!username.matches("^[a-z0-9]{4,20}$")) {
+            throw new IllegalArgumentException("아이디는 소문자 영문과 숫자만 사용 가능하며, 4~20자여야 합니다.");
         }
 
         user.setUsername(username);
@@ -152,7 +152,7 @@ public class UserService {
     }
 
     public List<UserSummaryDTO> searchUsersForMention(String query) {
-        return userRepository.findTop5ByNicknameContainingOrUsernameContaining(query, query)
+        return userRepository.findTop5ByUsernameContaining(query)
                 .stream()
                 .map(UserSummaryDTO::new)
                 .collect(java.util.stream.Collectors.toList());
