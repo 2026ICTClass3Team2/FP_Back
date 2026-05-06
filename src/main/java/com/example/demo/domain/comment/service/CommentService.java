@@ -13,8 +13,7 @@ import com.example.demo.domain.interaction.entity.Interaction;
 import com.example.demo.domain.interaction.repository.InteractionRepository;
 import com.example.demo.domain.notification.entity.NotificationTargetType;
 import com.example.demo.domain.notification.service.NotificationService;
-import com.example.demo.domain.point.entity.PointTransaction;
-import com.example.demo.domain.point.repository.PointTransactionRepository;
+import com.example.demo.domain.qna.service.EventQnaVerificationService;
 import com.example.demo.domain.report.enums.HiddenTargetType;
 import com.example.demo.domain.report.repository.BlockRepository;
 import com.example.demo.domain.report.repository.HiddenRepository;
@@ -51,7 +50,7 @@ public class CommentService {
     private final NotificationService notificationService;
     private final UserInterestService userInterestService;
     private final QnaRepository qnaRepository;
-    private final PointTransactionRepository pointTransactionRepository;
+    private final EventQnaVerificationService eventQnaVerificationService;
 
     @Transactional
     public CommentResponseDto createComment(Long postId, CommentRequestDto requestDto, String email) {
@@ -90,7 +89,6 @@ public class CommentService {
                 .status("active")
                 .build();
 
-        int preExistingCommentCount = post.getCommentCount();
         Comment savedComment = commentRepository.save(comment);
 
         post.setCommentCount(post.getCommentCount() + 1);
@@ -101,33 +99,22 @@ public class CommentService {
             userInterestService.onComment(user.getId(), postId);
         }
 
-        // 이벤트 QnA 첫 댓글 자동 포인트 지급
-        if (parent == null && preExistingCommentCount == 0 && "qna".equals(post.getContentType())) {
+        // 이벤트 QnA 답변 검증 (LLM이 비동기로 답변 여부를 판단 후 포인트 지급)
+        if (parent == null && "qna".equals(post.getContentType()) && savedComment.getAuthor() != null) {
             try {
                 Qna eventQna = qnaRepository.findByPostId(post.getId());
-                if (eventQna != null && eventQna.isEvent() && !eventQna.isSolved()
-                        && savedComment.getAuthor() != null && eventQna.getEventPoints() > 0) {
-                    User commenter = savedComment.getAuthor();
-                    commenter.setCurrentPoint(commenter.getCurrentPoint() + eventQna.getEventPoints());
-                    userRepository.save(commenter);
-
-                    PointTransaction pointTx = PointTransaction.builder()
-                            .user(commenter)
-                            .targetId(savedComment.getId())
-                            .targetType("event")
-                            .pointChange(eventQna.getEventPoints())
-                            .pointBalance(commenter.getCurrentPoint())
-                            .build();
-                    pointTransactionRepository.save(pointTx);
-
-                    notificationService.sendNotification(
-                            commenter, "point", NotificationTargetType.system,
-                            savedComment.getId(),
-                            "이벤트 QnA 첫 답변으로 포인트가 적립되었습니다: +" + eventQna.getEventPoints()
+                if (eventQna != null && eventQna.isEvent() && !eventQna.isSolved() && eventQna.getEventPoints() > 0) {
+                    String questionTitle = post.getTitle() != null ? post.getTitle() : "";
+                    String questionBody  = post.getBody()  != null ? post.getBody().replaceAll("<[^>]+>", "") : "";
+                    String commentBody   = savedComment.getContent() != null
+                            ? savedComment.getContent().replaceAll("<[^>]+>", "") : "";
+                    eventQnaVerificationService.verifyAndRewardAsync(
+                            post.getId(), savedComment.getId(), savedComment.getAuthor().getId(),
+                            questionTitle, questionBody, commentBody
                     );
                 }
             } catch (Exception e) {
-                log.warn("이벤트 포인트 지급 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
+                log.warn("이벤트 QnA 검증 트리거 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
             }
         }
 
@@ -161,22 +148,22 @@ public class CommentService {
             log.warn("알림 전송 실패 (댓글 저장은 성공): commentId={}, 오류={}", savedComment.getId(), e.getMessage());
         }
 
-        // Mention Detection — parse embed spans first (supports spaces), then fall back to plain text
-        Set<String> mentionedNicknames = new HashSet<>();
-        Pattern htmlPattern = Pattern.compile("data-nickname=\"([^\"]+)\"");
+        // Mention Detection — parse embed spans first, then fall back to plain text
+        Set<String> mentionedUsernames = new HashSet<>();
+        Pattern htmlPattern = Pattern.compile("data-username=\"([^\"]+)\"");
         Matcher htmlMatcher = htmlPattern.matcher(requestDto.getContent());
         while (htmlMatcher.find()) {
-            mentionedNicknames.add(htmlMatcher.group(1));
+            mentionedUsernames.add(htmlMatcher.group(1));
         }
         String plainContent = requestDto.getContent().replaceAll("<[^>]*>", "");
-        Pattern pattern = Pattern.compile("@([가-힣a-zA-Z0-9._-]{2,50})");
+        Pattern pattern = Pattern.compile("@([a-z0-9]{3,20})");
         Matcher matcher = pattern.matcher(plainContent);
         while (matcher.find()) {
-            mentionedNicknames.add(matcher.group(1));
+            mentionedUsernames.add(matcher.group(1));
         }
 
-        for (String nickname : mentionedNicknames) {
-            userRepository.findByNickname(nickname).ifPresent(mentionedUser -> {
+        for (String username : mentionedUsernames) {
+            userRepository.findByUsername(username).ifPresent(mentionedUser -> {
                 if (!mentionedUser.getId().equals(user.getId())) {
                     String message = user.getNickname() + "님이 댓글에서 당신을 언급했습니다";
                     try {
@@ -188,7 +175,7 @@ public class CommentService {
                                 message
                         );
                     } catch (Exception e) {
-                        log.warn("멘션 알림 전송 실패: commentId={}, nickname={}, 오류={}", savedComment.getId(), nickname, e.getMessage());
+                        log.warn("멘션 알림 전송 실패: commentId={}, username={}, 오류={}", savedComment.getId(), username, e.getMessage());
                     }
                 }
             });

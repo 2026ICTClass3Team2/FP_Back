@@ -41,4 +41,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByStatusAndUpdatedAtBefore(UserStatus status, LocalDateTime dateTime);
 
     List<User> findTop5ByNicknameContainingOrUsernameContaining(String nickname, String username);
+
+    List<User> findTop5ByUsernameContaining(String username);
 }
