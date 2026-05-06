@@ -4,8 +4,10 @@ import com.example.demo.domain.qna.dto.QnaCardResponseDto;
 import com.example.demo.domain.qna.dto.QnaCreateRequestDto;
 import com.example.demo.domain.qna.dto.QnaDetailResponseDto;
 import org.springframework.data.domain.Page;
+import java.util.Map;
 
 public interface QnaService {
+    Map<String, Long> getQnaStats();
     void createQna(QnaCreateRequestDto qnaCreateRequestDto, String email);
     void updateQna(Long qnaId, QnaCreateRequestDto qnaCreateRequestDto, String email);
     Page<QnaCardResponseDto> getQnaList(String query, String sort, String status, int page, int size, String email);

@@ -58,6 +58,12 @@ public class QnaServiceImpl implements QnaService {
     private final LlmQnaService llmQnaService;
 
     @Override
+    @Transactional(readOnly = true)
+    public Map<String, Long> getQnaStats() {
+        return qnaRepository.getQnaStats();
+    }
+
+    @Override
     @Transactional
     public void createQna(QnaCreateRequestDto qnaCreateRequestDto, String email) {
         User user = userRepository.findByEmail(email)

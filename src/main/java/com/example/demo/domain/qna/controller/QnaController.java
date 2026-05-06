@@ -44,6 +44,11 @@ public class QnaController {
         return ResponseEntity.ok(qnaList);
     }
 
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Long>> getQnaStats() {
+        return ResponseEntity.ok(qnaService.getQnaStats());
+    }
+
     @GetMapping("/{qnaId}")
     public ResponseEntity<QnaDetailResponseDto> getQnaDetail(@PathVariable Long qnaId,
                                                               @AuthenticationPrincipal UserDetails userDetails) {
