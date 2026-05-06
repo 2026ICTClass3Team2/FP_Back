@@ -23,6 +23,7 @@ public class CommentResponseDto {
     private LocalDateTime createdAt;
     private Long authorUserId;
     private String authorNickname;
+    private String authorUsername;
     private String authorProfilePicUrl;
     private Long userId;
     private Long parentId;
@@ -54,6 +55,7 @@ public class CommentResponseDto {
         if (comment.getAuthor() != null) {
             this.authorUserId = comment.getAuthor().getId();
             this.authorNickname = comment.getAuthor().getNickname();
+            this.authorUsername = comment.getAuthor().getUsername();
             this.authorProfilePicUrl = comment.getAuthor().getProfilePicUrl();
             this.userId = comment.getAuthor().getId();
         }

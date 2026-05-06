@@ -1,7 +1,10 @@
 package com.example.demo.global.oauth2;
 
 import com.example.demo.domain.user.dto.MemberDTO;
+import com.example.demo.domain.user.entity.Suspended;
 import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.entity.UserStatus;
+import com.example.demo.domain.user.repository.SuspendedRepository;
 import com.example.demo.domain.user.repository.UserRepository;
 import com.example.demo.global.jwt.JWTUtil;
 import com.example.demo.global.redis.RedisService;
@@ -20,6 +23,7 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +37,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     private final RedisService redisService;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
     private final UserRepository userRepository;
+    private final SuspendedRepository suspendedRepository;
 
     @Value(value = "${app.frontend.url}")
     private String frontendUrl;
@@ -76,6 +81,15 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         User user = userRepository.findByEmail(email).orElse(null);
         if (user != null) {
             finalUrl += "&userId=" + user.getId() + "&role=" + user.getRole().name();
+            String statusName = user.getStatus() != null ? user.getStatus().name() : "active";
+            finalUrl += "&status=" + statusName;
+            if (UserStatus.suspended.equals(user.getStatus())) {
+                Optional<Suspended> suspension = suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(user.getId());
+                if (suspension.isPresent() && suspension.get().getReleasedAt() != null) {
+                    String releasedAtStr = suspension.get().getReleasedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                    finalUrl += "&releasedAt=" + URLEncoder.encode(releasedAtStr, StandardCharsets.UTF_8.name());
+                }
+            }
         }
         if (isNewUser) {
             finalUrl += "&isNewUser=true";
