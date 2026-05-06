@@ -4,6 +4,8 @@ import com.example.demo.domain.content.entity.Post;
 import com.example.demo.domain.content.repository.PostRepository;
 import com.example.demo.domain.qna.entity.Qna;
 import com.example.demo.domain.qna.repository.QnaRepository;
+import com.example.demo.domain.user.entity.User;
+import com.example.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +27,7 @@ public class EventQnaScheduler {
     private final WebClient webClient;
     private final PostRepository postRepository;
     private final QnaRepository qnaRepository;
+    private final UserRepository userRepository;
 
     @Value("${llm.service-url}")
     private String llmServiceUrl;
@@ -33,11 +36,13 @@ public class EventQnaScheduler {
      * 매주 월요일 오전 9시에 이벤트 QnA 3문제를 자동 생성합니다.
      * (easy 10P / medium 15P / hard 20P)
      */
-    @Scheduled(cron = "0 0 9 * * WED")
+    @Scheduled(cron = "0 30 10 * * WED")
     @Transactional
     public void generateWeeklyEventQuestions() {
         log.info("[이벤트 QnA] 주간 이벤트 문제 생성 시작");
         try {
+            User systemUser = userRepository.getReferenceById(1L);
+
             Map<?, ?> responseBody = webClient.post()
                     .uri(llmServiceUrl + "/api/event/generate")
                     .retrieve()
@@ -62,6 +67,7 @@ public class EventQnaScheduler {
                         .title(title)
                         .body(body)
                         .contentType("qna")
+                        .author(systemUser)
                         .build();
                 Post savedPost = postRepository.save(post);
 
