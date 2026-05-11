@@ -10,10 +10,14 @@ import java.util.List;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
     long countByStatus(ReportStatus status);
-    List<Report> findAllByOrderByCreatedAtDesc();
-    List<Report> findByStatusOrderByCreatedAtDesc(ReportStatus status);
 
-    @Modifying
+    @Query("SELECT r FROM Report r LEFT JOIN FETCH r.reporter ORDER BY r.createdAt DESC")
+    List<Report> findAllByOrderByCreatedAtDesc();
+
+    @Query("SELECT r FROM Report r LEFT JOIN FETCH r.reporter WHERE r.status = :status ORDER BY r.createdAt DESC")
+    List<Report> findByStatusOrderByCreatedAtDesc(@Param("status") ReportStatus status);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Report r SET r.status = :status WHERE r.id = :reportId")
     void updateStatus(@Param("reportId") Long reportId, @Param("status") ReportStatus status);
 }

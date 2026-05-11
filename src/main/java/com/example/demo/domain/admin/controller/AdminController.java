@@ -132,8 +132,9 @@ public class AdminController {
     }
 
     @PutMapping("/users/{userId}/status")
-    public ResponseEntity<?> updateUserStatus(@PathVariable Long userId, @RequestParam String status) {
-        adminService.updateUserStatus(userId, status);
+    public ResponseEntity<?> updateUserStatus(@PathVariable Long userId, @RequestParam String status,
+                                              @AuthenticationPrincipal MemberDTO memberDTO) {
+        adminService.updateUserStatus(userId, status, memberDTO.getId());
         return ResponseEntity.ok(Map.of("message", "User status updated"));
     }
 
