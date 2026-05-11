@@ -194,15 +194,19 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional(readOnly = true)
     public Page<ReportAdminDto> getReports(String statusStr, Pageable pageable) {
-        ReportStatus status = null;
-        if (statusStr != null && !statusStr.isEmpty() && !statusStr.equalsIgnoreCase("all")) {
-            status = ReportStatus.valueOf(statusStr.toLowerCase());
-        }
-
         List<Report> reports;
-        if (status == null) {
+        if (statusStr == null || statusStr.isEmpty() || statusStr.equalsIgnoreCase("all")) {
             reports = reportRepository.findAllByOrderByCreatedAtDesc();
+        } else if (statusStr.equalsIgnoreCase("resolved")) {
+            // Frontend's "resolved" filter covers both approved and rejected.
+            List<Report> approved = reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.approved);
+            List<Report> rejected = reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.rejected);
+            reports = new java.util.ArrayList<>(approved.size() + rejected.size());
+            reports.addAll(approved);
+            reports.addAll(rejected);
+            reports.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
         } else {
+            ReportStatus status = ReportStatus.valueOf(statusStr.toLowerCase());
             reports = reportRepository.findByStatusOrderByCreatedAtDesc(status);
         }
         // Applying pagination in memory for simplicity due to custom query return types
@@ -217,7 +221,9 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void updateReportStatus(Long reportId, String statusStr) {
-        ReportStatus status = ReportStatus.valueOf(statusStr.toLowerCase());
+        // Frontend sends "resolved"; persist as the canonical "approved" enum value.
+        String normalized = "resolved".equalsIgnoreCase(statusStr) ? "approved" : statusStr.toLowerCase();
+        ReportStatus status = ReportStatus.valueOf(normalized);
         reportRepository.updateStatus(reportId, status);
     }
 

@@ -71,7 +71,7 @@ public class ReportService {
         }
 
         // 3. 댓글 신고 - 신고한 댓글 숨김
-        if (requestDto.getTargetType() == ReportTargetType.comments) {
+        if (requestDto.getTargetType() == ReportTargetType.comment) {
             if (!hiddenRepository.existsByUserIdAndTargetIdAndTargetType(reporter.getId(), requestDto.getTargetId(), HiddenTargetType.comment)) {
                 Hidden hidden = Hidden.builder()
                         .user(reporter)
@@ -139,7 +139,7 @@ public class ReportService {
                         .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."))
                         .getAuthor()
                         .getId();
-            case comments:
+            case comment:
                 Comment comment = commentRepository.findById(targetId)
                         .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
                 if (comment.getAuthor() == null) {

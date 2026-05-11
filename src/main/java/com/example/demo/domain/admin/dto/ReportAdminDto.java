@@ -22,7 +22,11 @@ public class ReportAdminDto {
         this.targetType = report.getTargetType().name();
         this.category = report.getCategory().name();
         this.details = report.getDetails();
-        this.status = report.getStatus().name();
+        // Frontend treats reports as binary pending vs resolved.
+        this.status = switch (report.getStatus()) {
+            case pending -> "pending";
+            case approved, rejected -> "resolved";
+        };
         this.createdAt = report.getCreatedAt();
         if (report.getReporter() != null) {
             this.reporterUsername = report.getReporter().getUsername();
