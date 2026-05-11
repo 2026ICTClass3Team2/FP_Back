@@ -180,13 +180,37 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Transactional
-    public void updateUserStatus(Long userId, String status) {
+    public void updateUserStatus(Long userId, String status, Long adminId) {
         User user = userRepository.findById(userId).orElseThrow();
-        user.setStatus(UserStatus.valueOf(status.toLowerCase()));
-        if (!status.equalsIgnoreCase("suspended")) {
-            user.setIsSuspended(false);
-        } else {
+        UserStatus newStatus = UserStatus.valueOf(status.toLowerCase());
+        user.setStatus(newStatus);
+
+        if (newStatus == UserStatus.suspended) {
+            // Report-tool suspensions otherwise leave no audit row; without one,
+            // revertSuspend can't stamp released_at and login-time checks can't
+            // surface a reason. Stamp a default 1-day suspension here so the
+            // user has a well-formed record to act on, mirroring the auto-suspend
+            // path in warnUser when warningCount hits a multiple of 3.
             user.setIsSuspended(true);
+            User admin = userRepository.findById(adminId).orElseThrow();
+            Suspended suspended = Suspended.builder()
+                    .user(user)
+                    .admin(admin)
+                    .reason("관리자에 의한 정지 (신고 처리)")
+                    .releasedAt(LocalDateTime.now().plusDays(1))
+                    .build();
+            suspendedRepository.save(suspended);
+        } else {
+            user.setIsSuspended(false);
+            // If we're flipping a suspended user back to active/deleted via this
+            // endpoint, close out the most recent open Suspended row so the audit
+            // trail reflects the early release.
+            suspendedRepository.findTopByUserIdOrderBySuspendedAtDesc(userId).ifPresent(s -> {
+                if (s.getReleasedAt() == null || s.getReleasedAt().isAfter(LocalDateTime.now())) {
+                    s.setReleasedAt(LocalDateTime.now());
+                    suspendedRepository.save(s);
+                }
+            });
         }
         userRepository.save(user);
     }
@@ -209,8 +233,11 @@ public class AdminServiceImpl implements AdminService {
             ReportStatus status = ReportStatus.valueOf(statusStr.toLowerCase());
             reports = reportRepository.findByStatusOrderByCreatedAtDesc(status);
         }
-        // Applying pagination in memory for simplicity due to custom query return types
-        int start = (int) pageable.getOffset();
+        // Applying pagination in memory for simplicity due to custom query return types.
+        // Clamp start to size so an out-of-range page (after a filter change or several
+        // resolutions reducing the count below the current offset) yields an empty page
+        // instead of an IllegalArgumentException from subList.
+        int start = Math.min((int) pageable.getOffset(), reports.size());
         int end = Math.min((start + pageable.getPageSize()), reports.size());
         List<ReportAdminDto> dtoList = reports.subList(start, end).stream()
                 .map(ReportAdminDto::new)
@@ -242,6 +269,30 @@ public class AdminServiceImpl implements AdminService {
                 if (p != null) {
                     details.put("title", p.getTitle());
                     details.put("content", p.getBody());
+                }
+                break;
+            case "user":
+                User u = userRepository.findById(report.getTargetId()).orElse(null);
+                if (u != null) {
+                    details.put("title", u.getNickname() + " (@" + u.getUsername() + ")");
+                    details.put("content", "이메일: " + u.getEmail()
+                            + "\n상태: " + u.getStatus().name()
+                            + "\n경고 횟수: " + u.getWarningCount() + "회");
+                }
+                break;
+            case "channel":
+                Channel ch = channelRepository.findById(report.getTargetId()).orElse(null);
+                if (ch != null) {
+                    String ownerLabel = ch.getOwner() != null
+                            ? ch.getOwner().getNickname() + " (@" + ch.getOwner().getUsername() + ")"
+                            : "(소유자 없음)";
+                    details.put("title", ch.getName());
+                    details.put("content", "소유자: " + ownerLabel
+                            + "\n상태: " + ch.getStatus()
+                            + "\n구독자: " + ch.getFollowerCount() + "명 · 게시물: " + ch.getPostCount() + "개"
+                            + (ch.getDescription() != null && !ch.getDescription().isBlank()
+                                    ? "\n\n" + ch.getDescription()
+                                    : ""));
                 }
                 break;
         }
@@ -321,7 +372,7 @@ public class AdminServiceImpl implements AdminService {
         } else {
             suggestions = suggestionRepository.findByIsSeenOrderByIdDesc(isSeen);
         }
-        int start = (int) pageable.getOffset();
+        int start = Math.min((int) pageable.getOffset(), suggestions.size());
         int end = Math.min((start + pageable.getPageSize()), suggestions.size());
         return new PageImpl<>(suggestions.subList(start, end), pageable, suggestions.size());
     }

@@ -21,7 +21,7 @@ public interface AdminService {
     void suspendUser(Long userId, Long adminId, SuspendRequestDto requestDto);
     void revertWarnUser(Long userId, Long adminId, String reason);
     void revertSuspendUser(Long userId, Long adminId, String reason);
-    void updateUserStatus(Long userId, String status);
+    void updateUserStatus(Long userId, String status, Long adminId);
     
     // Report Management
     Page<ReportAdminDto> getReports(String status, Pageable pageable);
