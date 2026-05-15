@@ -59,12 +59,7 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 // https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-jackson
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
-// https://mvnrepository.com/artifact/org.modelmapper/modelmapper
-    implementation 'org.modelmapper:modelmapper:3.2.1'
-
     implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
-    // PDF 파싱을 위한 라이브러리
-    implementation 'org.apache.pdfbox:pdfbox:2.0.30' // 추가사항 체크
 
     annotationProcessor "com.querydsl:querydsl-apt:5.0.0:jakarta"
     annotationProcessor "jakarta.annotation:jakarta.annotation-api"
