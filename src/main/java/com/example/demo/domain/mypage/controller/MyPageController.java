@@ -1,8 +1,8 @@
 package com.example.demo.domain.mypage.controller;
 
 import com.example.demo.domain.mypage.dto.BlockResponseDto;
-import com.example.demo.domain.mypage.dto.EmailAuthRequestDto;
-import com.example.demo.domain.mypage.dto.EmailVerifyRequestDto;
+import com.example.demo.domain.user.dto.EmailAuthRequestDTO;
+import com.example.demo.domain.user.dto.EmailVerifyRequestDTO;
 import com.example.demo.domain.mypage.dto.MyPageProfileResponseDto;
 import com.example.demo.domain.mypage.dto.MyPostDto;
 import com.example.demo.domain.mypage.dto.PasswordUpdateRequestDto;
@@ -66,7 +66,7 @@ public class MyPageController {
 
     @PostMapping("/email/request")
     public ResponseEntity<?> requestEmailVerification(
-            @RequestBody EmailAuthRequestDto requestDto,
+            @RequestBody EmailAuthRequestDTO requestDto,
             @AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
@@ -84,7 +84,7 @@ public class MyPageController {
 
     @PostMapping("/email/verify")
     public ResponseEntity<?> verifyEmailAndChange(
-            @RequestBody EmailVerifyRequestDto requestDto,
+            @RequestBody EmailVerifyRequestDTO requestDto,
             @AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
